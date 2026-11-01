@@ -1,0 +1,5 @@
+node_modules
+dist
+# Never commit personal journal exports or backups
+*.zip
+AppleJournalEntries/
