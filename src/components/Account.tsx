@@ -13,7 +13,7 @@ export function Account() {
       </div>
     );
   }
-  if (!cloud.ready) return null;
+  if (!cloud.ready) return <p className="muted center">Loading…</p>;
   if (cloud.recovering && cloud.user) return <NewPassword />;
   if (!cloud.user) return <SignIn />;
   return (

@@ -114,6 +114,8 @@ export function startCloud() {
     setTimeout(() => void onSession(session), 0);
   });
   sb.auth.getSession().then(({ data }) => onSession(data.session));
+  // Never leave the sign-in screen blank if the server is slow to answer.
+  setTimeout(() => !state.ready && set({ ready: true }), 4000);
   // Supabase sends people back with ?code=… or ?error=…; show the error once, then tidy the address.
   const params = new URLSearchParams(location.search);
   const err = params.get('error_description');

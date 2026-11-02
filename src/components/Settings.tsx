@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { exportBackup, download, restoreBackup } from '../backup';
-import { createJournal, db, deleteJournal, getSetting, JOURNAL_COLORS, setSetting, updateJournal } from '../db';
+import { createJournal, db, deleteJournal, getSetting, isOwnJournal, JOURNAL_COLORS, setSetting, updateJournal } from '../db';
 import { JournalDot, useJournals } from '../journals';
 import { sha256 } from '../util';
 import { AccountCard } from './Account';
@@ -120,7 +120,8 @@ export function Settings({ onLock }: { onLock: () => void }) {
 }
 
 function Journals() {
-  const journals = useJournals();
+  // Journals shared with you are listed under "Share a journal"; only the owner can rename or delete one.
+  const journals = useJournals()?.filter(isOwnJournal);
   const counts = useLiveQuery(async () => {
     const m = new Map<string, number>();
     await db.entries.each((e) => m.set(e.journalId, (m.get(e.journalId) ?? 0) + 1));

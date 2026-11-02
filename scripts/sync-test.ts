@@ -64,6 +64,10 @@ const { db } = await import('../src/db');
 const sync = await import('../src/cloud/sync');
 const settle = () => new Promise((r) => setTimeout(r, 50));
 sync.trackChanges();
+// Start without the default journal a fresh install creates.
+await sync.withoutSync(async () => { await db.journals.clear(); });
+await settle();
+await sync.resetSync();
 
 // Device A has a journal before signing in.
 await db.journals.put({ id: 'jA', name: 'Journal', createdAt: 1, updatedAt: 1 });
@@ -141,6 +145,25 @@ assert.equal(tables.journals.length, 1);
 await sync.withoutSync(async () => {
   await db.entries.clear();
 });
+await settle();
+assert.equal(await sync.pendingCount(), 0);
+
+// A friend shares their journal with us as a viewer.
+tables.journals.push({ id: 'jF', owner_id: 'u2', owner_email: 'friend@x.com', data: { id: 'jF', name: 'Family', createdAt: 1, updatedAt: 1 }, updated_at: 1, deleted: false, synced_at: stamp() });
+tables.entries.push({ id: 'f1', journal_id: 'jF', data: { id: 'f1', journalId: 'jF', date: 500, title: 'Old', body: '', bookmarked: false, mediaIds: [], createdAt: 1, updatedAt: 1 }, updated_at: 1, deleted: false, synced_at: '2025-01-01T00:00:00Z' });
+tables.journal_members.push({ journal_id: 'jF', email: 'paul@x.com', role: 'viewer' });
+await sync.pull(sb, ME);
+assert.equal((await db.journals.get('jF'))!.role, 'viewer');
+assert.ok(await db.entries.get('f1'), 'older entries of a newly shared journal arrive');
+await db.entries.update('f1', { bookmarked: true, updatedAt: 99 });
+await settle();
+await sync.push(sb, ME.id);
+assert.equal(tables.entries.find((r) => r.id === 'f1')!.updated_at, 1, 'viewer edits are not uploaded');
+// Access removed → journal disappears here.
+tables.journals = tables.journals.filter((j) => j.id !== 'jF');
+await sync.pull(sb, ME);
+assert.equal(await db.journals.get('jF'), undefined);
+assert.equal(await db.entries.get('f1'), undefined);
 await settle();
 assert.equal(await sync.pendingCount(), 0);
 console.log('sync test passed');

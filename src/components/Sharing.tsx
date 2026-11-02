@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { useCloud } from '../cloud/cloud';
+import { cloudConfigured } from '../cloud/config';
 import { addMember, createEntryShare, getEntryShare, listMembers, loadSharedEntry, removeMember, shareUrl, stopEntryShare, type Member, type SharedMedia } from '../cloud/sharing';
 import type { LocalJournal } from '../cloud/sync';
 import { db, type Entry } from '../db';
@@ -14,6 +15,7 @@ export function SharedEntryPage({ token }: { token: string }) {
   const [data, setData] = useState<{ entry: Entry; media: SharedMedia[] } | null | undefined>();
   const [error, setError] = useState('');
   useEffect(() => {
+    if (!cloudConfigured) return setData(null);
     loadSharedEntry(token).then(setData, (e) => setError(errText(e)));
   }, [token]);
 

@@ -14,6 +14,11 @@ export interface Journal {
   color?: string;
   createdAt: number;
   updatedAt: number;
+  /** Set once the journal is synced to an account. */
+  ownerId?: string;
+  ownerEmail?: string;
+  /** Your access: someone else's journal shared with you is 'editor' or 'viewer'. */
+  role?: 'owner' | 'editor' | 'viewer';
 }
 
 export interface Entry {
@@ -112,9 +117,14 @@ export async function listJournals(): Promise<Journal[]> {
   return (await db.journals.toArray()).sort((a, b) => a.createdAt - b.createdAt);
 }
 
-/** The journal new entries go to when none is chosen: the oldest one. */
+/** Yours, as opposed to one someone else shared with you. */
+export const isOwnJournal = (j: Journal) => !j.role || j.role === 'owner';
+/** You can add and change entries in it. */
+export const isWritableJournal = (j: Journal) => j.role !== 'viewer';
+
+/** The journal new entries go to when none is chosen: your oldest one. */
 export async function defaultJournalId(): Promise<string> {
-  const all = await listJournals();
+  const all = (await listJournals()).filter(isOwnJournal);
   if (all.length) return all[0].id;
   return (await createJournal(DEFAULT_JOURNAL_NAME)).id;
 }

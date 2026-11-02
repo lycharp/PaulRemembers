@@ -3,10 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
 import { Gallery, Lightbox, MediaTile, PendingTile } from './Media';
-import { JournalDot, useCurrentJournal, useJournals } from '../journals';
+import { JournalDot, useCurrentJournal, useJournals, useWritableJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { ShareEntryButton } from './Sharing';
-import type { LocalJournal } from '../cloud/sync';
 
 async function fileToMedia(file: File, entryId: string): Promise<Media> {
   let blob: Blob = file;
@@ -24,7 +23,7 @@ export function EntryPage({ id }: { id?: string }) {
   const [lightbox, setLightbox] = useState<number | null>(null);
   // Journals someone shared with you as a viewer are read-only.
   const readOnly = useLiveQuery(async () => {
-    const j = stored ? ((await db.journals.get(stored.journalId)) as LocalJournal | undefined) : undefined;
+    const j = stored ? await db.journals.get(stored.journalId) : undefined;
     return j?.role === 'viewer';
   }, [stored]);
 
@@ -34,7 +33,8 @@ export function EntryPage({ id }: { id?: string }) {
     if (id || !currentLoaded) return;
     let live = true;
     (async () => {
-      const journalId = current !== 'all' ? current : await defaultJournalId();
+      const cur = current !== 'all' ? await db.journals.get(current) : undefined;
+      const journalId = cur && cur.role !== 'viewer' ? cur.id : await defaultJournalId();
       if (live) setDraft((d) => d ?? emptyEntry(journalId));
     })();
     return () => { live = false; };
@@ -263,7 +263,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
 }
 
 function JournalPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-  const journals = useJournals();
+  const journals = useWritableJournals();
   if (!journals || journals.length < 2) return null;
   const j = journals.find((x) => x.id === value);
   return (

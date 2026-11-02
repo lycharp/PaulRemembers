@@ -13,15 +13,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { db, type Entry, type Journal, type Media } from '../db';
 
 export type Kind = 'journal' | 'entry' | 'media';
-export type Role = 'owner' | 'editor' | 'viewer';
+export type Role = NonNullable<Journal['role']>;
 
-/** Extra fields a synced journal carries locally. */
-export interface CloudJournalInfo {
-  ownerId?: string;
-  ownerEmail?: string;
-  role?: Role;
-}
-export type LocalJournal = Journal & CloudJournalInfo;
+export type LocalJournal = Journal;
 
 interface OutboxItem {
   key: string; // `${kind}:${id}`
