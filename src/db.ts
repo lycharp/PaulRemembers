@@ -49,6 +49,8 @@ export interface Media {
   kind: MediaKind;
   blob: Blob;
   caption?: string;
+  /** Speech-to-text of an audio recording, once someone has asked for it. */
+  transcript?: string;
   /** When the photo/video was captured, if known. */
   takenAt?: number;
   place?: Place;

@@ -42,7 +42,7 @@ export const sdb = new SyncDB();
 export async function getState<T>(key: string) {
   return (await sdb.state.get(key))?.value as T | undefined;
 }
-const setState = (key: string, value: unknown) => sdb.state.put({ key, value });
+export const setState = (key: string, value: unknown) => sdb.state.put({ key, value });
 
 // ─── Change tracking ────────────────────────────────────────────────────────
 
@@ -119,6 +119,15 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
   };
   let left = items.length;
   const tick = () => onProgress?.(--left);
+  /** The server refused some changes; they stay queued and are retried next time. */
+  const refused: string[] = [];
+  /** True when the call worked. Throws on other errors (like being offline), so the sync stops and retries later. */
+  const refuse = (error: { code?: string; message?: string; statusCode?: string } | null) => {
+    if (!error) return true;
+    if (!isDenied(error)) throw error;
+    refused.push(error.message ?? 'refused');
+    return false;
+  };
 
   for (const item of items) {
     const now = Date.now();
@@ -127,7 +136,7 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
       if (item.kind === 'media' && item.entryId) await sb.storage.from('media').remove([`${item.entryId}/${item.id}`]);
       const { error } = await sb.from(table).update({ deleted: true, data: {}, updated_at: now }).eq('id', item.id);
       if (error && !isDenied(error)) throw error;
-      await done(item, now);
+      await done(item, error ? undefined : now);
       tick();
       continue;
     }
@@ -138,8 +147,7 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
         await done(item);
       } else {
         const { error } = await sb.from('journals').upsert({ id: j.id, data: strip(j, ['ownerId', 'ownerEmail', 'role']), updated_at: j.updatedAt });
-        if (error && !isDenied(error)) throw error;
-        await done(item, j.updatedAt);
+        if (refuse(error)) await done(item, j.updatedAt);
       }
     } else if (item.kind === 'entry') {
       const e = await db.entries.get(item.id);
@@ -147,8 +155,7 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
         await done(item);
       } else {
         const { error } = await sb.from('entries').upsert({ id: e.id, journal_id: e.journalId, data: e, updated_at: e.updatedAt, deleted: false });
-        if (error && !isDenied(error)) throw error;
-        await done(item, e.updatedAt);
+        if (refuse(error)) await done(item, e.updatedAt);
       }
     } else {
       const m = await db.media.get(item.id);
@@ -158,15 +165,16 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
       } else {
         const path = `${m.entryId}/${m.id}`;
         const up = await sb.storage.from('media').upload(path, m.blob, { upsert: true, contentType: m.blob.type || 'application/octet-stream' });
-        if (up.error && !isDenied(up.error as never)) throw up.error;
-        const { blob, ...meta } = m;
-        const { error } = await sb.from('media').upsert({ id: m.id, entry_id: m.entryId, data: { ...meta, type: blob.type }, path, updated_at: now, deleted: false });
-        if (error && !isDenied(error)) throw error;
-        await done(item, now);
+        if (refuse(up.error as never)) {
+          const { blob, ...meta } = m;
+          const { error } = await sb.from('media').upsert({ id: m.id, entry_id: m.entryId, data: { ...meta, type: blob.type }, path, updated_at: now, deleted: false });
+          if (refuse(error)) await done(item, now);
+        }
       }
     }
     tick();
   }
+  return { refused };
 }
 
 // ─── Pull ───────────────────────────────────────────────────────────────────

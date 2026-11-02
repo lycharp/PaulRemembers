@@ -98,7 +98,9 @@ alter table public.entry_shares    enable row level security;
 drop policy if exists "read" on public.journals;
 drop policy if exists "create" on public.journals;
 drop policy if exists "change" on public.journals;
-create policy "read"   on public.journals for select to authenticated using (journal_role(id) is not null);
+-- owner_id check first: a brand-new row is not yet visible to journal_role(), and
+-- upserts (INSERT … ON CONFLICT) must also pass this policy for the new row.
+create policy "read"   on public.journals for select to authenticated using (owner_id = auth.uid() or journal_role(id) is not null);
 create policy "create" on public.journals for insert to authenticated with check (owner_id = auth.uid());
 create policy "change" on public.journals for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 

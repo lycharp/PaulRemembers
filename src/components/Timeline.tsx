@@ -3,6 +3,7 @@ import { type Entry } from '../db';
 import { JournalDot, JournalSelect, useCurrentJournal, useEntries, useJournals } from '../journals';
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
 import { Gallery, MediaTile } from './Media';
+import { PoquitoBadge } from './About';
 
 export function EntryCard({ e }: { e: Entry }) {
   const mood = moodFor(e.mood);
@@ -81,6 +82,7 @@ export function Timeline() {
           <button className="btn primary" onClick={() => go('/new')}>New entry</button>
           <button className="btn" onClick={() => go('/import')}>Import from Apple Journal</button>
         </div>
+        <PoquitoBadge className="home-badge" />
       </div>
     );
   }
@@ -108,6 +110,7 @@ export function Timeline() {
           <div className="cards">{list.map((e) => <EntryCard key={e.id} e={e} />)}</div>
         </section>
       ))}
+      <PoquitoBadge className="home-badge" />
     </div>
   );
 }

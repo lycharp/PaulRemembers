@@ -1,11 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
-import { fmtDay, fmtTime, go, MOODS, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
-import { Gallery, Lightbox, MediaTile, PendingTile } from './Media';
+import { fmtDay, fmtTime, go, MOODS, setLeaveGuard, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
+import { AudioTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
 import { JournalDot, useCurrentJournal, useJournals, useWritableJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
-import { ShareEntryButton } from './Sharing';
+import { PlaceInput } from './PlaceInput';
+import { Dialog, ShareEntryButton } from './Sharing';
 
 async function fileToMedia(file: File, entryId: string): Promise<Media> {
   let blob: Blob = file;
@@ -67,6 +68,7 @@ export function EntryPage({ id }: { id?: string }) {
           {(m, i, tile) => <MediaTile key={m} id={m} onOpen={() => setLightbox(i)} {...tile} />}
         </Gallery>
       )}
+      {e.mediaIds.map((m) => <AudioTranscript key={m} id={m} readOnly={!!readOnly} />)}
       {e.title && <h1 className="entry-title">{e.title}</h1>}
       <div className="entry-body">
         {e.body.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}
@@ -168,31 +170,45 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
     );
   };
 
-  const save = async () => {
-    const empty = !draft.title.trim() && !draft.body.trim() && draft.mediaIds.length === 0;
-    if (isNew && empty) {
-      go('/');
-      return;
-    }
+  // Ask before leaving with unsaved writing (a new entry with something in it, or edits).
+  const initial = useRef(JSON.stringify(draft));
+  const empty = !draft.title.trim() && !draft.body.trim() && draft.mediaIds.length === 0;
+  const dirty = isNew ? !empty : JSON.stringify(draft) !== initial.current || removed.length > 0;
+  const [leavingTo, setLeavingTo] = useState<string | null>(null);
+  useEffect(() => {
+    if (!dirty) return;
+    setLeaveGuard(setLeavingTo);
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => {
+      setLeaveGuard(null);
+      window.removeEventListener('beforeunload', warn);
+    };
+  }, [dirty]);
+  /** Close the editor and go somewhere, without asking again. */
+  const leave = (to?: string) => {
+    setLeaveGuard(null);
+    setDraft(null);
+    if (to) go(to);
+  };
+
+  const save = async (to?: string) => {
+    if (isNew && empty) return leave(to ?? '/');
     const entry = { ...draft, updatedAt: Date.now() };
     await db.transaction('rw', db.entries, db.media, async () => {
       await db.media.bulkPut(pendingMedia.filter((m) => entry.mediaIds.includes(m.id)));
       await db.media.bulkDelete(removed);
       await db.entries.put(entry);
     });
-    setDraft(null);
-    if (isNew) go(`/entry/${entry.id}`);
+    leave(to ?? (isNew ? `/entry/${entry.id}` : undefined));
   };
 
-  const cancel = () => {
-    setDraft(null);
-    if (isNew) go('/');
-  };
+  const cancel = () => leave(isNew ? '/' : undefined);
 
   const remove = async () => {
     if (!confirm('Delete this entry? This cannot be undone.')) return;
     await deleteEntry(draft.id);
-    go('/');
+    leave('/');
   };
 
   return (
@@ -201,7 +217,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         <button className="btn ghost" onClick={cancel}>Cancel</button>
         <div className="row">
           {!isNew && <button className="btn ghost danger" onClick={remove}>Delete</button>}
-          <button className="btn primary" onClick={save} disabled={!!busy || !!recorder}>Done</button>
+          <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder}>Done</button>
         </div>
       </div>
 
@@ -246,8 +262,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         <button className="btn" onClick={() => fileRef.current?.click()}>🖼️ Photos & videos</button>
         <button className={`btn ${recorder ? 'recording' : ''}`} onClick={toggleRecording}>{recorder ? '⏹ Stop recording' : '🎙️ Record audio'}</button>
         <button className="btn" onClick={useLocation}>📍 Use my location</button>
-        <input className="place-input" placeholder="Place" value={draft.place?.name ?? ''}
-          onChange={(e) => set({ place: e.target.value ? { ...draft.place, name: e.target.value } : undefined })} />
+        <PlaceInput value={draft.place} onChange={(place) => set({ place })} />
       </div>
       <div className="moods">
         <span className="muted">How are you feeling?</span>
@@ -258,6 +273,16 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       </div>
       {busy && <p className="muted">{busy}</p>}
       <p className="muted small">{fmtDay(draft.date)} at {fmtTime(draft.date)} · {wordCount(draft.body)} words</p>
+      {leavingTo != null && (
+        <Dialog title={isNew ? 'Save this entry?' : 'Save your changes?'} onClose={() => setLeavingTo(null)}>
+          <p className="muted">{isNew ? 'You have not saved this new entry yet.' : 'You have changes to this entry that are not saved yet.'}</p>
+          <div className="row">
+            <button className="btn primary" onClick={() => save(leavingTo)} disabled={!!busy || !!recorder}>Save</button>
+            <button className="btn danger" onClick={() => leave(leavingTo)}>Discard</button>
+            <button className="btn ghost" onClick={() => setLeavingTo(null)}>Keep writing</button>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

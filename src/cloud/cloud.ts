@@ -5,7 +5,9 @@ import { createClient, type Session, type SupabaseClient } from '@supabase/supab
 import { useSyncExternalStore } from 'react';
 import { db } from '../db';
 import { cloudConfigured, SUPABASE_KEY, SUPABASE_URL } from './config';
-import { getState, linkDevice, pendingCount, pull, push, resetSync, sdb, setOnQueued, trackChanges, withoutSync } from './sync';
+import { getState, linkDevice, pendingCount, pull, push, resetSync, sdb, setOnQueued, setState, trackChanges, withoutSync } from './sync';
+
+const LINK_VERSION = 2;
 
 export interface CloudState {
   configured: boolean;
@@ -65,17 +67,26 @@ export async function syncNow(): Promise<void> {
     set({ syncing: true, error: undefined });
     try {
       const sb = supabase();
-      if ((await getState<string>('userId')) !== user.id) await linkDevice(sb, user);
+      // LINK_VERSION 2: an earlier server rule refused first uploads, and those
+      // changes were dropped; linking again re-queues everything not yet online.
+      if ((await getState<string>('userId')) !== user.id || (await getState<number>('linkVersion')) !== LINK_VERSION) {
+        await resetSync();
+        await linkDevice(sb, user);
+        await setState('linkVersion', LINK_VERSION);
+      }
       set({ pending: await pendingCount() });
-      await push(sb, user.id, (left) => set({ pending: left }));
+      const { refused } = await push(sb, user.id, (left) => set({ pending: left }));
       await pull(sb, user);
       set({ lastSync: Date.now(), pending: await pendingCount() });
+      if (refused.length) throw new Error(`the server refused ${refused.length} changes (${refused[0]})`);
     } catch (e) {
       console.error('Sync failed', e);
       const msg = e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e);
       const error = /schema cache|does not exist|bucket not found/i.test(msg)
         ? 'the online database is not set up yet (run supabase/setup.sql in the Supabase SQL Editor)'
-        : msg;
+        : /row-level security/i.test(msg)
+          ? 'the online database needs an update (run the latest supabase/setup.sql in the Supabase SQL Editor)'
+          : msg;
       set({ error, pending: await pendingCount() });
     } finally {
       running = null;

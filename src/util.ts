@@ -2,12 +2,36 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { db } from './db';
 
 /** Tiny hash router: #/, #/entry/<id>, #/new, #/calendar, #/insights, #/import, #/settings */
-const subscribe = (cb: () => void) => {
-  window.addEventListener('hashchange', cb);
-  return () => window.removeEventListener('hashchange', cb);
+const readHash = () => window.location.hash.replace(/^#/, '') || '/';
+let route = readHash();
+const listeners = new Set<() => void>();
+
+/**
+ * A page with unsaved work can hold navigation: it gets the route the person
+ * tried to open and decides (e.g. after asking) whether to go there with go().
+ */
+let leaveGuard: ((to: string) => void) | null = null;
+export const setLeaveGuard = (fn: ((to: string) => void) | null) => {
+  leaveGuard = fn;
 };
-export const useRoute = () =>
-  useSyncExternalStore(subscribe, () => window.location.hash.replace(/^#/, '') || '/');
+
+window.addEventListener('hashchange', () => {
+  const next = readHash();
+  if (next === route) return;
+  if (leaveGuard) {
+    // Put the address back (without another hashchange) and let the page ask.
+    history.replaceState(null, '', `#${route}`);
+    leaveGuard(next);
+    return;
+  }
+  route = next;
+  listeners.forEach((l) => l());
+});
+const subscribe = (cb: () => void) => {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+};
+export const useRoute = () => useSyncExternalStore(subscribe, () => route);
 export const go = (path: string) => {
   window.location.hash = path;
 };

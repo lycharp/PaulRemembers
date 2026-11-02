@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { JournalSelect, useEntries } from '../journals';
 import { dayKey, wordCount } from '../util';
 import { EntryCard } from './Timeline';
+import { removePlace, renamePlace, usePlaces } from '../places';
 
 export function Insights() {
   const entries = useEntries();
@@ -41,7 +42,7 @@ export function Insights() {
     });
     return {
       streak, longest, thisYear, words, days: days.size, total: entries.length,
-      places: [...places].sort((a, b) => b[1] - a[1]).slice(0, 8),
+      places: places.size,
       onThisDay,
     };
   }, [entries]);
@@ -58,7 +59,7 @@ export function Insights() {
         <Stat label="Days journaled" value={stats.days} />
         <Stat label="Words written" value={stats.words.toLocaleString()} />
         <Stat label="Photos, videos & audio" value={entries?.reduce((n, e) => n + e.mediaIds.length, 0) ?? 0} />
-        <Stat label="Places" value={stats.places.length} />
+        <Stat label="Places" value={stats.places} />
       </div>
       {stats.onThisDay.length > 0 && (
         <section>
@@ -66,14 +67,7 @@ export function Insights() {
           <div className="cards">{stats.onThisDay.map((e) => <EntryCard key={e.id} e={e} />)}</div>
         </section>
       )}
-      {stats.places.length > 0 && (
-        <section>
-          <h2 className="month">Places</h2>
-          <ul className="place-list">
-            {stats.places.map(([name, n]) => <li key={name}><span>📍 {name}</span><span className="muted">{n}</span></li>)}
-          </ul>
-        </section>
-      )}
+      <PlacesSection />
     </div>
   );
 }
@@ -84,5 +78,48 @@ function Stat({ label, value }: { label: string; value: number | string }) {
       <div className="stat-value">{value}</div>
       <div className="stat-label">{label}</div>
     </div>
+  );
+}
+
+/** Every place your entries use, with rename (fixes typos, merges duplicates) and remove. */
+function PlacesSection() {
+  const places = usePlaces();
+  const [msg, setMsg] = useState('');
+  const [all, setAll] = useState(false);
+  if (!places?.length) return null;
+  const shown = all ? places : places.slice(0, 10);
+
+  const rename = async (name: string) => {
+    const to = prompt(`Rename "${name}" to:`, name)?.trim();
+    if (!to || to === name) return;
+    const merging = places.some((p) => p.name.toLowerCase() === to.toLowerCase() && p.name !== name);
+    if (merging && !confirm(`"${to}" is already a place. Merge "${name}" into it?`)) return;
+    const n = await renamePlace(name, to);
+    setMsg(`Updated ${n} ${n === 1 ? 'entry' : 'entries'}.`);
+  };
+  const remove = async (name: string, count: number) => {
+    if (!confirm(`Remove "${name}" from ${count === 1 ? 'the entry that uses it' : `all ${count} entries that use it`}? The entries themselves are kept.`)) return;
+    const n = await removePlace(name);
+    setMsg(`Removed "${name}" from ${n} ${n === 1 ? 'entry' : 'entries'}.`);
+  };
+
+  return (
+    <section>
+      <h2 className="month">Places</h2>
+      <p className="muted small">Places you have used in any journal. Rename one to fix a typo or merge two that are the same. A place disappears once no entry uses it.</p>
+      <ul className="place-list">
+        {shown.map((p) => (
+          <li key={p.name}>
+            <span>📍 {p.name} <span className="muted small">· {p.count} {p.count === 1 ? 'entry' : 'entries'}</span></span>
+            <span className="place-actions">
+              <button className="btn small ghost" onClick={() => rename(p.name)}>Rename</button>
+              <button className="btn small ghost danger" onClick={() => remove(p.name, p.count)}>Remove</button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {places.length > 10 && <button className="link" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${places.length} places`}</button>}
+      {msg && <div className="notice ok">{msg}</div>}
+    </section>
   );
 }

@@ -193,3 +193,53 @@ function VideoFallback({ url }: { url: string }) {
     </div>
   );
 }
+
+/** Under an entry: turn an audio recording into text you can copy. */
+export function AudioTranscript({ id, readOnly }: { id: string; readOnly?: boolean }) {
+  const media = useLiveQuery(() => db.media.get(id), [id]);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+  // For a journal shared with you read-only, the transcript is shown but not saved.
+  const [unsaved, setUnsaved] = useState<string>();
+  if (!media || media.kind !== 'audio') return null;
+  const text = media.transcript ?? unsaved;
+
+  const run = async () => {
+    setError('');
+    try {
+      const { transcribe } = await import('../transcribe');
+      const result = (await transcribe(media.blob, setBusy)) || '(No speech found in this recording.)';
+      if (readOnly) setUnsaved(result);
+      else await db.media.update(id, { transcript: result });
+    } catch (e) {
+      setError(`Could not transcribe this recording: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy('');
+    }
+  };
+  const copy = async () => {
+    await navigator.clipboard.writeText(text ?? '');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="transcript">
+      {text ? (
+        <>
+          <div className="row">
+            <strong className="grow">🎙️ Transcript</strong>
+            <button className="btn small" onClick={copy}>{copied ? 'Copied ✓' : 'Copy text'}</button>
+            <button className="btn small ghost" onClick={run} disabled={!!busy}>Redo</button>
+          </div>
+          <p>{text}</p>
+        </>
+      ) : (
+        <button className="btn small" onClick={run} disabled={!!busy}>📝 Transcribe recording</button>
+      )}
+      {busy && <p className="muted small">{busy}</p>}
+      {error && <p className="error-text small">{error}</p>}
+    </div>
+  );
+}

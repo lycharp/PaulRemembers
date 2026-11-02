@@ -329,3 +329,30 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .dialog { width: min(480px, 100%); display: flex; flex-direction: column; gap: 12px; margin: 0; }
 .dialog h3 { margin: 0; }
 .shared-page { max-width: 760px; margin: 0 auto; padding: 32px 16px; }
+
+/* Place field with saved places */
+.place-field { position: relative; flex: 1; min-width: 160px; display: flex; }
+.place-field .place-input { width: 100%; }
+.place-options {
+  position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); z-index: 20; list-style: none; margin: 0; padding: 4px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); max-height: 260px; overflow-y: auto;
+}
+.place-options li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+.place-options li.on { background: var(--accent-soft); color: var(--accent); }
+
+/* Audio transcripts */
+.transcript { margin: 8px 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); }
+.transcript p { margin: 8px 0 0; white-space: pre-wrap; }
+
+/* Places on Insights */
+.place-list .place-actions { display: flex; gap: 4px; align-items: center; }
+
+/* PoquitoWare */
+.poquito-badge { display: inline-flex; align-items: center; gap: 10px; background: none; border: 0; padding: 6px 10px; border-radius: 12px; color: var(--muted); font: inherit; font-size: 0.85rem; cursor: pointer; }
+.poquito-badge:hover { background: var(--surface-2); }
+.poquito-badge strong { color: var(--text); }
+.home-badge { display: flex; margin: 36px auto 12px; }
+.about { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+.about h3 { margin: 10px 0 0; font-size: 1.3rem; }
+.about p { margin: 0; }
+.about .brand-line { font-weight: 600; background: linear-gradient(90deg, #ff9a3c, #e5365f); -webkit-background-clip: text; background-clip: text; color: transparent; }
