@@ -13,7 +13,7 @@
  * patterns and only the body paragraphs go through DOMParser.
  */
 import JSZip from 'jszip';
-import { db, newId, type Entry, type Media, type MediaKind, type Place } from '../db';
+import { db, defaultJournalId, newId, type Entry, type Media, type MediaKind, type Place } from '../db';
 
 /** Seconds between 1970-01-01 and Apple's reference date 2001-01-01. */
 const APPLE_EPOCH_OFFSET = 978307200;
@@ -129,6 +129,17 @@ export function parseEntryHtml(fileName: string, html: string): ParsedEntry {
   return { fileName, date, title, body, assets };
 }
 
+/**
+ * Day + title, ignoring case and spacing. Untitled entries also compare the
+ * start of the text, so two untitled entries on the same day are not merged.
+ */
+export function duplicateKey(e: Pick<Entry, 'date' | 'title' | 'body'>): string {
+  const d = new Date(e.date);
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+  const title = norm(e.title);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}|${title || 'untitled:' + norm(e.body).slice(0, 80)}`;
+}
+
 /** Entry file names in the order index.html lists them (newest first). */
 export function parseIndexOrder(html: string): string[] {
   return [...html.matchAll(/href="Entries\/([^"]+)"/g)].map((m) => decodeURIComponent(m[1]));
@@ -164,7 +175,7 @@ export async function isHeic(blob: Blob): Promise<boolean> {
 /** HEIC is only viewable in Safari, so convert it to JPEG. */
 export async function heicToJpeg(blob: Blob): Promise<Blob> {
   const { default: heic2any } = await import('heic2any');
-  const out = await heic2any({ blob, toType: 'image/jpeg', quality: 0.88 });
+  const out = await heic2any({ blob, toType: 'image/jpeg', quality: 0.92 });
   return Array.isArray(out) ? out[0] : out;
 }
 
@@ -190,8 +201,10 @@ function placeFrom(meta: ResourceMeta | undefined): Place | undefined {
 
 export async function importAppleJournal(
   src: ImportSource,
-  onProgress: (p: ImportProgress) => void = () => {}
+  onProgress: (p: ImportProgress) => void = () => {},
+  journalId?: string
 ): Promise<ImportResult> {
+  const targetJournal = journalId ?? (await defaultJournalId());
   const entryPaths = src.paths.filter((p) => /(^|\/)Entries\/[^/]+\.html?$/i.test(p));
   if (entryPaths.length === 0) {
     throw new Error(
@@ -206,6 +219,9 @@ export async function importAppleJournal(
   if (has.has(`${root}index.html`)) order = parseIndexOrder(await src.readText(`${root}index.html`));
 
   const result: ImportResult = { imported: 0, skipped: 0, media: 0, warnings: [] };
+  // An entry already in the journal (any journal) with the same day and title
+  // is treated as a duplicate, whether it was imported or typed in by hand.
+  const seen = new Set((await db.entries.toArray()).map(duplicateKey));
   const total = entryPaths.length;
 
   for (let i = 0; i < entryPaths.length; i++) {
@@ -220,6 +236,12 @@ export async function importAppleJournal(
     }
 
     const parsed = parseEntryHtml(fileName, await src.readText(path));
+    const dupKey = duplicateKey({ date: (parsed.date ?? new Date()).getTime(), title: parsed.title, body: parsed.body });
+    if (seen.has(dupKey)) {
+      result.skipped++;
+      continue;
+    }
+    seen.add(dupKey);
     const entryId = newId();
     const media: Media[] = [];
     let mood: string | undefined;
@@ -286,6 +308,7 @@ export async function importAppleJournal(
     const now = Date.now();
     const entry: Entry = {
       id: entryId,
+      journalId: targetJournal,
       date,
       title: parsed.title,
       body: parsed.body,

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { createJournal } from '../db';
+import { useCurrentJournal, useJournals } from '../journals';
 import { importAppleJournal, sourceFromFiles, sourceFromZip, type ImportProgress, type ImportResult } from '../importer/appleJournal';
 import { go } from '../util';
 
@@ -7,6 +9,15 @@ export function ImportPage() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState('');
   const [drag, setDrag] = useState(false);
+  const journals = useJournals();
+  const [current] = useCurrentJournal();
+  const [picked, setPicked] = useState<string>();
+  const target = picked ?? (current !== 'all' ? current : journals?.[0]?.id);
+  const pickJournal = async (v: string) => {
+    if (v !== '__new') return setPicked(v);
+    const name = prompt('Name for the new journal');
+    if (name?.trim()) setPicked((await createJournal(name)).id);
+  };
 
   const run = async (files: File[]) => {
     if (!files.length) return;
@@ -16,7 +27,7 @@ export function ImportPage() {
     try {
       const zip = files.length === 1 && /\.zip$/i.test(files[0].name);
       const src = zip ? await sourceFromZip(files[0]) : sourceFromFiles(files);
-      setResult(await importAppleJournal(src, setProgress));
+      setResult(await importAppleJournal(src, setProgress, target));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -32,6 +43,18 @@ export function ImportPage() {
         <li>In the <strong>Files</strong> app, long-press the <code>AppleJournalEntries</code> folder and tap <strong>Compress</strong>.</li>
         <li>On your PC, download the .zip from <a href="https://www.icloud.com/iclouddrive" target="_blank" rel="noreferrer">icloud.com</a> (or open iCloud Drive in File Explorer), then drop it below.</li>
       </ol>
+
+      {journals && (
+        <p className="import-target">
+          <label>
+            Add the entries to{' '}
+            <select value={target} onChange={(e) => pickJournal(e.target.value)} disabled={!!progress}>
+              {journals.map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
+              <option value="__new">＋ New journal…</option>
+            </select>
+          </label>
+        </p>
+      )}
 
       <label className={`dropzone ${drag ? 'drag' : ''} ${progress ? 'busy' : ''}`}
         onDragOver={(e) => (e.preventDefault(), setDrag(true))}
@@ -72,7 +95,7 @@ export function ImportPage() {
       {result && (
         <div className="notice ok">
           <strong>Imported {result.imported} {result.imported === 1 ? 'entry' : 'entries'}</strong> with {result.media} photos, videos and maps.
-          {result.skipped > 0 && <> {result.skipped} were already in your journal and were skipped.</>}
+          {result.skipped > 0 && <> Skipped {result.skipped} {result.skipped === 1 ? 'entry that was' : 'entries that were'} already in your journal (same date and title).</>}
           {result.warnings.length > 0 && (
             <details>
               <summary>{result.warnings.length} notes</summary>
@@ -82,7 +105,7 @@ export function ImportPage() {
           <div className="row"><button className="btn primary" onClick={() => go('/')}>Open journal</button></div>
         </div>
       )}
-      <p className="muted small">Everything stays on this computer. Nothing is uploaded anywhere. Importing the same export again only adds entries that are new.</p>
+      <p className="muted small">Everything stays on this computer. Nothing is uploaded anywhere. Importing the same export again only adds entries that are new: anything with the same date and title as an existing entry is skipped.</p>
     </div>
   );
 }

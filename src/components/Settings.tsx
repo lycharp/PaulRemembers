@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { exportBackup, download, restoreBackup } from '../backup';
-import { db, getSetting, setSetting } from '../db';
+import { createJournal, db, deleteJournal, getSetting, JOURNAL_COLORS, setSetting, updateJournal } from '../db';
+import { JournalDot, useJournals } from '../journals';
 import { sha256 } from '../util';
 
 export function Settings({ onLock }: { onLock: () => void }) {
@@ -54,6 +55,8 @@ export function Settings({ onLock }: { onLock: () => void }) {
     <div className="settings">
       <h1>Settings</h1>
 
+      <Journals />
+
       <section className="card pad">
         <h3>Backup</h3>
         <p className="muted">Your journal is saved in this browser on this computer. Download a backup now and then, so you have a copy if the browser data is ever cleared.</p>
@@ -103,5 +106,54 @@ export function Settings({ onLock }: { onLock: () => void }) {
 
       {msg && <div className="notice ok">{msg}</div>}
     </div>
+  );
+}
+
+function Journals() {
+  const journals = useJournals();
+  const counts = useLiveQuery(async () => {
+    const m = new Map<string, number>();
+    await db.entries.each((e) => m.set(e.journalId, (m.get(e.journalId) ?? 0) + 1));
+    return m;
+  }, []);
+  if (!journals) return null;
+
+  const rename = async (id: string, old: string) => {
+    const name = prompt('New name for this journal', old);
+    if (name?.trim()) await updateJournal(id, { name: name.trim() });
+  };
+  const recolor = async (id: string, color?: string) => {
+    const i = JOURNAL_COLORS.indexOf(color ?? '');
+    await updateJournal(id, { color: JOURNAL_COLORS[(i + 1) % JOURNAL_COLORS.length] });
+  };
+  const remove = async (id: string, name: string) => {
+    const others = journals.filter((j) => j.id !== id);
+    const n = counts?.get(id) ?? 0;
+    const to = others[0];
+    if (!confirm(n ? `Delete the journal "${name}"? Its ${n} ${n === 1 ? 'entry' : 'entries'} will move to "${to.name}", so nothing is lost.` : `Delete the empty journal "${name}"?`)) return;
+    await deleteJournal(id, to.id);
+  };
+  const add = async () => {
+    const name = prompt('Name for the new journal (for example Travel or Family)');
+    if (name?.trim()) await createJournal(name);
+  };
+
+  return (
+    <section className="card pad">
+      <h3>Journals</h3>
+      <p className="muted">Keep separate journals, like Personal, Travel or Family. Every entry belongs to one journal; you can move an entry by editing it.</p>
+      <ul className="journal-manage">
+        {journals.map((j) => (
+          <li key={j.id}>
+            <button className="color-btn" title="Change colour" onClick={() => recolor(j.id, j.color)}><JournalDot color={j.color} /></button>
+            <span className="jm-name">{j.name}</span>
+            <span className="muted small">{counts?.get(j.id) ?? 0} entries</span>
+            <button className="btn small ghost" onClick={() => rename(j.id, j.name)}>Rename</button>
+            {journals.length > 1 && <button className="btn small ghost danger" onClick={() => remove(j.id, j.name)}>Delete</button>}
+          </li>
+        ))}
+      </ul>
+      <button className="btn" onClick={add}>＋ New journal</button>
+    </section>
   );
 }

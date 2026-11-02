@@ -1,12 +1,10 @@
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo } from 'react';
-import { db } from '../db';
+import { JournalSelect, useEntries } from '../journals';
 import { dayKey, wordCount } from '../util';
 import { EntryCard } from './Timeline';
 
 export function Insights() {
-  const entries = useLiveQuery(() => db.entries.orderBy('date').reverse().toArray(), []);
-  const mediaCount = useLiveQuery(() => db.media.count(), []);
+  const entries = useEntries();
 
   const stats = useMemo(() => {
     if (!entries) return null;
@@ -51,6 +49,7 @@ export function Insights() {
   if (!stats) return null;
   return (
     <div className="insights">
+      <JournalSelect className="mobile-only page-select" />
       <div className="stat-grid">
         <Stat label="Day streak" value={stats.streak} />
         <Stat label="Longest streak" value={stats.longest} />
@@ -58,7 +57,7 @@ export function Insights() {
         <Stat label="Total entries" value={stats.total} />
         <Stat label="Days journaled" value={stats.days} />
         <Stat label="Words written" value={stats.words.toLocaleString()} />
-        <Stat label="Photos, videos & audio" value={mediaCount ?? 0} />
+        <Stat label="Photos, videos & audio" value={entries?.reduce((n, e) => n + e.mediaIds.length, 0) ?? 0} />
         <Stat label="Places" value={stats.places.length} />
       </div>
       {stats.onThisDay.length > 0 && (

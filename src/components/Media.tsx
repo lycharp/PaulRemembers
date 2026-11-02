@@ -1,34 +1,145 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useState } from 'react';
-import { db } from '../db';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { db, type Media } from '../db';
 import { useMediaUrl } from '../util';
 
-export function MediaTile({ id, onOpen, onRemove }: { id: string; onOpen?: () => void; onRemove?: () => void }) {
+/** Width ÷ height. 0 marks an item (audio) that takes a full-width strip of its own. */
+type OnRatio = (ratio: number) => void;
+
+interface TileProps {
+  style?: CSSProperties;
+  onRatio?: OnRatio;
+  onOpen?: () => void;
+  onRemove?: () => void;
+  /** Card thumbnails: audio shows as an icon instead of a player. */
+  compact?: boolean;
+}
+
+export function MediaTile({ id, ...rest }: TileProps & { id: string }) {
   const media = useLiveQuery(() => db.media.get(id), [id]);
   const url = useMediaUrl(id);
+  if (!media || !url) return <div className="tile tile-loading" style={rest.style} />;
+  return <TileBody kind={media.kind} url={url} caption={media.caption} {...rest} />;
+}
+
+/** A tile for media that is not saved yet (picked in the editor). */
+export function PendingTile({ media, ...rest }: TileProps & { media: Media }) {
+  const [url, setUrl] = useState<string>();
+  useEffect(() => {
+    const u = URL.createObjectURL(media.blob);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [media]);
+  if (!url) return <div className="tile tile-loading" style={rest.style} />;
+  return <TileBody kind={media.kind} url={url} caption={media.caption} {...rest} />;
+}
+
+function TileBody({ kind, url, caption, style, onRatio, onOpen, onRemove, compact }: TileProps & { kind: Media['kind']; url: string; caption?: string }) {
   const [failed, setFailed] = useState(false);
-  if (!media || !url) return <div className="tile tile-loading" />;
+  const audio = kind === 'audio';
+  useEffect(() => {
+    if (audio) onRatio?.(compact ? 1 : 0);
+    else if (failed) onRatio?.(16 / 9);
+  }, [audio, compact, failed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const open = onOpen && ((e: React.MouseEvent) => (e.stopPropagation(), onOpen()));
   return (
-    <div className={`tile tile-${media.kind}`}>
+    <div className={`tile tile-${kind} ${audio && !compact ? 'tile-strip' : ''} ${onOpen ? 'zoomable' : ''}`} style={style}>
       {failed ? (
         <VideoFallback url={url} />
-      ) : media.kind === 'video' ? (
-        <video src={url} preload="metadata" muted onClick={onOpen} onError={() => setFailed(true)} />
-      ) : media.kind === 'audio' ? (
-        <div className="tile-audio-inner">
-          <span aria-hidden>🎙️</span>
-          <audio src={url} controls />
-        </div>
+      ) : kind === 'video' ? (
+        <video src={url} preload="metadata" muted onClick={open}
+          onLoadedMetadata={(e) => e.currentTarget.videoHeight && onRatio?.(e.currentTarget.videoWidth / e.currentTarget.videoHeight)}
+          onError={() => setFailed(true)} />
+      ) : audio ? (
+        compact ? <div className="tile-audio-icon">🎙️</div> : (
+          <div className="tile-audio-inner">
+            <span aria-hidden>🎙️</span>
+            <audio src={url} controls />
+          </div>
+        )
       ) : (
-        <img src={url} alt={media.caption ?? ''} loading="lazy" onClick={onOpen} />
+        <img src={url} alt={caption ?? ''} loading="lazy" onClick={open}
+          onLoad={(e) => e.currentTarget.naturalHeight && onRatio?.(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)} />
       )}
-      {media.kind === 'video' && !failed && <span className="tile-badge" onClick={onOpen}>▶</span>}
-      {media.caption && <span className="tile-caption">{media.caption}</span>}
+      {kind === 'video' && !failed && <span className="tile-badge" onClick={open}>▶</span>}
+      {caption && <span className="tile-caption">{caption}</span>}
       {onRemove && (
-        <button className="tile-remove" title="Remove" onClick={onRemove}>
+        <button className="tile-remove" title="Remove" onClick={(e) => (e.stopPropagation(), onRemove())}>
           ×
         </button>
       )}
+    </div>
+  );
+}
+
+const GAP = 4;
+const DEFAULT_RATIO = 4 / 3;
+
+/**
+ * Lays photos and videos out in rows that keep each item's real shape, so
+ * nothing is cropped and rows grow as the window widens. Rows are filled
+ * until they would get shorter than `rowHeight`; the last row is never
+ * taller than `maxHeight`. With `singleRow`, everything goes in one row.
+ */
+export function Gallery({ ids, rowHeight = 260, maxHeight = 560, singleRow = false, className = '', children }: {
+  ids: string[];
+  rowHeight?: number;
+  maxHeight?: number;
+  singleRow?: boolean;
+  className?: string;
+  children: (id: string, index: number, tile: { style: CSSProperties; onRatio: OnRatio }) => ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [ratios, setRatios] = useState<Record<string, number>>({});
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setWidth(el.clientWidth);
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const rows = useMemo(() => {
+    // On narrow screens aim for shorter rows so more than one photo fits.
+    const target = Math.min(rowHeight, width * 0.4);
+    const out: { items: { id: string; index: number; ratio: number }[]; height: number }[] = [];
+    let row: { id: string; index: number; ratio: number }[] = [];
+    const heightFor = (r: typeof row) => (width - GAP * (r.length - 1)) / r.reduce((n, x) => n + x.ratio, 0);
+    const flush = (h: number) => {
+      if (row.length) out.push({ items: row, height: h });
+      row = [];
+    };
+    ids.forEach((id, index) => {
+      const ratio = ratios[id] ?? DEFAULT_RATIO;
+      if (ratio === 0) {
+        flush(Math.min(heightFor(row), maxHeight));
+        out.push({ items: [{ id, index, ratio: 0 }], height: 0 });
+        return;
+      }
+      row.push({ id, index, ratio });
+      if (!singleRow && heightFor(row) <= target) flush(heightFor(row));
+    });
+    flush(Math.min(heightFor(row), maxHeight));
+    return out;
+  }, [ids, ratios, width, rowHeight, maxHeight, singleRow]);
+
+  return (
+    <div ref={ref} className={`gallery ${className}`}>
+      {width > 0 && rows.map((r, ri) => (
+        <div key={ri} className="gallery-row" style={{ gap: GAP }}>
+          {r.items.map(({ id, index, ratio }) =>
+            <Fragment key={id}>
+              {children(id, index, {
+                style: ratio === 0 ? { width: '100%' } : { width: Math.floor(ratio * r.height), height: Math.floor(r.height) },
+                onRatio: (x) => setRatios((m) => (Math.abs((m[id] ?? -1) - x) < 0.001 ? m : { ...m, [id]: x })),
+              })}
+            </Fragment>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -75,7 +186,7 @@ export function Thumb({ id }: { id?: string }) {
  */
 function VideoFallback({ url }: { url: string }) {
   return (
-    <div className="video-fallback">
+    <div className="video-fallback" onClick={(e) => e.stopPropagation()}>
       <span>🎬 This video can't play in this browser yet.</span>
       <a href="ms-windows-store://pdp/?ProductId=9N4WGH0Z6VHQ">Get HEVC Video Extensions</a>
       <a href={url} download="video.mov">Download video</a>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getSetting } from './db';
+import { createJournal, getSetting } from './db';
+import { JournalDot, useCurrentJournal, useJournals } from './journals';
 import { CalendarView } from './components/CalendarView';
 import { EntryPage } from './components/EntryPage';
 import { ImportPage } from './components/ImportPage';
@@ -61,9 +62,41 @@ export function App() {
             </a>
           ))}
         </nav>
+        <JournalList />
       </aside>
       <main className="main">{page}</main>
       <button className="fab" onClick={() => go('/new')} aria-label="New entry">＋</button>
+    </div>
+  );
+}
+
+function JournalList() {
+  const journals = useJournals();
+  const [current, setCurrent] = useCurrentJournal();
+  const pick = (c: string) => {
+    setCurrent(c);
+    if (!['/', '/calendar', '/insights'].includes(window.location.hash.replace(/^#/, '') || '/')) go('/');
+  };
+  const add = async () => {
+    const name = prompt('Name for the new journal (for example Travel or Family)');
+    if (!name?.trim()) return;
+    pick((await createJournal(name)).id);
+  };
+  if (!journals) return null;
+  return (
+    <div className="journal-list">
+      <div className="journal-list-head">Journals</div>
+      {journals.length > 1 && (
+        <button className={current === 'all' ? 'on' : ''} onClick={() => pick('all')}>
+          <span className="journal-dot all" aria-hidden /> All journals
+        </button>
+      )}
+      {journals.map((j) => (
+        <button key={j.id} className={current === j.id || (journals.length === 1 && current === 'all') ? 'on' : ''} onClick={() => pick(j.id)}>
+          <JournalDot color={j.color} /> {j.name}
+        </button>
+      ))}
+      <button className="journal-add" onClick={add}>＋ New journal</button>
     </div>
   );
 }

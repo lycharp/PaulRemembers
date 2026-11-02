@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
-import { db, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
+import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
-import { Lightbox, MediaTile } from './Media';
+import { Gallery, Lightbox, MediaTile, PendingTile } from './Media';
+import { JournalDot, useCurrentJournal, useJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 
 async function fileToMedia(file: File, entryId: string): Promise<Media> {
@@ -20,9 +21,17 @@ export function EntryPage({ id }: { id?: string }) {
   const [isNew] = useState(!id);
   const [lightbox, setLightbox] = useState<number | null>(null);
 
+  const [current, , currentLoaded] = useCurrentJournal();
+  const journals = useJournals();
   useEffect(() => {
-    if (!id) setDraft(emptyEntry());
-  }, [id]);
+    if (id || !currentLoaded) return;
+    let live = true;
+    (async () => {
+      const journalId = current !== 'all' ? current : await defaultJournalId();
+      if (live) setDraft((d) => d ?? emptyEntry(journalId));
+    })();
+    return () => { live = false; };
+  }, [id, currentLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (id && stored === null) return <p className="muted center">Entry not found.</p>;
   if (draft) return <Editor draft={draft} setDraft={setDraft} isNew={isNew} />;
@@ -30,13 +39,14 @@ export function EntryPage({ id }: { id?: string }) {
 
   const e = stored;
   const mood = moodFor(e.mood);
+  const journal = journals?.find((j) => j.id === e.journalId);
   return (
     <div className="entry-view">
       <div className="entry-actions">
         <button className="btn ghost" onClick={() => go('/')}>‹ Journal</button>
         <div className="row">
           <button className="btn ghost" title={e.bookmarked ? 'Remove bookmark' : 'Bookmark'}
-            onClick={() => db.entries.update(e.id, { bookmarked: !e.bookmarked })}>
+            onClick={() => db.entries.update(e.id, { bookmarked: !e.bookmarked, updatedAt: Date.now() })}>
             {e.bookmarked ? '🔖 Bookmarked' : '🔖 Bookmark'}
           </button>
           <button className="btn primary" onClick={() => setDraft({ ...e })}>Edit</button>
@@ -45,9 +55,9 @@ export function EntryPage({ id }: { id?: string }) {
       <div className="entry-date">{fmtDay(e.date)}</div>
       {e.prompt && <div className="prompt-card">{e.prompt}</div>}
       {e.mediaIds.length > 0 && (
-        <div className={`media-grid n${Math.min(e.mediaIds.length, 4)}`}>
-          {e.mediaIds.map((m, i) => <MediaTile key={m} id={m} onOpen={() => setLightbox(i)} />)}
-        </div>
+        <Gallery ids={e.mediaIds} className="media-gallery">
+          {(m, i, tile) => <MediaTile key={m} id={m} onOpen={() => setLightbox(i)} {...tile} />}
+        </Gallery>
       )}
       {e.title && <h1 className="entry-title">{e.title}</h1>}
       <div className="entry-body">
@@ -63,6 +73,7 @@ export function EntryPage({ id }: { id?: string }) {
           </span>
         )}
         {mood && <span>{mood.emoji} {mood.label}</span>}
+        {journal && journals && journals.length > 1 && <span><JournalDot color={journal.color} /> {journal.name}</span>}
         <span>{wordCount(e.body)} words</span>
         {e.sourceKey && <span>Imported from Apple Journal</span>}
       </div>
@@ -186,6 +197,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         </div>
       </div>
 
+      <JournalPicker value={draft.journalId} onChange={(journalId) => set({ journalId })} />
       <input className="date-input" type="datetime-local" value={toLocalInput(draft.date)}
         onChange={(e) => e.target.value && set({ date: new Date(e.target.value).getTime() })} />
 
@@ -205,16 +217,16 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       )}
 
       {draft.mediaIds.length > 0 && (
-        <div className={`media-grid n${Math.min(draft.mediaIds.length, 4)}`}>
-          {draft.mediaIds.map((m) => {
+        <Gallery ids={draft.mediaIds} className="media-gallery" rowHeight={180} maxHeight={360}>
+          {(m, _i, tile) => {
             const pending = pendingMedia.find((p) => p.id === m);
             const onRemove = () => {
               set({ mediaIds: draft.mediaIds.filter((x) => x !== m) });
               if (!pending) setRemoved((r) => [...r, m]);
             };
-            return pending ? <PendingTile key={m} media={pending} onRemove={onRemove} /> : <MediaTile key={m} id={m} onRemove={onRemove} />;
-          })}
-        </div>
+            return pending ? <PendingTile key={m} media={pending} onRemove={onRemove} {...tile} /> : <MediaTile key={m} id={m} onRemove={onRemove} {...tile} />;
+          }}
+        </Gallery>
       )}
 
       <input className="title-input" placeholder="Title" value={draft.title} onChange={(e) => set({ title: e.target.value })} />
@@ -242,18 +254,16 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
   );
 }
 
-function PendingTile({ media, onRemove }: { media: Media; onRemove: () => void }) {
-  const [url, setUrl] = useState<string>();
-  useEffect(() => {
-    const u = URL.createObjectURL(media.blob);
-    setUrl(u);
-    return () => URL.revokeObjectURL(u);
-  }, [media]);
-  if (!url) return null;
+function JournalPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const journals = useJournals();
+  if (!journals || journals.length < 2) return null;
+  const j = journals.find((x) => x.id === value);
   return (
-    <div className={`tile tile-${media.kind}`}>
-      {media.kind === 'video' ? <video src={url} muted /> : media.kind === 'audio' ? <div className="tile-audio-inner"><span>🎙️</span><audio src={url} controls /></div> : <img src={url} alt="" />}
-      <button className="tile-remove" title="Remove" onClick={onRemove}>×</button>
-    </div>
+    <label className="journal-picker">
+      <JournalDot color={j?.color} />
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Journal">
+        {journals.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+      </select>
+    </label>
   );
 }
