@@ -34,6 +34,11 @@ export function AboutBox({ onClose }: { onClose: () => void }) {
         <h3>{APP_NAME}</h3>
         <p className="brand-line">Brought to you by PoquitoWare</p>
         <p>Version {APP_VERSION}</p>
+        <p className="small">
+          <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer">Privacy Policy</a>
+          {' · '}
+          <a href={`${import.meta.env.BASE_URL}terms.html`} target="_blank" rel="noreferrer">Terms of Service</a>
+        </p>
         <p className="muted small">&copy; {new Date().getFullYear()} PoquitoWare. All rights reserved.</p>
       </div>
       <div className="row" style={{ justifyContent: 'flex-end' }}>
