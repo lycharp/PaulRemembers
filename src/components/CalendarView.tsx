@@ -1,12 +1,12 @@
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
-import { db, type Entry } from '../db';
+import { type Entry } from '../db';
+import { JournalSelect, useEntries } from '../journals';
 import { dayKey, fmtDay } from '../util';
 import { Thumb } from './Media';
 import { EntryCard } from './Timeline';
 
 export function CalendarView() {
-  const entries = useLiveQuery(() => db.entries.orderBy('date').reverse().toArray(), []);
+  const entries = useEntries();
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -38,6 +38,7 @@ export function CalendarView() {
 
   return (
     <div className="calendar-page">
+      <JournalSelect className="mobile-only page-select" />
       <div className="cal-head">
         <button className="btn ghost" onClick={() => shift(-1)} aria-label="Previous month">‹</button>
         <div>

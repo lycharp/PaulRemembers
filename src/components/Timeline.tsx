@@ -1,18 +1,24 @@
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
-import { db, type Entry } from '../db';
+import { type Entry } from '../db';
+import { JournalDot, JournalSelect, useCurrentJournal, useEntries, useJournals } from '../journals';
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
-import { Thumb } from './Media';
+import { Gallery, MediaTile } from './Media';
 
 export function EntryCard({ e }: { e: Entry }) {
   const mood = moodFor(e.mood);
   const snippet = e.body.replace(/\s+/g, ' ').slice(0, 220);
+  const journals = useJournals();
+  const [current] = useCurrentJournal();
+  const journal = current === 'all' && journals && journals.length > 1 ? journals.find((j) => j.id === e.journalId) : undefined;
+  const shownMedia = e.mediaIds.slice(0, 3);
   return (
     <article className="card entry-card" onClick={() => go(`/entry/${e.id}`)} tabIndex={0}
       onKeyDown={(k) => k.key === 'Enter' && go(`/entry/${e.id}`)}>
       {e.mediaIds.length > 0 && (
-        <div className={`card-media n${Math.min(e.mediaIds.length, 3)}`}>
-          {e.mediaIds.slice(0, 3).map((id) => <Thumb key={id} id={id} />)}
+        <div className="card-media">
+          <Gallery ids={shownMedia} singleRow maxHeight={420}>
+            {(id, _i, tile) => <MediaTile key={id} id={id} compact {...tile} />}
+          </Gallery>
           {e.mediaIds.length > 3 && <span className="more">+{e.mediaIds.length - 3}</span>}
         </div>
       )}
@@ -24,6 +30,7 @@ export function EntryCard({ e }: { e: Entry }) {
           <span>{fmtShort(e.date)}</span>
           {e.place && <span>· 📍 {e.place.name}</span>}
           {mood && <span title={mood.label}>· {mood.emoji}</span>}
+          {journal && <span className="card-journal"><JournalDot color={journal.color} /> {journal.name}</span>}
           {e.bookmarked && <span className="bookmark-on" title="Bookmarked">🔖</span>}
         </div>
       </div>
@@ -34,7 +41,10 @@ export function EntryCard({ e }: { e: Entry }) {
 export function Timeline() {
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<'all' | 'bookmarked' | 'media' | 'places'>('all');
-  const entries = useLiveQuery(() => db.entries.orderBy('date').reverse().toArray(), []);
+  const entries = useEntries();
+  const journals = useJournals();
+  const [current] = useCurrentJournal();
+  const title = current === 'all' ? (journals && journals.length > 1 ? 'All journals' : journals?.[0]?.name) : journals?.find((j) => j.id === current)?.name;
 
   const shown = useMemo(() => {
     if (!entries) return [];
@@ -63,8 +73,9 @@ export function Timeline() {
   if (entries.length === 0) {
     return (
       <div className="empty">
+        <JournalSelect />
         <div className="empty-icon">📓</div>
-        <h2>Your journal is empty</h2>
+        <h2>{current === 'all' ? 'Your journal is empty' : `${title ?? 'This journal'} is empty`}</h2>
         <p>Write your first entry, or bring in the entries you exported from Apple Journal.</p>
         <div className="row center">
           <button className="btn primary" onClick={() => go('/new')}>New entry</button>
@@ -76,6 +87,10 @@ export function Timeline() {
 
   return (
     <div className="timeline">
+      <div className="page-head">
+        <h1>{title}</h1>
+        <JournalSelect className="mobile-only" />
+      </div>
       <div className="toolbar">
         <input className="search" type="search" placeholder="Search entries" value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="chips">
