@@ -72,7 +72,11 @@ export async function syncNow(): Promise<void> {
       set({ lastSync: Date.now(), pending: await pendingCount() });
     } catch (e) {
       console.error('Sync failed', e);
-      set({ error: e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e), pending: await pendingCount() });
+      const msg = e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e);
+      const error = /schema cache|does not exist|bucket not found/i.test(msg)
+        ? 'the online database is not set up yet (run supabase/setup.sql in the Supabase SQL Editor)'
+        : msg;
+      set({ error, pending: await pendingCount() });
     } finally {
       running = null;
       set({ syncing: false });
