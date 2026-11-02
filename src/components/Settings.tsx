@@ -1,9 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { exportBackup, download, restoreBackup } from '../backup';
-import { createJournal, db, deleteJournal, getSetting, JOURNAL_COLORS, setSetting, updateJournal } from '../db';
+import { createJournal, db, deleteJournal, getSetting, isOwnJournal, JOURNAL_COLORS, setSetting, updateJournal } from '../db';
 import { JournalDot, useJournals } from '../journals';
 import { sha256 } from '../util';
+import { AccountCard } from './Account';
+import { JournalSharingCard } from './Sharing';
+import { useCloud } from '../cloud/cloud';
+import { resetSync } from '../cloud/sync';
 
 export function Settings({ onLock }: { onLock: () => void }) {
   const [usage, setUsage] = useState<string>('');
@@ -12,6 +16,7 @@ export function Settings({ onLock }: { onLock: () => void }) {
   const [busy, setBusy] = useState(false);
   const hasPass = useLiveQuery(async () => !!(await getSetting<string>('passcode')), []);
   const count = useLiveQuery(() => db.entries.count(), []);
+  const cloud = useCloud();
 
   useEffect(() => {
     navigator.storage?.estimate?.().then((e) => setUsage(`${((e.usage ?? 0) / 1e6).toFixed(1)} MB used`));
@@ -55,11 +60,13 @@ export function Settings({ onLock }: { onLock: () => void }) {
     <div className="settings">
       <h1>Settings</h1>
 
+      <AccountCard />
+      <JournalSharingCard />
       <Journals />
 
       <section className="card pad">
         <h3>Backup</h3>
-        <p className="muted">Your journal is saved in this browser on this computer. Download a backup now and then, so you have a copy if the browser data is ever cleared.</p>
+        <p className="muted">{cloud.user ? 'Your journal is saved on this computer and in your account online. A backup file is an extra copy you control.' : 'Your journal is saved in this browser on this computer. Download a backup now and then, so you have a copy if the browser data is ever cleared.'}</p>
         <div className="row">
           <button className="btn primary" onClick={backup} disabled={busy}>Download backup</button>
           <label className="btn">
@@ -98,7 +105,10 @@ export function Settings({ onLock }: { onLock: () => void }) {
       <section className="card pad">
         <h3>Erase</h3>
         <button className="btn ghost danger" onClick={async () => {
-          if (!confirm('Erase every entry, photo and setting from this browser? Download a backup first if you want to keep them.')) return;
+          if (!confirm(cloud.user
+            ? 'Erase every entry, photo and setting from this browser? Your account keeps its copy online, and it downloads again the next time you sign in here.'
+            : 'Erase every entry, photo and setting from this browser? Download a backup first if you want to keep them.')) return;
+          await resetSync();
           await db.delete();
           location.reload();
         }}>Erase all journal data</button>
@@ -110,7 +120,8 @@ export function Settings({ onLock }: { onLock: () => void }) {
 }
 
 function Journals() {
-  const journals = useJournals();
+  // Journals shared with you are listed under "Share a journal"; only the owner can rename or delete one.
+  const journals = useJournals()?.filter(isOwnJournal);
   const counts = useLiveQuery(async () => {
     const m = new Map<string, number>();
     await db.entries.each((e) => m.set(e.journalId, (m.get(e.journalId) ?? 0) + 1));

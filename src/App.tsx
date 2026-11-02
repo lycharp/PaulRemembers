@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { createJournal, getSetting } from './db';
 import { JournalDot, useCurrentJournal, useJournals } from './journals';
+import { Account, SyncStatus } from './components/Account';
+import { SharedEntryPage } from './components/Sharing';
+import { useCloud } from './cloud/cloud';
 import { CalendarView } from './components/CalendarView';
 import { EntryPage } from './components/EntryPage';
 import { ImportPage } from './components/ImportPage';
@@ -20,6 +23,7 @@ const NAV = [
 export function App() {
   const route = useRoute();
   const [locked, setLocked] = useState<boolean | null>(null);
+  const cloud = useCloud();
 
   useEffect(() => {
     getSetting<string>('passcode').then((p) => setLocked(!!p));
@@ -36,6 +40,10 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [locked]);
 
+  // A shared link is for someone else to read: no lock screen, no app chrome.
+  const shareToken = /^\/s\/([\w-]+)$/.exec(route)?.[1];
+  if (shareToken) return <SharedEntryPage token={shareToken} />;
+
   if (locked === null) return null;
   if (locked) return <LockScreen onUnlock={() => setLocked(false)} />;
 
@@ -46,6 +54,7 @@ export function App() {
   else if (route === '/calendar') page = <CalendarView />;
   else if (route === '/insights') page = <Insights />;
   else if (route === '/import') page = <ImportPage />;
+  else if (route === '/account') page = <Account />;
   else if (route === '/settings') page = <Settings onLock={() => setLocked(true)} />;
   else page = <Timeline />;
 
@@ -63,6 +72,15 @@ export function App() {
           ))}
         </nav>
         <JournalList />
+        {cloud.configured && (
+          <a className={`account-link ${route === '/account' ? 'on' : ''}`} href="#/account">
+            <span aria-hidden>{cloud.user ? (cloud.error ? '⚠️' : cloud.syncing ? '🔄' : '☁️') : '👤'}</span>
+            <span>
+              {cloud.user ? cloud.user.email : 'Sign in'}
+              {cloud.user && <small className="muted"><SyncStatus /></small>}
+            </span>
+          </a>
+        )}
       </aside>
       <main className="main">{page}</main>
       <button className="fab" onClick={() => go('/new')} aria-label="New entry">＋</button>

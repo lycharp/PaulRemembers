@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createJournal } from '../db';
-import { useCurrentJournal, useJournals } from '../journals';
+import { useCurrentJournal, useWritableJournals } from '../journals';
 import { importAppleJournal, sourceFromFiles, sourceFromZip, type ImportProgress, type ImportResult } from '../importer/appleJournal';
 import { go } from '../util';
 
@@ -9,10 +9,10 @@ export function ImportPage() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState('');
   const [drag, setDrag] = useState(false);
-  const journals = useJournals();
+  const journals = useWritableJournals();
   const [current] = useCurrentJournal();
   const [picked, setPicked] = useState<string>();
-  const target = picked ?? (current !== 'all' ? current : journals?.[0]?.id);
+  const target = picked ?? (current !== 'all' && journals?.some((j) => j.id === current) ? current : journals?.find((j) => !j.role || j.role === 'owner')?.id);
   const pickJournal = async (v: string) => {
     if (v !== '__new') return setPicked(v);
     const name = prompt('Name for the new journal');
