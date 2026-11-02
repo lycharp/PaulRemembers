@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createJournal, getSetting } from './db';
 import { JournalDot, useCurrentJournal, useJournals } from './journals';
 import { Account, SyncStatus } from './components/Account';
+import { PoquitoBadge } from './components/About';
 import { SharedEntryPage } from './components/Sharing';
 import { useCloud } from './cloud/cloud';
 import { CalendarView } from './components/CalendarView';
@@ -72,6 +73,7 @@ export function App() {
           ))}
         </nav>
         <JournalList />
+        <PoquitoBadge className="sidebar-badge" />
         {cloud.configured && (
           <a className={`account-link ${route === '/account' ? 'on' : ''}`} href="#/account">
             <span aria-hidden>{cloud.user ? (cloud.error ? '⚠️' : cloud.syncing ? '🔄' : '☁️') : '👤'}</span>
