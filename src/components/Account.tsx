@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { SUPABASE_KEY, SUPABASE_URL } from '../cloud/config';
 import { appUrl, replaceOtherAccount, setRecovering, signOut, supabase, syncNow, useCloud } from '../cloud/cloud';
 import { go } from '../util';
 
@@ -84,6 +85,17 @@ export function SyncStatus() {
   return null;
 }
 
+/** Whether Google sign-in is switched on in the Supabase project (null while checking). */
+function useGoogleEnabled() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_KEY } })
+      .then((r) => r.json())
+      .then((s) => setOn(!!s?.external?.google), () => setOn(false));
+  }, []);
+  return on;
+}
+
 function SignIn() {
   const [mode, setMode] = useState<'in' | 'up' | 'forgot'>('in');
   const [email, setEmail] = useState('');
@@ -91,6 +103,7 @@ function SignIn() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string }>();
   const cloud = useCloud();
+  const googleOn = useGoogleEnabled();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +142,7 @@ function SignIn() {
       <img src="./icon.svg" alt="" width={56} />
       <h2>{mode === 'in' ? 'Sign in' : mode === 'up' ? 'Create an account' : 'Reset your password'}</h2>
       {cloud.error && !msg && <div className="notice error">{cloud.error}</div>}
-      {mode !== 'forgot' && (
+      {mode !== 'forgot' && googleOn && (
         <>
           <button type="button" className="btn google" onClick={google}>
             <GoogleIcon /> Continue with Google
