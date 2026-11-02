@@ -5,6 +5,7 @@ import { createJournal, db, deleteJournal, getSetting, isOwnJournal, JOURNAL_COL
 import { JournalDot, useJournals } from '../journals';
 import { sha256 } from '../util';
 import { AccountCard } from './Account';
+import { PoquitoBadge } from './About';
 import { JournalSharingCard } from './Sharing';
 import { useCloud } from '../cloud/cloud';
 import { resetSync } from '../cloud/sync';
@@ -95,6 +96,11 @@ export function Settings({ onLock }: { onLock: () => void }) {
             </>
           )}
         </div>
+      </section>
+
+      <section className="card pad">
+        <h3>About</h3>
+        <PoquitoBadge />
       </section>
 
       <section className="card pad">

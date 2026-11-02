@@ -14,6 +14,7 @@ const files = new Map<string, Blob>();
 let clock = 0;
 const stamp = () => new Date(Date.UTC(2026, 0, 1) + ++clock * 1000).toISOString();
 const ME = { id: 'u1', email: 'paul@x.com' };
+let refuseNext = false;
 
 function query(table: string) {
   const filters: ((r: Row) => boolean)[] = [];
@@ -39,6 +40,10 @@ function query(table: string) {
     in: (c: string, v: any[]) => (filters.push((r) => v.includes(r[c])), b),
     update: (patch: Row) => ((op = { kind: 'update', patch }), b),
     upsert: (row: Row) => {
+      if (refuseNext) {
+        refuseNext = false;
+        return Promise.resolve({ data: null, error: { code: '42501', message: 'new row violates row-level security policy for table "' + table + '"' } });
+      }
       const ex = tables[table].find((r) => r.id === row.id);
       const owner = table === 'journals' ? { owner_id: ME.id, owner_email: ME.email } : {};
       if (ex) Object.assign(ex, structuredClone(row), { synced_at: stamp() });
@@ -165,5 +170,17 @@ await sync.pull(sb, ME);
 assert.equal(await db.journals.get('jF'), undefined);
 assert.equal(await db.entries.get('f1'), undefined);
 await settle();
+assert.equal(await sync.pendingCount(), 0);
+
+// A change the server refuses stays queued (and is not marked as uploaded), then goes on the next try.
+await db.entries.put({ id: 'r1', journalId: 'jA', date: 900, title: 'Refused once', body: '', bookmarked: false, mediaIds: [], createdAt: 1, updatedAt: 1 });
+await settle();
+refuseNext = true;
+const first = await sync.push(sb, ME.id);
+assert.equal(first.refused.length, 1);
+assert.equal(await sync.pendingCount(), 1, 'refused change stays queued');
+const second = await sync.push(sb, ME.id);
+assert.equal(second.refused.length, 0);
+assert.ok(tables.entries.find((r) => r.id === 'r1'));
 assert.equal(await sync.pendingCount(), 0);
 console.log('sync test passed');
