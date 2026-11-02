@@ -356,3 +356,6 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .about h3 { margin: 10px 0 0; font-size: 1.3rem; }
 .about p { margin: 0; }
 .about .brand-line { font-weight: 600; background: linear-gradient(90deg, #ff9a3c, #e5365f); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.sidebar-badge { margin-top: auto; padding: 8px 10px; font-size: 0.8rem; text-align: left; }
+.sidebar-badge + .account-link { margin-top: 0; }
+@media (max-width: 760px) { .sidebar-badge { display: none; } }
