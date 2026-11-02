@@ -5,6 +5,8 @@ import { fmtDay, fmtTime, go, MOODS, moodFor, PROMPTS, toLocalInput, wordCount }
 import { Gallery, Lightbox, MediaTile, PendingTile } from './Media';
 import { JournalDot, useCurrentJournal, useJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
+import { ShareEntryButton } from './Sharing';
+import type { LocalJournal } from '../cloud/sync';
 
 async function fileToMedia(file: File, entryId: string): Promise<Media> {
   let blob: Blob = file;
@@ -20,6 +22,11 @@ export function EntryPage({ id }: { id?: string }) {
   const [draft, setDraft] = useState<Entry | null>(null);
   const [isNew] = useState(!id);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  // Journals someone shared with you as a viewer are read-only.
+  const readOnly = useLiveQuery(async () => {
+    const j = stored ? ((await db.journals.get(stored.journalId)) as LocalJournal | undefined) : undefined;
+    return j?.role === 'viewer';
+  }, [stored]);
 
   const [current, , currentLoaded] = useCurrentJournal();
   const journals = useJournals();
@@ -45,11 +52,12 @@ export function EntryPage({ id }: { id?: string }) {
       <div className="entry-actions">
         <button className="btn ghost" onClick={() => go('/')}>‹ Journal</button>
         <div className="row">
-          <button className="btn ghost" title={e.bookmarked ? 'Remove bookmark' : 'Bookmark'}
+          {!readOnly && <button className="btn ghost" title={e.bookmarked ? 'Remove bookmark' : 'Bookmark'}
             onClick={() => db.entries.update(e.id, { bookmarked: !e.bookmarked, updatedAt: Date.now() })}>
             {e.bookmarked ? '🔖 Bookmarked' : '🔖 Bookmark'}
-          </button>
-          <button className="btn primary" onClick={() => setDraft({ ...e })}>Edit</button>
+          </button>}
+          <ShareEntryButton entry={e} />
+          {!readOnly && <button className="btn primary" onClick={() => setDraft({ ...e })}>Edit</button>}
         </div>
       </div>
       <div className="entry-date">{fmtDay(e.date)}</div>
