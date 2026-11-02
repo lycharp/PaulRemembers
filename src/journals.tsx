@@ -1,10 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getSetting, listJournals, setSetting, type Entry, type Journal } from './db';
+import { db, getSetting, isWritableJournal, listJournals, setSetting, type Entry, type Journal } from './db';
 
 /** 'all' shows every journal; otherwise a journal id. Remembered on this device. */
 export type JournalChoice = 'all' | string;
 
 export const useJournals = (): Journal[] | undefined => useLiveQuery(listJournals, []);
+/** Journals you can add entries to (not ones shared with you read-only). */
+export const useWritableJournals = (): Journal[] | undefined =>
+  useLiveQuery(async () => (await listJournals()).filter(isWritableJournal), []);
 
 /** The chosen journal; `loaded` is false until it has been read from storage. */
 export function useCurrentJournal(): [JournalChoice, (c: JournalChoice) => void, boolean] {
