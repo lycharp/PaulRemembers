@@ -151,7 +151,7 @@ function ConfirmDialog({ action, signedIn, all, journals, skipped, entries, onCl
       <div className="row">
         <button className={`btn ${backedUp ? '' : 'primary'}`} disabled={busy} onClick={backup}>{backedUp ? '✓ Backup downloaded' : 'Download backup'}</button>
       </div>
-      <p className="muted small"><strong>Step 2:</strong></p>
+      <p className="muted small"><strong>Step 2:</strong> {action === 'delete' ? 'delete' : 'erase'} when you are ready.</p>
       <div className="row">
         <button className="btn danger" disabled={busy} onClick={go}>
           {busy ? 'Working…' : `${action === 'delete' ? 'Delete' : 'Erase'}${backedUp ? ' now' : ' without a backup'}`}
