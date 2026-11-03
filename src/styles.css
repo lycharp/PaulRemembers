@@ -395,3 +395,9 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .tour-card h3 { margin: 0; }
 .tour-card p { margin: 0 0 6px; }
 .tour-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+.install-guides { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 8px; }
+.install-guide { border: 1px solid var(--line, rgba(0,0,0,.1)); border-radius: 10px; padding: 10px 14px; }
+.install-guide h4 { margin: 0 0 6px; }
+.install-guide ol { margin: 0 0 6px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.install-guide p { margin: 4px 0 0; }
