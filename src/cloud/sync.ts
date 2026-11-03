@@ -121,6 +121,8 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
   const tick = () => onProgress?.(--left);
   /** The server refused some changes; they stay queued and are retried next time. */
   const refused: string[] = [];
+  /** Entries with a photo or video this device can no longer read (not uploaded). */
+  const unreadable: string[] = [];
   /** True when the call worked. Throws on other errors (like being offline), so the sync stops and retries later. */
   const refuse = (error: { code?: string; message?: string; statusCode?: string } | null) => {
     if (!error) return true;
@@ -164,7 +166,17 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
         await done(item);
       } else {
         const path = `${m.entryId}/${m.id}`;
-        const up = await sb.storage.from('media').upload(path, m.blob, { upsert: true, contentType: m.blob.type || 'application/octet-stream' });
+        // Read the file first: a photo saved by an older version on an iPhone can
+        // be unreadable (empty). Uploading it fails with "No content provided"
+        // and used to stop all syncing, so skip it and say which entry it is in.
+        const bytes = await m.blob.arrayBuffer().catch(() => null);
+        if (!bytes?.byteLength) {
+          unreadable.push(entry.title || new Date(entry.date).toLocaleDateString());
+          await done(item);
+          tick();
+          continue;
+        }
+        const up = await sb.storage.from('media').upload(path, bytes, { upsert: true, contentType: m.blob.type || 'application/octet-stream' });
         if (refuse(up.error as never)) {
           const { blob, ...meta } = m;
           const { error } = await sb.from('media').upsert({ id: m.id, entry_id: m.entryId, data: { ...meta, type: blob.type }, path, updated_at: now, deleted: false });
@@ -174,7 +186,7 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
     }
     tick();
   }
-  return { refused };
+  return { refused, unreadable };
 }
 
 // ─── Pull ───────────────────────────────────────────────────────────────────

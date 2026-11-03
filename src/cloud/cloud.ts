@@ -75,10 +75,12 @@ export async function syncNow(): Promise<void> {
         await setState('linkVersion', LINK_VERSION);
       }
       set({ pending: await pendingCount() });
-      const { refused } = await push(sb, user.id, (left) => set({ pending: left }));
+      const { refused, unreadable } = await push(sb, user.id, (left) => set({ pending: left }));
       await pull(sb, user);
       set({ lastSync: Date.now(), pending: await pendingCount() });
       if (refused.length) throw new Error(`the server refused ${refused.length} changes (${refused[0]})`);
+      if (unreadable.length)
+        throw new Error(`a photo or video in "${unreadable[0]}"${unreadable.length > 1 ? ` (and ${unreadable.length - 1} more)` : ''} can't be read on this device, so it was not uploaded. Open the entry, remove it, and add it again`);
     } catch (e) {
       console.error('Sync failed', e);
       const msg = e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e);

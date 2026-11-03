@@ -9,9 +9,12 @@ import { PlaceInput } from './PlaceInput';
 import { Dialog, ShareEntryButton } from './Sharing';
 
 async function fileToMedia(file: File, entryId: string): Promise<Media> {
-  let blob: Blob = file;
+  // Copy the bytes now. Safari (iPhone/iPad) stores a picked file as a link to
+  // the original, which can no longer be read after the page reloads, so the
+  // photo would show blank and never upload.
+  let blob: Blob = new Blob([await file.arrayBuffer()], { type: file.type });
   let kind: MediaKind = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'photo';
-  if (/\.mov$/i.test(file.name)) blob = new Blob([file], { type: 'video/mp4' });
+  if (/\.mov$/i.test(file.name)) blob = new Blob([blob], { type: 'video/mp4' });
   if (kind === 'photo' && (await isHeic(file))) blob = await heicToJpeg(file);
   return { id: newId(), entryId, kind, blob, takenAt: file.lastModified };
 }

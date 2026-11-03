@@ -183,4 +183,14 @@ const second = await sync.push(sb, ME.id);
 assert.equal(second.refused.length, 0);
 assert.ok(tables.entries.find((r) => r.id === 'r1'));
 assert.equal(await sync.pendingCount(), 0);
+
+// An unreadable (empty) photo is skipped and reported, and doesn't block the rest.
+await db.entries.put({ id: 'p1', journalId: 'jA', date: 950, title: 'Phone photo', body: '', bookmarked: false, mediaIds: ['bad'], createdAt: 1, updatedAt: 1 });
+await db.media.put({ id: 'bad', entryId: 'p1', kind: 'photo', blob: new Blob([], { type: 'image/jpeg' }) });
+await settle();
+const res = await sync.push(sb, ME.id);
+assert.deepEqual(res.unreadable, ['Phone photo']);
+assert.ok(tables.entries.find((r) => r.id === 'p1'), 'the entry itself still uploads');
+assert.equal(files.has('p1/bad'), false);
+assert.equal(await sync.pendingCount(), 0);
 console.log('sync test passed');
