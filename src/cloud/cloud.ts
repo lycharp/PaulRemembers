@@ -3,7 +3,7 @@
  */
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { useSyncExternalStore } from 'react';
-import { db } from '../db';
+import { db, getSetting, setSetting } from '../db';
 import { cloudConfigured, SUPABASE_KEY, SUPABASE_URL } from './config';
 import { getState, linkDevice, pendingCount, pull, push, resetSync, sdb, setOnQueued, setState, trackChanges, withoutSync } from './sync';
 
@@ -109,13 +109,71 @@ async function onSession(session: Session | null) {
   if (user) {
     const linked = await getState<string>('userId');
     otherAccount = !!linked && linked !== user.id && (await db.entries.count()) > 0;
+    // On a new computer, open the journal this account was last in.
+    const last = session?.user.user_metadata?.lastJournal;
+    if (typeof last === 'string' && !otherAccount && !(await getSetting('currentJournal'))) await setSetting('currentJournal', last);
   }
   set({ user, otherAccount, ready: true, pending: await pendingCount() });
   if (user && !otherAccount) void syncNow();
 }
 
+// ─── Keep me signed in ──────────────────────────────────────────────────────
+
+const KEEP_KEY = 'pr.keepSignedIn';
+const ALIVE_KEY = 'pr.sessionAlive';
+const tryStore = (fn: () => void) => {
+  try {
+    fn();
+  } catch {
+    /* storage blocked: fall back to staying signed in */
+  }
+};
+const isAuthTokenKey = (k: string) => /^sb-.+-auth-token$/.test(k);
+
+/** Whether "Keep me signed in" is on (the default). */
+export function keepSignedIn(): boolean {
+  try {
+    return localStorage.getItem(KEEP_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+/** Called just before signing in: remember the choice for this app window. */
+export function setKeepSignedIn(keep: boolean) {
+  tryStore(() => localStorage.setItem(KEEP_KEY, keep ? '1' : '0'));
+  tryStore(() => sessionStorage.setItem(ALIVE_KEY, '1'));
+}
+
+/** A sign-in is saved on this device (it may still be checking with the server). */
+export function hasSavedSignIn(): boolean {
+  try {
+    return Object.keys(localStorage).some(isAuthTokenKey);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Without "Keep me signed in", a sign-in lasts until the app window is closed:
+ * sessionStorage survives reloads but not closing, so a fresh start forgets it.
+ */
+function forgetSignInIfSessionEnded() {
+  tryStore(() => {
+    if (keepSignedIn() || sessionStorage.getItem(ALIVE_KEY)) return;
+    Object.keys(localStorage).filter(isAuthTokenKey).forEach((k) => localStorage.removeItem(k));
+  });
+}
+
+/** Remember the open journal on the account, so other computers open it too. */
+export function rememberJournalOnline(journal: string) {
+  if (!state.user) return;
+  supabase().auth.updateUser({ data: { lastJournal: journal } }).catch(() => {});
+}
+
 export function startCloud() {
   if (!cloudConfigured) return;
+  forgetSignInIfSessionEnded();
   trackChanges();
   setOnQueued(() => {
     pendingCount().then((pending) => set({ pending }));

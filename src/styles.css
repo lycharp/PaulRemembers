@@ -359,3 +359,39 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .sidebar-badge { margin-top: auto; padding: 8px 10px; font-size: 0.8rem; text-align: left; }
 .sidebar-badge + .account-link { margin-top: 0; }
 @media (max-width: 760px) { .sidebar-badge { display: none; } }
+
+/* Start screen (signed out) */
+.welcome { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 16px; }
+.welcome .auth { margin: 0 auto 16px; width: 100%; }
+.keep-signed-in { display: flex; align-items: center; gap: 8px; justify-content: flex-start; font-size: 0.92rem; cursor: pointer; text-align: left; }
+.keep-signed-in input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+
+/* About: the PoquitoWare story */
+.dialog { max-height: calc(100vh - 32px); overflow-y: auto; }
+.poquito-story {
+  margin: 12px 0 8px; padding: 14px 16px; border-radius: 14px; text-align: left;
+  background: linear-gradient(135deg, rgba(255, 154, 60, 0.12), rgba(229, 54, 95, 0.12));
+  font-family: 'Comic Sans MS', 'Comic Neue', 'Chalkboard SE', 'Comic Sans', cursive; font-size: 1rem; line-height: 1.5;
+}
+.about .poquito-story p { margin: 0 0 0.7em; }
+.about .poquito-story p:last-child { margin: 0; font-style: italic; }
+
+/* Help */
+.help-tour { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.help-tour p { margin: 0; }
+.faq { border-top: 1px solid var(--line); padding: 10px 2px; }
+.faq:first-of-type { border-top: 0; }
+.faq summary { cursor: pointer; font-weight: 600; }
+.faq p { margin: 8px 0 2px; color: var(--muted); }
+
+/* Guided tour */
+.tour { position: fixed; inset: 0; z-index: 60; }
+.tour-dim { position: absolute; inset: 0; background: rgba(10, 6, 20, 0.55); }
+.tour-spot {
+  position: fixed; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(10, 6, 20, 0.55), 0 0 0 3px var(--accent);
+  transition: all 0.25s ease; pointer-events: none;
+}
+.tour-card { position: fixed; margin: 0; z-index: 61; display: flex; flex-direction: column; gap: 6px; }
+.tour-card h3 { margin: 0; }
+.tour-card p { margin: 0 0 6px; }
+.tour-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

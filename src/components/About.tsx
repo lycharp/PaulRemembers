@@ -26,14 +26,25 @@ export function PoquitoLogo({ size = 40 }: { size?: number }) {
   );
 }
 
+/** The PoquitoWare origin story, as Paul wrote it. */
+const STORY = [
+  "No one knows the origins of PoquitoWare. They say it was started back in the 80's on a couple of PCs with a 10mg hard drive and 2 floppies and a dial up connection.",
+  'They say the original engineers were rock stars. They wrote bugless code in their sleep. They brought dreams to reality. They never lied.',
+  'And, they may have gone to a strip club or 2 to blow off steam.',
+  'Or maybe not?',
+];
+
 export function AboutBox({ onClose }: { onClose: () => void }) {
   return (
     <Dialog title="About" onClose={onClose}>
       <div className="about">
         <PoquitoLogo size={96} />
         <h3>{APP_NAME}</h3>
-        <p className="brand-line">Brought to you by PoquitoWare</p>
         <p>Version {APP_VERSION}</p>
+        <p className="brand-line">This product is brought to you by PoquitoWare</p>
+        <div className="poquito-story">
+          {STORY.map((p) => <p key={p}>{p}</p>)}
+        </div>
         <p className="small">
           <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noreferrer">Privacy Policy</a>
           {' · '}
