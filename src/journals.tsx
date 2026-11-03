@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
+import { rememberJournalOnline } from './cloud/cloud';
 import { db, getSetting, isWritableJournal, listJournals, setSetting, type Entry, type Journal } from './db';
 
 /** 'all' shows every journal; otherwise a journal id. Remembered on this device. */
@@ -16,7 +17,11 @@ export function useCurrentJournal(): [JournalChoice, (c: JournalChoice) => void,
     // Fall back to all journals if the remembered one was deleted.
     return c === 'all' || (await db.journals.get(c)) ? c : 'all';
   }, []);
-  return [stored ?? 'all', (c) => void setSetting('currentJournal', c), stored !== undefined];
+  const choose = (c: JournalChoice) => {
+    void setSetting('currentJournal', c);
+    rememberJournalOnline(c);
+  };
+  return [stored ?? 'all', choose, stored !== undefined];
 }
 
 /** Entries in the chosen journal (or all), newest first. */

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { createJournal, getSetting } from './db';
 import { JournalDot, useCurrentJournal, useJournals } from './journals';
-import { Account, SyncStatus } from './components/Account';
+import { Account, SignIn, SyncStatus } from './components/Account';
 import { PoquitoBadge } from './components/About';
+import { Help } from './components/Help';
+import { Tour } from './components/Tour';
 import { SharedEntryPage } from './components/Sharing';
-import { useCloud } from './cloud/cloud';
+import { hasSavedSignIn, useCloud } from './cloud/cloud';
 import { CalendarView } from './components/CalendarView';
 import { EntryPage } from './components/EntryPage';
 import { ImportPage } from './components/ImportPage';
@@ -19,11 +21,22 @@ const NAV = [
   { path: '/insights', label: 'Insights', icon: '✨' },
   { path: '/import', label: 'Import', icon: '📥' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
+  { path: '/help', label: 'Help', icon: '❓' },
 ];
+
+const SKIP_KEY = 'pr.skipSignIn';
+const skippedSignIn = () => {
+  try {
+    return sessionStorage.getItem(SKIP_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
 
 export function App() {
   const route = useRoute();
   const [locked, setLocked] = useState<boolean | null>(null);
+  const [skipped, setSkipped] = useState(skippedSignIn);
   const cloud = useCloud();
 
   useEffect(() => {
@@ -48,6 +61,25 @@ export function App() {
   if (locked === null) return null;
   if (locked) return <LockScreen onUnlock={() => setLocked(false)} />;
 
+  // Signed out: start at the sign-in screen (until "Continue without signing in" for this visit).
+  if (cloud.configured && !cloud.user && !skipped && route !== '/account' && !(hasSavedSignIn() && !cloud.ready)) {
+    if (!cloud.ready) return null;
+    const skip = () => {
+      try {
+        sessionStorage.setItem(SKIP_KEY, '1');
+      } catch {
+        /* fine, it just asks again next time */
+      }
+      setSkipped(true);
+    };
+    return (
+      <div className="welcome">
+        <SignIn onSkip={skip} />
+        <PoquitoBadge />
+      </div>
+    );
+  }
+
   const entryId = /^\/entry\/(.+)$/.exec(route)?.[1];
   let page;
   if (route === '/new') page = <EntryPage key="new" />;
@@ -56,6 +88,7 @@ export function App() {
   else if (route === '/insights') page = <Insights />;
   else if (route === '/import') page = <ImportPage />;
   else if (route === '/account') page = <Account />;
+  else if (route === '/help') page = <Help />;
   else if (route === '/settings') page = <Settings onLock={() => setLocked(true)} />;
   else page = <Timeline />;
 
@@ -64,10 +97,10 @@ export function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand"><img src="./icon.svg" alt="" /> Journal</div>
-        <button className="btn primary new-btn" onClick={() => go('/new')} title="New entry (Ctrl+N)">＋ New entry</button>
+        <button className="btn primary new-btn" data-tour="new" onClick={() => go('/new')} title="New entry (Ctrl+N)">＋ New entry</button>
         <nav>
           {NAV.map((n) => (
-            <a key={n.path} href={`#${n.path}`} className={active === n.path ? 'on' : ''}>
+            <a key={n.path} href={`#${n.path}`} data-tour={`nav-${n.path}`} className={active === n.path ? 'on' : ''}>
               <span aria-hidden>{n.icon}</span> {n.label}
             </a>
           ))}
@@ -75,7 +108,7 @@ export function App() {
         <JournalList />
         <PoquitoBadge className="sidebar-badge" />
         {cloud.configured && (
-          <a className={`account-link ${route === '/account' ? 'on' : ''}`} href="#/account">
+          <a className={`account-link ${route === '/account' ? 'on' : ''}`} href="#/account" data-tour="account">
             <span aria-hidden>{cloud.user ? (cloud.error ? '⚠️' : cloud.syncing ? '🔄' : '☁️') : '👤'}</span>
             <span>
               {cloud.user ? cloud.user.email : 'Sign in'}
@@ -85,7 +118,8 @@ export function App() {
         )}
       </aside>
       <main className="main">{page}</main>
-      <button className="fab" onClick={() => go('/new')} aria-label="New entry">＋</button>
+      <button className="fab" data-tour="new" onClick={() => go('/new')} aria-label="New entry">＋</button>
+      <Tour autoStart={route === '/'} />
     </div>
   );
 }
@@ -104,7 +138,7 @@ function JournalList() {
   };
   if (!journals) return null;
   return (
-    <div className="journal-list">
+    <div className="journal-list" data-tour="journals">
       <div className="journal-list-head">Journals</div>
       {journals.length > 1 && (
         <button className={current === 'all' ? 'on' : ''} onClick={() => pick('all')}>

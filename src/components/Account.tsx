@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SUPABASE_KEY, SUPABASE_URL } from '../cloud/config';
-import { appUrl, replaceOtherAccount, setRecovering, signOut, supabase, syncNow, useCloud } from '../cloud/cloud';
+import { appUrl, keepSignedIn, replaceOtherAccount, setKeepSignedIn, setRecovering, signOut, supabase, syncNow, useCloud } from '../cloud/cloud';
 import { go } from '../util';
 
 /** #/account: sign in, create an account, reset a password, or see sync status. */
@@ -96,8 +96,10 @@ function useGoogleEnabled() {
   return on;
 }
 
-function SignIn() {
+/** The sign-in form. On the start screen, onSkip offers "Continue without signing in". */
+export function SignIn({ onSkip }: { onSkip?: () => void }) {
   const [mode, setMode] = useState<'in' | 'up' | 'forgot'>('in');
+  const [keep, setKeep] = useState(keepSignedIn);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -110,6 +112,7 @@ function SignIn() {
     setBusy(true);
     setMsg(undefined);
     const auth = supabase().auth;
+    if (mode !== 'forgot') setKeepSignedIn(keep);
     try {
       if (mode === 'in') {
         const { error } = await auth.signInWithPassword({ email, password });
@@ -133,6 +136,7 @@ function SignIn() {
   };
 
   const google = async () => {
+    setKeepSignedIn(keep);
     const { error } = await supabase().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: appUrl() } });
     if (error) setMsg({ ok: false, text: friendly(error) });
   };
@@ -155,6 +159,12 @@ function SignIn() {
         <input type="password" required minLength={6} autoComplete={mode === 'up' ? 'new-password' : 'current-password'}
           placeholder={mode === 'up' ? 'Choose a password (6+ characters)' : 'Password'} value={password} onChange={(e) => setPassword(e.target.value)} />
       )}
+      {mode !== 'forgot' && (
+        <label className="keep-signed-in">
+          <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
+          Keep me signed in
+        </label>
+      )}
       <button className="btn primary" disabled={busy}>
         {mode === 'in' ? 'Sign in' : mode === 'up' ? 'Create account' : 'Send reset link'}
       </button>
@@ -169,7 +179,14 @@ function SignIn() {
           <button type="button" className="link" onClick={() => setMode('in')}>Back to sign in</button>
         )}
       </div>
-      <p className="muted small">Your journal keeps working on this computer without an account.</p>
+      {onSkip ? (
+        <p className="muted small">
+          No account? <button type="button" className="link" onClick={onSkip}>Continue without signing in</button>
+          <br />Your journal still works on this computer, it just is not backed up online.
+        </p>
+      ) : (
+        <p className="muted small">Your journal keeps working on this computer without an account.</p>
+      )}
     </form>
   );
 }
