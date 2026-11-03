@@ -49,7 +49,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
     a: <>Yes. In <strong>Settings → Lock</strong>, set a passcode. The journal asks for it each time it opens.</>,
   },
   {
-    q: 'How do I install it like a normal app (Windows, Mac or iPhone)?',
+    q: 'How do I install it like a normal app (Windows, Mac, iPhone or Android)?',
     a: <InstallSteps />,
   },
 ];

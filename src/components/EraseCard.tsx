@@ -43,18 +43,18 @@ export function EraseCard() {
 
   return (
     <section className="card pad">
-      <h3>Erase or delete</h3>
+      <h3>Erase local journal data, or delete</h3>
       <p className="muted">
         {signedIn
-          ? <><strong>Erase</strong> takes journals off this computer only; your account keeps its copy online. <strong>Delete</strong> removes journals for good: from this computer, from your account, and for anyone you shared them with.</>
-          : <>You are not signed in, so your journals are only on this computer. <strong>Erase</strong> removes them from this computer. To keep a copy, download a backup first (you will be asked).</>}
+          ? <><strong>Erase Local Journal Data</strong> takes journals off this computer only; your account keeps its copy online. <strong>Delete</strong> removes journals for good: from this computer, from your account, and for anyone you shared them with.</>
+          : <>You are not signed in, so your journals are only on this computer. <strong>Erase Local Journal Data</strong> removes them from this computer. To keep a copy, download a backup first (you will be asked).</>}
       </p>
       <div className="row">
         <select className="text-input" value={choice} onChange={(e) => setChoice(e.target.value)} aria-label="Which journal">
           <option value="all">All journals</option>
           {journals.map((j) => <option key={j.id} value={j.id}>{j.name}{isOwnJournal(j) ? '' : ' (shared with you)'}</option>)}
         </select>
-        {canErase && <button className="btn ghost danger" onClick={() => setAction('erase')}>{signedIn ? 'Erase from this computer' : 'Erase'}</button>}
+        {canErase && <button className="btn ghost danger" onClick={() => setAction('erase')}>Erase Local Journal Data</button>}
         {canDelete && <button className="btn danger" onClick={() => setAction('delete')}>Delete for good</button>}
       </div>
       {signedIn && !all && (
@@ -62,7 +62,7 @@ export function EraseCard() {
           {one && !isOwnJournal(one)
             ? <>Only {one.ownerEmail ?? 'the owner'} can delete this journal, because it is theirs. </>
             : null}
-          While you are signed in, this computer keeps a copy of all your journals. To take them off this computer, choose <strong>All journals</strong> and Erase (this also signs you out).
+          While you are signed in, this computer keeps a copy of all your journals. To take them off this computer, choose <strong>All journals</strong> and Erase Local Journal Data (this also signs you out).
         </p>
       )}
       {action && (
@@ -136,7 +136,7 @@ function ConfirmDialog({ action, signedIn, all, journals, skipped, entries, onCl
     }
   };
 
-  const title = action === 'delete' ? `Delete ${what} for good?` : `Erase ${what} from this computer?`;
+  const title = action === 'delete' ? `Delete ${what} for good?` : `Erase local journal data for ${what}?`;
   return (
     <Dialog title={title} onClose={onClose}>
       <p>
@@ -154,7 +154,7 @@ function ConfirmDialog({ action, signedIn, all, journals, skipped, entries, onCl
       <p className="muted small"><strong>Step 2:</strong> {action === 'delete' ? 'delete' : 'erase'} when you are ready.</p>
       <div className="row">
         <button className="btn danger" disabled={busy} onClick={go}>
-          {busy ? 'Working…' : `${action === 'delete' ? 'Delete' : 'Erase'}${backedUp ? ' now' : ' without a backup'}`}
+          {busy ? 'Working…' : `${action === 'delete' ? 'Delete' : 'Erase local data'}${backedUp ? ' now' : ' without a backup'}`}
         </button>
         <button className="btn ghost" disabled={busy} onClick={onClose}>Cancel</button>
       </div>

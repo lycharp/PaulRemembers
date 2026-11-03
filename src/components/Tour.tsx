@@ -17,7 +17,7 @@ const STEPS: Step[] = [
   { target: '[data-tour="nav-/insights"]', title: 'Insights', text: 'Your writing streaks, "On this day" memories from past years, and the places you have been.' },
   { target: '[data-tour="journals"]', title: 'Journals', text: 'Keep separate journals, like Travel or Family. Click one to open it. The app remembers the last journal you were in and opens it next time.' },
   { target: '[data-tour="nav-/import"]', title: 'Import', text: 'Bring in entries exported from Apple\'s Journal app on your iPhone. Entries you already have are skipped.' },
-  { target: '[data-tour="nav-/settings"]', title: 'Settings', text: 'Backups, a passcode lock, sharing a journal with family, and installing the app on Windows, Mac or iPhone.' },
+  { target: '[data-tour="nav-/settings"]', title: 'Settings', text: 'Backups, a passcode lock, sharing a journal with family, and installing the app on Windows, Mac, iPhone or Android.' },
   { target: '[data-tour="account"]', title: 'Your account', text: 'Signed in, your journal is saved online and shows up on your other computers and your phone.' },
   { target: '[data-tour="nav-/help"]', title: 'Help', text: 'Answers to common questions live here, and you can take this tour again whenever you like.' },
   { title: 'That is it!', text: 'Enjoy remembering. Click the PoquitoWare logo any time to learn who made this.' },
