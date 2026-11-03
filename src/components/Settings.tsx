@@ -63,8 +63,8 @@ export function Settings({ onLock }: { onLock: () => void }) {
       <h1>Settings</h1>
 
       <AccountCard />
-      <JournalSharingCard />
       <Journals />
+      <JournalSharingCard />
 
       <section className="card pad">
         <h3>Backup</h3>
@@ -99,16 +99,16 @@ export function Settings({ onLock }: { onLock: () => void }) {
         </div>
       </section>
 
-      <section className="card pad">
-        <h3>About</h3>
-        <PoquitoBadge />
-      </section>
-
       <InstallCard />
 
       <EraseCard />
 
       {msg && <div className="notice ok">{msg}</div>}
+
+      <section className="card pad">
+        <h3>About</h3>
+        <PoquitoBadge />
+      </section>
     </div>
   );
 }
