@@ -3,12 +3,14 @@ import { createJournal } from '../db';
 import { useCurrentJournal, useWritableJournals } from '../journals';
 import { importAppleJournal, sourceFromFiles, sourceFromZip, type ImportProgress, type ImportResult } from '../importer/appleJournal';
 import { go } from '../util';
+import { useCloud } from '../cloud/cloud';
 
 export function ImportPage() {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [result, setResult] = useState<(ImportResult & { journalId?: string }) | null>(null);
   const [error, setError] = useState('');
   const [drag, setDrag] = useState(false);
+  const cloud = useCloud();
   const journals = useWritableJournals();
   const [current, setCurrent] = useCurrentJournal();
   const [picked, setPicked] = useState<string>();
@@ -108,7 +110,7 @@ export function ImportPage() {
           <div className="row"><button className="btn primary" onClick={() => { if (result.journalId) setCurrent(result.journalId); go('/'); }}>Open {doneName ?? 'journal'}</button></div>
         </div>
       )}
-      <p className="muted small">Everything stays on this computer. Nothing is uploaded anywhere. Importing the same export again only adds entries that are new: anything with the same date and title as an entry already in the chosen journal is skipped.</p>
+      <p className="muted small">{cloud.user ? 'The export file itself is read on this computer and is not uploaded. Imported entries, photos and videos are saved to your account online like any other entry, so they show up on your other devices.' : 'Everything stays on this computer. Nothing is uploaded anywhere.'} Importing the same export again only adds entries that are new: anything with the same date and title as an entry already in the chosen journal is skipped.</p>
     </div>
   );
 }

@@ -8,7 +8,8 @@ import { AccountCard } from './Account';
 import { PoquitoBadge } from './About';
 import { JournalSharingCard } from './Sharing';
 import { useCloud } from '../cloud/cloud';
-import { resetSync } from '../cloud/sync';
+import { EraseCard } from './EraseCard';
+import { InstallCard } from './Install';
 
 export function Settings({ onLock }: { onLock: () => void }) {
   const [usage, setUsage] = useState<string>('');
@@ -103,22 +104,9 @@ export function Settings({ onLock }: { onLock: () => void }) {
         <PoquitoBadge />
       </section>
 
-      <section className="card pad">
-        <h3>Install on Windows</h3>
-        <p className="muted">In Edge or Chrome, click the install icon at the right end of the address bar (or ⋯ → Apps → Install this site as an app). The journal then opens in its own window from the Start menu and works offline.</p>
-      </section>
+      <InstallCard />
 
-      <section className="card pad">
-        <h3>Erase</h3>
-        <button className="btn ghost danger" onClick={async () => {
-          if (!confirm(cloud.user
-            ? 'Erase every entry, photo and setting from this browser? Your account keeps its copy online, and it downloads again the next time you sign in here.'
-            : 'Erase every entry, photo and setting from this browser? Download a backup first if you want to keep them.')) return;
-          await resetSync();
-          await db.delete();
-          location.reload();
-        }}>Erase all journal data</button>
-      </section>
+      <EraseCard />
 
       {msg && <div className="notice ok">{msg}</div>}
     </div>

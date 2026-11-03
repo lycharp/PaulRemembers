@@ -8,11 +8,14 @@ import { db, defaultJournalId, type Entry, type Journal, type Media } from './db
 const extFor = (type: string) =>
   ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/heic': 'heic', 'video/mp4': 'mp4', 'audio/webm': 'webm', 'audio/mp4': 'm4a' } as Record<string, string>)[type] ?? 'bin';
 
-export async function exportBackup(): Promise<Blob> {
+/** A backup of every journal, or of just the given ones. */
+export async function exportBackup(journalIds?: string[]): Promise<Blob> {
   const zip = new JSZip();
-  const journals = await db.journals.toArray();
-  const entries = await db.entries.toArray();
-  const media = await db.media.toArray();
+  const only = journalIds && new Set(journalIds);
+  const journals = (await db.journals.toArray()).filter((j) => !only || only.has(j.id));
+  const entries = (await db.entries.toArray()).filter((e) => !only || only.has(e.journalId));
+  const entryIds = new Set(entries.map((e) => e.id));
+  const media = (await db.media.toArray()).filter((m) => !only || entryIds.has(m.entryId));
   const mediaMeta = media.map(({ blob, ...m }) => ({ ...m, type: blob.type, file: `media/${m.id}.${extFor(blob.type)}` }));
   zip.file('journal.json', JSON.stringify({ version: 2, exportedAt: Date.now(), journals, entries, media: mediaMeta }, null, 2));
   media.forEach((m, i) => zip.file(mediaMeta[i].file, m.blob));
