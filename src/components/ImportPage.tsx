@@ -6,11 +6,11 @@ import { go } from '../util';
 
 export function ImportPage() {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
-  const [result, setResult] = useState<ImportResult | null>(null);
+  const [result, setResult] = useState<(ImportResult & { journalId?: string }) | null>(null);
   const [error, setError] = useState('');
   const [drag, setDrag] = useState(false);
   const journals = useWritableJournals();
-  const [current] = useCurrentJournal();
+  const [current, setCurrent] = useCurrentJournal();
   const [picked, setPicked] = useState<string>();
   const target = picked ?? (current !== 'all' && journals?.some((j) => j.id === current) ? current : journals?.find((j) => !j.role || j.role === 'owner')?.id);
   const pickJournal = async (v: string) => {
@@ -18,6 +18,8 @@ export function ImportPage() {
     const name = prompt('Name for the new journal');
     if (name?.trim()) setPicked((await createJournal(name)).id);
   };
+
+  const doneName = journals?.find((j) => j.id === result?.journalId)?.name;
 
   const run = async (files: File[]) => {
     if (!files.length) return;
@@ -27,7 +29,7 @@ export function ImportPage() {
     try {
       const zip = files.length === 1 && /\.zip$/i.test(files[0].name);
       const src = zip ? await sourceFromZip(files[0]) : sourceFromFiles(files);
-      setResult(await importAppleJournal(src, setProgress, target));
+      setResult({ ...(await importAppleJournal(src, setProgress, target)), journalId: target });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -94,18 +96,19 @@ export function ImportPage() {
       {error && <div className="notice error">{error}</div>}
       {result && (
         <div className="notice ok">
-          <strong>Imported {result.imported} {result.imported === 1 ? 'entry' : 'entries'}</strong> with {result.media} photos, videos and maps.
-          {result.skipped > 0 && <> Skipped {result.skipped} {result.skipped === 1 ? 'entry that was' : 'entries that were'} already in your journal (same date and title).</>}
+          <strong>Imported {result.imported} {result.imported === 1 ? 'entry' : 'entries'}</strong>
+          {doneName && <> into <strong>{doneName}</strong></>} with {result.media} photos, videos and maps.
+          {result.skipped > 0 && <> Skipped {result.skipped} {result.skipped === 1 ? 'entry that was' : 'entries that were'} already in {doneName ?? 'this journal'} (same date and title).</>}
           {result.warnings.length > 0 && (
             <details>
               <summary>{result.warnings.length} notes</summary>
               <ul>{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
             </details>
           )}
-          <div className="row"><button className="btn primary" onClick={() => go('/')}>Open journal</button></div>
+          <div className="row"><button className="btn primary" onClick={() => { if (result.journalId) setCurrent(result.journalId); go('/'); }}>Open {doneName ?? 'journal'}</button></div>
         </div>
       )}
-      <p className="muted small">Everything stays on this computer. Nothing is uploaded anywhere. Importing the same export again only adds entries that are new: anything with the same date and title as an existing entry is skipped.</p>
+      <p className="muted small">Everything stays on this computer. Nothing is uploaded anywhere. Importing the same export again only adds entries that are new: anything with the same date and title as an entry already in the chosen journal is skipped.</p>
     </div>
   );
 }

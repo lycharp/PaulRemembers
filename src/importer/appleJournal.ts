@@ -219,9 +219,13 @@ export async function importAppleJournal(
   if (has.has(`${root}index.html`)) order = parseIndexOrder(await src.readText(`${root}index.html`));
 
   const result: ImportResult = { imported: 0, skipped: 0, media: 0, warnings: [] };
-  // An entry already in the journal (any journal) with the same day and title
-  // is treated as a duplicate, whether it was imported or typed in by hand.
-  const seen = new Set((await db.entries.toArray()).map(duplicateKey));
+  // An entry already in the chosen journal with the same day and title is
+  // treated as a duplicate, whether it was imported or typed in by hand.
+  // Entries in other journals don't count, so the same export can be imported
+  // into a second journal and the entries land where you picked.
+  const existing = await db.entries.where('journalId').equals(targetJournal).toArray();
+  const seen = new Set(existing.map(duplicateKey));
+  const seenSources = new Set(existing.map((e) => e.sourceKey).filter(Boolean));
   const total = entryPaths.length;
 
   for (let i = 0; i < entryPaths.length; i++) {
@@ -230,7 +234,7 @@ export async function importAppleJournal(
     onProgress({ done: i, total, message: `Importing ${fileName.replace(/\.html?$/, '').replace(/_/g, ' ')}` });
 
     const sourceKey = `apple-journal:${fileName}`;
-    if (await db.entries.where('sourceKey').equals(sourceKey).count()) {
+    if (seenSources.has(sourceKey)) {
       result.skipped++;
       continue;
     }
