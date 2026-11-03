@@ -1,3 +1,4 @@
+import { InstallSteps } from './Install';
 import { useState } from 'react';
 import { AboutBox } from './About';
 import { goAndStartTour } from './Tour';
@@ -48,8 +49,8 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
     a: <>Yes. In <strong>Settings → Lock</strong>, set a passcode. The journal asks for it each time it opens.</>,
   },
   {
-    q: 'How do I install it like a normal Windows app?',
-    a: <>In Edge or Chrome, click the install icon at the right end of the address bar (or ⋯ → Apps → Install this site as an app). It then opens from the Start menu in its own window.</>,
+    q: 'How do I install it like a normal app (Windows, Mac, iPhone or Android)?',
+    a: <InstallSteps />,
   },
 ];
 

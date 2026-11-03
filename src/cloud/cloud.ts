@@ -220,6 +220,27 @@ export async function eraseLocal() {
   await resetSync();
 }
 
+/**
+ * Remove some journals from this device only. Anything already saved to an
+ * account stays there and downloads again the next time this device syncs.
+ */
+export async function eraseJournalsLocal(ids: string[]) {
+  const entryIds = await db.entries.where('journalId').anyOf(ids).primaryKeys();
+  const mediaIds = await db.media.where('entryId').anyOf(entryIds).primaryKeys();
+  await withoutSync(async () => {
+    await db.media.bulkDelete(mediaIds);
+    await db.entries.bulkDelete(entryIds);
+    await db.journals.bulkDelete(ids);
+  });
+  const keys = [...ids.map((id) => `journal:${id}`), ...entryIds.map((id) => `entry:${id}`), ...mediaIds.map((id) => `media:${id}`)];
+  await sdb.transaction('rw', sdb.outbox, sdb.known, async () => {
+    await sdb.outbox.bulkDelete(keys);
+    await sdb.known.bulkDelete(keys);
+  });
+  // Fetch everything again on the next sync, so the account's copy comes back.
+  await setState('cursor', undefined);
+}
+
 /** Replace another account's journal on this device with the signed-in one. */
 export async function replaceOtherAccount() {
   await eraseLocal();

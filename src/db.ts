@@ -153,6 +153,20 @@ export async function deleteJournal(id: string, moveTo: string) {
   });
 }
 
+/**
+ * Deletes journals together with all their entries, photos and recordings.
+ * When signed in, the deletion syncs: the journals are gone from the account
+ * online and for anyone they were shared with.
+ */
+export async function deleteJournalsAndEntries(ids: string[]) {
+  await db.transaction('rw', db.journals, db.entries, db.media, async () => {
+    const entryIds = await db.entries.where('journalId').anyOf(ids).primaryKeys();
+    await db.media.where('entryId').anyOf(entryIds).delete();
+    await db.entries.bulkDelete(entryIds);
+    await db.journals.bulkDelete(ids);
+  });
+}
+
 export async function moveEntry(id: string, journalId: string) {
   await db.entries.update(id, { journalId, updatedAt: Date.now() });
 }
