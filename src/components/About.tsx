@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import { Dialog } from './Sharing';
 
-export const APP_NAME = 'PaulRemembers';
+export const APP_NAME = 'Paul Remembers';
 export const APP_VERSION = '1.0';
 
 /** The PoquitoWare hummingbird. */

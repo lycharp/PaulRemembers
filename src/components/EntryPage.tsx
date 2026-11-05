@@ -55,10 +55,10 @@ export function EntryPage({ id }: { id?: string }) {
     <div className="entry-view">
       <div className="entry-actions">
         <button className="btn ghost" onClick={() => go('/')}>‹ Journal</button>
-        <div className="row">
-          {!readOnly && <button className="btn ghost" title={e.bookmarked ? 'Remove bookmark' : 'Bookmark'}
+        <div className="row nowrap">
+          {!readOnly && <button className={`btn ghost ${e.bookmarked ? 'on' : ''}`} title={e.bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-label={e.bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-pressed={!!e.bookmarked}
             onClick={() => db.entries.update(e.id, { bookmarked: !e.bookmarked, updatedAt: Date.now() })}>
-            {e.bookmarked ? '🔖 Bookmarked' : '🔖 Bookmark'}
+            🔖 <span className="btn-label">{e.bookmarked ? 'Bookmarked' : 'Bookmark'}</span>
           </button>}
           <ShareEntryButton entry={e} />
           {!readOnly && <button className="btn primary" onClick={() => setDraft({ ...e })}>Edit</button>}
@@ -103,15 +103,22 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
   const [promptIdx, setPromptIdx] = useState(() => Math.floor(Math.random() * PROMPTS.length));
   const fileRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   const set = (patch: Partial<Entry>) => setDraft({ ...draft, ...patch });
 
+  // Title and text grow with what you type, so long titles wrap instead of running off the screen.
   useEffect(() => {
-    const t = bodyRef.current;
-    if (t) {
-      t.style.height = 'auto';
-      t.style.height = `${t.scrollHeight}px`;
-    }
-  }, [draft.body]);
+    const fit = () => {
+      for (const t of [titleRef.current, bodyRef.current]) {
+        if (!t) continue;
+        t.style.height = 'auto';
+        t.style.height = `${t.scrollHeight}px`;
+      }
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [draft.body, draft.title]);
 
   const addFiles = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -256,7 +263,9 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         </Gallery>
       )}
 
-      <input className="title-input" placeholder="Title" value={draft.title} onChange={(e) => set({ title: e.target.value })} />
+      <textarea ref={titleRef} className="title-input" placeholder="Title" rows={1} value={draft.title}
+        onChange={(e) => set({ title: e.target.value.replace(/\s*\n\s*/g, ' ') })}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); bodyRef.current?.focus(); } }} />
       <textarea ref={bodyRef} className="body-input" placeholder="Start writing…" value={draft.body}
         autoFocus={isNew} onChange={(e) => set({ body: e.target.value })} />
 

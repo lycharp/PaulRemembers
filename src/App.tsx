@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createJournal, getSetting } from './db';
 import { JournalDot, useCurrentJournal, useJournals } from './journals';
 import { Account, SignIn, SyncStatus } from './components/Account';
-import { PoquitoBadge } from './components/About';
+import { APP_NAME, PoquitoBadge } from './components/About';
 import { Help } from './components/Help';
 import { Tour } from './components/Tour';
 import { SharedEntryPage } from './components/Sharing';
@@ -96,7 +96,7 @@ export function App() {
   return (
     <div className="app">
       <aside className="sidebar">
-        <div className="brand"><img src="./icon.svg" alt="" /> Journal</div>
+        <div className="brand"><img src="./icon.svg" alt="" /> {APP_NAME}</div>
         <button className="btn primary new-btn" data-tour="new" onClick={() => go('/new')} title="New entry (Ctrl+N)">＋ New entry</button>
         <nav>
           {NAV.map((n) => (
@@ -110,10 +110,11 @@ export function App() {
         {cloud.configured && (
           <a className={`account-link ${route === '/account' ? 'on' : ''}`} href="#/account" data-tour="account">
             <span aria-hidden>{cloud.user ? (cloud.error ? '⚠️' : cloud.syncing ? '🔄' : '☁️') : '👤'}</span>
-            <span>
+            <span className="account-text">
               {cloud.user ? cloud.user.email : 'Sign in'}
               {cloud.user && <small className="muted"><SyncStatus /></small>}
             </span>
+            <span className="account-short">{cloud.user ? (cloud.syncing ? 'Syncing' : 'Account') : 'Sign in'}</span>
           </a>
         )}
       </aside>
@@ -169,7 +170,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   return (
     <form className="lock" onSubmit={submit}>
       <img src="./icon.svg" alt="" width={72} />
-      <h2>Journal is locked</h2>
+      <h2>{APP_NAME} is locked</h2>
       <input type="password" autoFocus placeholder="Passcode" value={code} onChange={(e) => (setCode(e.target.value), setWrong(false))} />
       {wrong && <p className="error-text">That passcode is not right.</p>}
       <button className="btn primary">Unlock</button>

@@ -40,12 +40,12 @@ export function CalendarView() {
     <div className="calendar-page">
       <JournalSelect className="mobile-only page-select" />
       <div className="cal-head">
-        <button className="btn ghost" onClick={() => shift(-1)} aria-label="Previous month">‹</button>
+        <button className="btn ghost cal-arrow" onClick={() => shift(-1)} aria-label="Previous month">‹</button>
         <div>
           <h2>{cursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</h2>
           <div className="muted small center">{monthCount} {monthCount === 1 ? 'day' : 'days'} journaled</div>
         </div>
-        <button className="btn ghost" onClick={() => shift(1)} aria-label="Next month">›</button>
+        <button className="btn ghost cal-arrow" onClick={() => shift(1)} aria-label="Next month">›</button>
       </div>
       <div className="cal-grid">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <div key={d} className="cal-dow">{d}</div>)}
