@@ -28,9 +28,10 @@ export function PoquitoLogo({ size = 40 }: { size?: number }) {
 
 /** The PoquitoWare origin story, as Paul wrote it. */
 const STORY = [
-  "No one knows the origins of PoquitoWare. They say it was started back in the 80's on a couple of PCs with a 10mg hard drive and 2 floppies and a dial up connection.",
-  'They say the original engineers were rock stars. They wrote bugless code in their sleep. They brought dreams to reality. They never lied.',
-  'And, they may have gone to a strip club or 2 to blow off steam.',
+  "No one knows the origins of PoquitoWare. They say it was started back in the 80's on a couple of PCs with 10MB hard drives, floppy drives, and dial-up connections.",
+  'They say the original engineers were rock stars. They wrote bugless code in their sleep. They brought dreams to reality. Their code was tight.',
+  'They never lied.',
+  'And, they may have frequented the Hole in the Wall bar in Austin, or headed to Cozumel to blow off steam.',
   'Or maybe not?',
 ];
 
