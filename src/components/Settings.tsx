@@ -10,12 +10,14 @@ import { JournalSharingCard } from './Sharing';
 import { useCloud } from '../cloud/cloud';
 import { EraseCard } from './EraseCard';
 import { InstallCard } from './Install';
+import { IosSaveTip, isIPhoneOrIPad } from './IosSaveTip';
 
 export function Settings({ onLock }: { onLock: () => void }) {
   const [usage, setUsage] = useState<string>('');
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [backedUp, setBackedUp] = useState(false);
   const hasPass = useLiveQuery(async () => !!(await getSetting<string>('passcode')), []);
   const count = useLiveQuery(() => db.entries.count(), []);
   const cloud = useCloud();
@@ -30,7 +32,8 @@ export function Settings({ onLock }: { onLock: () => void }) {
     try {
       download(await exportBackup(), `journal-backup-${new Date().toISOString().slice(0, 10)}.zip`);
       await setSetting('lastBackup', Date.now());
-      setMsg('Backup downloaded. Keep it somewhere safe, like OneDrive or iCloud Drive.');
+      setBackedUp(true);
+      if (!isIPhoneOrIPad()) setMsg('Backup downloaded. Keep it somewhere safe, like OneDrive or iCloud Drive.');
     } finally {
       setBusy(false);
     }
@@ -76,6 +79,7 @@ export function Settings({ onLock }: { onLock: () => void }) {
             <input type="file" accept=".zip" hidden onChange={(e) => restore(e.target.files?.[0])} />
           </label>
         </div>
+        <IosSaveTip after={backedUp} />
         <p className="muted small">
           {count ?? 0} entries · {usage}
           {persisted === false && (

@@ -42,7 +42,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'How do I keep a backup?',
-    a: <>Go to <strong>Settings → Backup</strong> and click <strong>Download backup</strong>. Keep the file somewhere safe, like OneDrive. <strong>Restore from backup</strong> brings it back.</>,
+    a: <>Go to <strong>Settings → Backup</strong> and click <strong>Download backup</strong>. Keep the file somewhere safe, like OneDrive. On iPhone or iPad, the phone then shows the file instead of saving it: ignore any "Open in…" app it suggests, tap <strong>More…</strong>, then <strong>Save to Files</strong>, and pick a folder such as iCloud Drive. <strong>Restore from backup</strong> brings it back.</>,
   },
   {
     q: 'Can I lock the journal?',

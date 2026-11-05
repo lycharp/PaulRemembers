@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { download, exportBackup } from '../backup';
+import { IosSaveTip } from './IosSaveTip';
 import { eraseJournalsLocal, signOut, syncSoon, useCloud } from '../cloud/cloud';
 import { resetSync } from '../cloud/sync';
 import { db, deleteJournalsAndEntries, isOwnJournal, setSetting, type Journal } from '../db';
@@ -151,6 +152,7 @@ function ConfirmDialog({ action, signedIn, all, journals, skipped, entries, onCl
       <div className="row">
         <button className={`btn ${backedUp ? '' : 'primary'}`} disabled={busy} onClick={backup}>{backedUp ? '✓ Backup downloaded' : 'Download backup'}</button>
       </div>
+      <IosSaveTip after={backedUp} />
       <p className="muted small"><strong>Step 2:</strong> {action === 'delete' ? 'delete' : 'erase'} when you are ready.</p>
       <div className="row">
         <button className="btn danger" disabled={busy} onClick={go}>
