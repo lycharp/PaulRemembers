@@ -1,0 +1,35 @@
+name: Keep Supabase awake
+
+# Supabase's free plan pauses a project after about a week with no activity.
+# This job runs a tiny read query every 3 days so that never happens.
+# It uses the same public key the app already ships with (src/cloud/config.ts);
+# row-level security means it can't see anyone's journal, it just touches the database.
+
+on:
+  schedule:
+    - cron: '17 9 */3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query the database
+        env:
+          SUPABASE_URL: https://bnwoviixtfvqumvhoftt.supabase.co
+          SUPABASE_KEY: sb_publishable_4B0xzx-a-5d-mlmJbH1Sgg_N2iyCNCN
+        run: |
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o body.txt -w '%{http_code}' \
+              "$SUPABASE_URL/rest/v1/journals?select=id&limit=1" \
+              -H "apikey: $SUPABASE_KEY" || echo 000)
+            echo "Attempt $attempt: HTTP $code"
+            if [ "$code" = "200" ]; then echo "Database is awake."; exit 0; fi
+            cat body.txt 2>/dev/null || true
+            sleep 30
+          done
+          echo "::error::Supabase did not answer. If the project is paused, restore it from the Supabase dashboard."
+          exit 1
