@@ -1,6 +1,6 @@
 {
-  "name": "Journal",
-  "short_name": "Journal",
+  "name": "Paul Remembers",
+  "short_name": "Paul Remembers",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

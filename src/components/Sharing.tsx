@@ -62,7 +62,7 @@ export function ShareEntryButton({ entry }: { entry: Entry }) {
   if (!cloud.user || (journal?.role && journal.role !== 'owner')) return null;
   return (
     <>
-      <button className="btn ghost" onClick={() => setOpen(true)}>🔗 Share</button>
+      <button className="btn ghost" onClick={() => setOpen(true)} aria-label="Share">🔗 <span className="btn-label">Share</span></button>
       {open && <ShareEntryDialog entryId={entry.id} onClose={() => setOpen(false)} />}
     </>
   );

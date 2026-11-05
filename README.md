@@ -1,4 +1,4 @@
-# PaulRemembers
+# Paul Remembers
 
 A private journal that runs in the browser on Windows, modelled on Apple's Journal app, with an importer for the export Apple Journal produces.
 
@@ -34,7 +34,7 @@ npm run build    # production build in dist/
 
 ### Publishing on GitHub Pages
 
-`.github/workflows/deploy.yml` builds and deploys on every push to `main`. Turn it on once in the repository's **Settings → Pages → Build and deployment → Source: GitHub Actions**. The site will be at `https://<owner>.github.io/PaulRemembers/`. Your journal data still never leaves your browser; only the app's code is published.
+`.github/workflows/deploy.yml` builds and deploys on every push to `main`. Turn it on once in the repository's **Settings → Pages → Build and deployment → Source: GitHub Actions**. The site will be at `https://<owner>.github.io/Paul Remembers/`. Your journal data still never leaves your browser; only the app's code is published.
 
 ## How the importer reads the export
 

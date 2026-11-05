@@ -77,7 +77,7 @@ export function Help() {
         ))}
       </section>
       <p className="center">
-        <button className="link" onClick={() => setAbout(true)}>About PaulRemembers</button>
+        <button className="link" onClick={() => setAbout(true)}>About Paul Remembers</button>
       </p>
       {about && <AboutBox onClose={() => setAbout(false)} />}
     </div>

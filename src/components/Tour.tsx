@@ -10,7 +10,7 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  { title: 'Welcome to PaulRemembers 👋', text: 'Here is a quick look around. It takes about a minute. Use Next and Back, or press Esc to stop any time.' },
+  { title: 'Welcome to Paul Remembers 👋', text: 'Here is a quick look around. It takes about a minute. Use Next and Back, or press Esc to stop any time.' },
   { target: '[data-tour="new"]', title: 'Write something', text: 'Start a new entry here. You can add a title, your words, photos, videos, a voice recording, a place and a mood. On a keyboard, Ctrl+N does the same.' },
   { target: '[data-tour="nav-/"]', title: 'Your journal', text: 'All your entries, newest first. Use the search box and filters at the top to find old memories.' },
   { target: '[data-tour="nav-/calendar"]', title: 'Calendar', text: 'See which days you wrote on, and tap a day to read it.' },

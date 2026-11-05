@@ -4,6 +4,7 @@ import { JournalDot, JournalSelect, useCurrentJournal, useEntries, useJournals }
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
 import { Gallery, MediaTile } from './Media';
 import { PoquitoBadge } from './About';
+import { useCloud } from '../cloud/cloud';
 
 export function EntryCard({ e }: { e: Entry }) {
   const mood = moodFor(e.mood);
@@ -45,6 +46,7 @@ export function Timeline() {
   const entries = useEntries();
   const journals = useJournals();
   const [current] = useCurrentJournal();
+  const cloud = useCloud();
   const title = current === 'all' ? (journals && journals.length > 1 ? 'All journals' : journals?.[0]?.name) : journals?.find((j) => j.id === current)?.name;
 
   const shown = useMemo(() => {
@@ -70,6 +72,19 @@ export function Timeline() {
   }, [shown]);
 
   if (!entries) return null;
+
+  // Just signed in on a device with nothing on it yet (for example after erasing
+  // it): the first sync is bringing the journal down, so say that instead of "empty".
+  const firstSync = cloud.user && !cloud.otherAccount && !cloud.lastSync && !cloud.error && navigator.onLine;
+  if (entries.length === 0 && firstSync) {
+    return (
+      <div className="empty syncing-screen" role="status">
+        <div className="spinner" aria-hidden />
+        <h2>Getting your journal…</h2>
+        <p>Your entries are being copied down from your account. This can take a minute or two the first time, especially with lots of photos.</p>
+      </div>
+    );
+  }
 
   if (entries.length === 0) {
     return (
