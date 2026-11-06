@@ -1,7 +1,8 @@
+import { isIPhoneOrIPad } from './IosSaveTip';
+
 /** How to install the journal as an app on Windows, Mac, iPhone, iPad and Android. */
 const isApple = () => /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
 const isAndroid = () => /Android/.test(navigator.userAgent);
-const isPhone = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1);
 
 type Guide = { title: string; steps: React.ReactNode[]; other?: React.ReactNode; after: string };
 
@@ -48,7 +49,7 @@ const GUIDES: Record<'windows' | 'mac' | 'iphone' | 'android', Guide> = {
 
 export function InstallSteps() {
   const order: (keyof typeof GUIDES)[] = isAndroid() ? ['android', 'windows', 'mac', 'iphone']
-    : isPhone() ? ['iphone', 'mac', 'windows', 'android']
+    : isIPhoneOrIPad() ? ['iphone', 'mac', 'windows', 'android']
     : isApple() ? ['mac', 'iphone', 'windows', 'android']
     : ['windows', 'mac', 'iphone', 'android'];
   return (
