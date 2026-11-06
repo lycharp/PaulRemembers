@@ -67,7 +67,7 @@ export function EntryPage({ id }: { id?: string }) {
   return (
     <div className="entry-view">
       <div className="entry-actions">
-        <button className="btn ghost" onClick={() => go('/')}>‹ Journal</button>
+        <button className="btn ghost back-btn" onClick={() => go('/')} aria-label="Back to journal"><span className="back-chevron" aria-hidden="true">‹</span> Journal</button>
         <div className="row nowrap">
           {!readOnly && <button className={`btn ghost ${e.bookmarked ? 'on' : ''}`} title={e.bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-label={e.bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-pressed={!!e.bookmarked}
             onClick={() => db.entries.update(e.id, { bookmarked: !e.bookmarked, updatedAt: Date.now() })}>
