@@ -19,6 +19,19 @@ async function fileToMedia(file: File, entryId: string): Promise<Media> {
   return { id: newId(), entryId, kind, blob, takenAt: file.lastModified };
 }
 
+/** Image files on the clipboard, from a paste event. */
+function clipboardImages(data: DataTransfer | null): File[] {
+  // Text copied from Word or Excel can also carry a picture of itself; paste that as text.
+  if (!data || data.getData('text/plain').trim()) return [];
+  const files = [...data.files].filter((f) => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name));
+  if (files.length) return files;
+  // Some browsers only list the image under items.
+  return [...data.items]
+    .filter((i) => i.kind === 'file' && i.type.startsWith('image/'))
+    .map((i) => i.getAsFile())
+    .filter((f): f is File => !!f);
+}
+
 export function EntryPage({ id }: { id?: string }) {
   // undefined while loading, null when the entry does not exist.
   const stored = useLiveQuery(async () => (id ? (await db.entries.get(id)) ?? null : null), [id]);
@@ -105,6 +118,8 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const set = (patch: Partial<Entry>) => setDraft({ ...draft, ...patch });
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   // Title and text grow with what you type, so long titles wrap instead of running off the screen.
   useEffect(() => {
@@ -120,16 +135,49 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
     return () => window.removeEventListener('resize', fit);
   }, [draft.body, draft.title]);
 
-  const addFiles = async (files: FileList | null) => {
+  const addFiles = async (files: FileList | File[] | null) => {
     if (!files?.length) return;
     setBusy('Adding media…');
     try {
       const added: Media[] = [];
-      for (const f of files) added.push(await fileToMedia(f, draft.id));
+      for (const f of files) added.push(await fileToMedia(f, draftRef.current.id));
       setPendingMedia((p) => [...p, ...added]);
-      set({ mediaIds: [...draft.mediaIds, ...added.map((m) => m.id)] });
+      setDraft({ ...draftRef.current, mediaIds: [...draftRef.current.mediaIds, ...added.map((m) => m.id)] });
     } finally {
       setBusy('');
+    }
+  };
+
+  // Paste a copied photo (Ctrl+V on a computer, or tap and hold → Paste on a phone)
+  // anywhere in the editor and it is added like a picked photo. Plain text pastes as usual.
+  const addFilesRef = useRef(addFiles);
+  addFilesRef.current = addFiles;
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const files = clipboardImages(e.clipboardData);
+      if (!files.length) return;
+      e.preventDefault();
+      addFilesRef.current(files);
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, []);
+
+  const pastePhoto = async () => {
+    const tip = 'To paste a photo, copy it first (in Photos: tap Share, then Copy Photo). Then come back, tap and hold in the writing area, and tap Paste. On a computer, press Ctrl+V.';
+    if (!navigator.clipboard?.read) return alert(tip);
+    try {
+      const files: File[] = [];
+      for (const item of await navigator.clipboard.read()) {
+        const type = item.types.find((t) => t.startsWith('image/'));
+        if (!type) continue;
+        const blob = await item.getType(type);
+        files.push(new File([blob], `pasted.${type.split('/')[1] || 'png'}`, { type, lastModified: Date.now() }));
+      }
+      if (files.length) await addFiles(files);
+      else alert('There is no photo copied right now. ' + tip);
+    } catch {
+      alert(tip);
     }
   };
 
@@ -156,9 +204,6 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       alert('Could not use the microphone. Check that the browser has permission.');
     }
   };
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
-
   const useLocation = () => {
     if (!navigator.geolocation) return;
     setBusy('Finding your location…');
@@ -272,6 +317,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       <div className="edit-tools">
         <input ref={fileRef} type="file" accept="image/*,video/*,audio/*,.heic,.heif" multiple hidden onChange={(e) => addFiles(e.target.files)} />
         <button className="btn" onClick={() => fileRef.current?.click()}>🖼️ Photos & videos</button>
+        <button className="btn" onClick={pastePhoto} title="Paste a photo you copied (or press Ctrl+V)">📋 Paste photo</button>
         <button className={`btn ${recorder ? 'recording' : ''}`} onClick={toggleRecording}>{recorder ? '⏹ Stop recording' : '🎙️ Record audio'}</button>
         <button className="btn" onClick={useLocation}>📍 Use my location</button>
         <PlaceInput value={draft.place} onChange={(place) => set({ place })} />
