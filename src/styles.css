@@ -453,3 +453,10 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
   .dialog-backdrop { padding: calc(16px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom)); }
   .lightbox-close { top: calc(12px + env(safe-area-inset-top)); }
 }
+
+.paste-box {
+  margin-top: 12px; padding: 28px 16px; border: 2px dashed var(--accent); border-radius: 12px;
+  text-align: center; color: var(--muted); font-size: 16px; min-height: 80px; outline: none;
+  -webkit-user-select: text; user-select: text;
+}
+.paste-box:empty::before { content: attr(data-placeholder); }
