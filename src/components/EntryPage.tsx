@@ -163,9 +163,11 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
     return () => window.removeEventListener('paste', onPaste);
   }, []);
 
+  // The 📋 button reads the clipboard directly. If the browser can't (or there is
+  // no photo), open a box you can tap and hold in to Paste: on iPhone the writing
+  // box only offers Paste for text, but this box accepts pictures.
+  const [pasteBox, setPasteBox] = useState(false);
   const pastePhoto = async () => {
-    const tip = 'To paste a photo, copy it first (in Photos: tap Share, then Copy Photo). Then come back, tap and hold in the writing area, and tap Paste. On a computer, press Ctrl+V.';
-    if (!navigator.clipboard?.read) return alert(tip);
     try {
       const files: File[] = [];
       for (const item of await navigator.clipboard.read()) {
@@ -174,12 +176,17 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         const blob = await item.getType(type);
         files.push(new File([blob], `pasted.${type.split('/')[1] || 'png'}`, { type, lastModified: Date.now() }));
       }
-      if (files.length) await addFiles(files);
-      else alert('There is no photo copied right now. ' + tip);
-    } catch {
-      alert(tip);
-    }
+      if (files.length) return await addFiles(files);
+    } catch { /* not allowed or not supported: use the paste box */ }
+    setPasteBox(true);
   };
+  const busyRef = useRef(busy);
+  useEffect(() => {
+    // Close the paste box once a pasted photo has been added.
+    if (busyRef.current && !busy) setPasteBox(false);
+    busyRef.current = busy;
+  }, [busy]);
+
 
   const toggleRecording = async () => {
     if (recorder) {
@@ -331,6 +338,15 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       </div>
       {busy && <p className="muted">{busy}</p>}
       <p className="muted small">{fmtDay(draft.date)} at {fmtTime(draft.date)} · {wordCount(draft.body)} words</p>
+      {pasteBox && (
+        <Dialog title="Paste a photo" onClose={() => setPasteBox(false)}>
+          <p className="muted">First copy a photo. In the Photos app, open it, tap <strong>Share</strong>, then <strong>Copy Photo</strong>. Then come back here.</p>
+          <div className="paste-box" contentEditable autoFocus role="textbox" aria-label="Paste a photo here"
+            data-placeholder="Tap and hold here, then tap Paste. On a computer, click here and press Ctrl+V."
+            onInput={(e) => { e.currentTarget.textContent = ''; }} />
+          {busy && <p className="muted">{busy}</p>}
+        </Dialog>
+      )}
       {leavingTo != null && (
         <Dialog title={isNew ? 'Save this entry?' : 'Save your changes?'} onClose={() => setLeavingTo(null)}>
           <p className="muted">{isNew ? 'You have not saved this new entry yet.' : 'You have changes to this entry that are not saved yet.'}</p>
