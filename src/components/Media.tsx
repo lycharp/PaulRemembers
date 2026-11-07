@@ -2,6 +2,22 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { db, type Media } from '../db';
 import { useMediaUrl } from '../util';
+import { backfillPoster } from '../poster';
+
+/** A video's snapshot: the saved one, or one made now for a video added before snapshots existed. */
+function usePoster(media: Media | undefined) {
+  const [made, setMade] = useState<string>();
+  const needs = media?.kind === 'video' && !media.poster;
+  useEffect(() => {
+    if (!needs || !media) return;
+    let live = true;
+    backfillPoster(media).then((p) => live && setMade(p));
+    return () => {
+      live = false;
+    };
+  }, [needs, media?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return media?.poster ?? made;
+}
 
 /** Width ÷ height. 0 marks an item (audio) that takes a full-width strip of its own. */
 type OnRatio = (ratio: number) => void;
@@ -18,8 +34,9 @@ interface TileProps {
 export function MediaTile({ id, ...rest }: TileProps & { id: string }) {
   const media = useLiveQuery(() => db.media.get(id), [id]);
   const url = useMediaUrl(id);
+  const poster = usePoster(media);
   if (!media || !url) return <div className="tile tile-loading" style={rest.style} />;
-  return <TileBody kind={media.kind} url={url} caption={media.caption} {...rest} />;
+  return <TileBody kind={media.kind} url={url} poster={poster} caption={media.caption} {...rest} />;
 }
 
 /** A tile for media that is not saved yet (picked in the editor). */
@@ -31,10 +48,10 @@ export function PendingTile({ media, ...rest }: TileProps & { media: Media }) {
     return () => URL.revokeObjectURL(u);
   }, [media]);
   if (!url) return <div className="tile tile-loading" style={rest.style} />;
-  return <TileBody kind={media.kind} url={url} caption={media.caption} {...rest} />;
+  return <TileBody kind={media.kind} url={url} poster={media.poster} caption={media.caption} {...rest} />;
 }
 
-function TileBody({ kind, url, caption, style, onRatio, onOpen, onRemove, compact }: TileProps & { kind: Media['kind']; url: string; caption?: string }) {
+function TileBody({ kind, url, poster, caption, style, onRatio, onOpen, onRemove, compact }: TileProps & { kind: Media['kind']; url: string; poster?: string; caption?: string }) {
   const [failed, setFailed] = useState(false);
   const audio = kind === 'audio';
   useEffect(() => {
@@ -46,8 +63,12 @@ function TileBody({ kind, url, caption, style, onRatio, onOpen, onRemove, compac
     <div className={`tile tile-${kind} ${audio && !compact ? 'tile-strip' : ''} ${onOpen ? 'zoomable' : ''}`} style={style}>
       {failed ? (
         <VideoFallback url={url} />
+      ) : kind === 'video' && poster ? (
+        <img src={poster} alt={caption ?? ''} onClick={open}
+          onLoad={(e) => e.currentTarget.naturalHeight && onRatio?.(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)} />
       ) : kind === 'video' ? (
-        <video src={url} preload="metadata" muted onClick={open}
+        // "#t=0.1" asks the browser to show a frame instead of a blank box.
+        <video src={`${url}#t=0.1`} preload="metadata" muted playsInline onClick={open}
           onLoadedMetadata={(e) => e.currentTarget.videoHeight && onRatio?.(e.currentTarget.videoWidth / e.currentTarget.videoHeight)}
           onError={() => setFailed(true)} />
       ) : audio ? (
@@ -149,6 +170,8 @@ export function Lightbox({ ids, start, onClose }: { ids: string[]; start: number
   const [i, setI] = useState(start);
   const media = useLiveQuery(() => db.media.get(ids[i]), [ids, i]);
   const url = useMediaUrl(ids[i]);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [i]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -161,7 +184,7 @@ export function Lightbox({ ids, start, onClose }: { ids: string[]; start: number
   return (
     <div className="lightbox" onClick={onClose}>
       <div className="lightbox-inner" onClick={(e) => e.stopPropagation()}>
-        {media && url && (media.kind === 'video' ? <video src={url} controls autoPlay /> : media.kind === 'audio' ? <audio src={url} controls autoPlay /> : <img src={url} alt="" />)}
+        {media && url && (failed ? <VideoFallback url={url} /> : media.kind === 'video' ? <video src={url} poster={media.poster} controls autoPlay playsInline onError={() => setFailed(true)} /> : media.kind === 'audio' ? <audio src={url} controls autoPlay /> : <img src={url} alt="" />)}
         {media?.caption && <div className="lightbox-caption">{media.caption}</div>}
       </div>
       <button className="lightbox-close" onClick={onClose} aria-label="Close">×</button>
@@ -174,8 +197,9 @@ export function Lightbox({ ids, start, onClose }: { ids: string[]; start: number
 export function Thumb({ id }: { id?: string }) {
   const media = useLiveQuery(() => (id ? db.media.get(id) : undefined), [id]);
   const url = useMediaUrl(id);
+  const poster = usePoster(media);
   if (!id || !url || !media) return null;
-  if (media.kind === 'video') return <video className="thumb" src={url} preload="metadata" muted />;
+  if (media.kind === 'video') return poster ? <img className="thumb" src={poster} alt="" /> : <video className="thumb" src={`${url}#t=0.1`} preload="metadata" muted playsInline />;
   if (media.kind === 'audio') return <div className="thumb thumb-audio">🎙️</div>;
   return <img className="thumb" src={url} alt="" loading="lazy" />;
 }
