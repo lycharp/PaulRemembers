@@ -56,19 +56,19 @@ function TileBody({ kind, url, poster, caption, style, onRatio, onOpen, onRemove
   const audio = kind === 'audio';
   useEffect(() => {
     if (audio) onRatio?.(compact ? 1 : 0);
-    else if (failed) onRatio?.(16 / 9);
-  }, [audio, compact, failed]); // eslint-disable-line react-hooks/exhaustive-deps
+    else if (failed && !poster) onRatio?.(16 / 9);
+  }, [audio, compact, failed, poster]); // eslint-disable-line react-hooks/exhaustive-deps
   const open = onOpen && ((e: React.MouseEvent) => (e.stopPropagation(), onOpen()));
   return (
     <div className={`tile tile-${kind} ${audio && !compact ? 'tile-strip' : ''} ${onOpen ? 'zoomable' : ''}`} style={style}>
-      {failed ? (
-        <VideoFallback url={url} />
-      ) : kind === 'video' && poster ? (
+      {kind === 'video' && poster ? (
         <img src={poster} alt={caption ?? ''} onClick={open}
           onLoad={(e) => e.currentTarget.naturalHeight && onRatio?.(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)} />
+      ) : failed ? (
+        // Only Windows needs the codec help; elsewhere keep a plain tile that still opens the video.
+        isWindows ? <VideoFallback url={url} /> : <div className="tile-video-blank" onClick={open} />
       ) : kind === 'video' ? (
-        // "#t=0.1" asks the browser to show a frame instead of a blank box.
-        <video src={`${url}#t=0.1`} preload="metadata" muted playsInline onClick={open}
+        <video src={url} preload="metadata" muted playsInline onClick={open}
           onLoadedMetadata={(e) => e.currentTarget.videoHeight && onRatio?.(e.currentTarget.videoWidth / e.currentTarget.videoHeight)}
           onError={() => setFailed(true)} />
       ) : audio ? (
@@ -82,7 +82,7 @@ function TileBody({ kind, url, poster, caption, style, onRatio, onOpen, onRemove
         <img src={url} alt={caption ?? ''} loading="lazy" onClick={open}
           onLoad={(e) => e.currentTarget.naturalHeight && onRatio?.(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)} />
       )}
-      {kind === 'video' && !failed && <span className="tile-badge" onClick={open}>▶</span>}
+      {kind === 'video' && (poster || !failed || !isWindows) && <span className="tile-badge" onClick={open}>▶</span>}
       {caption && <span className="tile-caption">{caption}</span>}
       {onRemove && (
         <button className="tile-remove" title="Remove" onClick={(e) => (e.stopPropagation(), onRemove())}>
@@ -199,7 +199,7 @@ export function Thumb({ id }: { id?: string }) {
   const url = useMediaUrl(id);
   const poster = usePoster(media);
   if (!id || !url || !media) return null;
-  if (media.kind === 'video') return poster ? <img className="thumb" src={poster} alt="" /> : <video className="thumb" src={`${url}#t=0.1`} preload="metadata" muted playsInline />;
+  if (media.kind === 'video') return poster ? <img className="thumb" src={poster} alt="" /> : <video className="thumb" src={url} preload="metadata" muted playsInline />;
   if (media.kind === 'audio') return <div className="thumb thumb-audio">🎙️</div>;
   return <img className="thumb" src={url} alt="" loading="lazy" />;
 }
@@ -208,11 +208,13 @@ export function Thumb({ id }: { id?: string }) {
  * iPhone videos are usually HEVC. Edge and Chrome on Windows play them once the
  * free "HEVC Video Extensions" codec is installed; until then offer the file.
  */
+const isWindows = /Windows/i.test(navigator.userAgent);
+
 function VideoFallback({ url }: { url: string }) {
   return (
     <div className="video-fallback" onClick={(e) => e.stopPropagation()}>
-      <span>🎬 This video can't play in this browser yet.</span>
-      <a href="ms-windows-store://pdp/?ProductId=9N4WGH0Z6VHQ">Get HEVC Video Extensions</a>
+      <span>🎬 This video can't play in this browser{isWindows ? ' yet' : ''}.</span>
+      {isWindows && <a href="ms-windows-store://pdp/?ProductId=9N4WGH0Z6VHQ">Get HEVC Video Extensions</a>}
       <a href={url} download="video.mov">Download video</a>
     </div>
   );
