@@ -99,6 +99,8 @@ export const pendingCount = () => sdb.outbox.count();
 // ─── Push ───────────────────────────────────────────────────────────────────
 
 const ORDER: Record<Kind, number> = { journal: 0, entry: 1, media: 2 };
+const isTooBig = (e: { message?: string; statusCode?: string; status?: number } | null) =>
+  !!e && (e.statusCode === '413' || e.status === 413 || /exceeded the maximum|too large|payload too large/i.test(e.message ?? ''));
 const isDenied = (e: { code?: string; message?: string; statusCode?: string } | null) =>
   !!e && (e.code === '42501' || e.statusCode === '403' || /row-level security|not authorized|unauthorized/i.test(e.message ?? ''));
 
@@ -131,6 +133,8 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
   const refused: string[] = [];
   /** Entries with a photo or video this device can no longer read (not uploaded). */
   const unreadable: string[] = [];
+  /** Entries with a video too big for the online storage (it stays on this device). */
+  const tooBig: string[] = [];
   /** True when the call worked. Throws on other errors (like being offline), so the sync stops and retries later. */
   const refuse = (error: { code?: string; message?: string; statusCode?: string } | null) => {
     if (!error) return true;
@@ -185,6 +189,14 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
           continue;
         }
         const up = item.metaOnly ? { error: null } : await sb.storage.from('media').upload(path, bytes!, { upsert: true, contentType: m.blob.type || 'application/octet-stream' });
+        // The free online storage takes files up to 50 MB. Skip a bigger one instead
+        // of stopping the whole sync (which held back every photo queued after it).
+        if (up.error && isTooBig(up.error as never)) {
+          tooBig.push(entry.title || new Date(entry.date).toLocaleDateString());
+          await done(item);
+          tick();
+          continue;
+        }
         if (refuse(up.error as never)) {
           const { blob, ...meta } = m;
           const { error } = await sb.from('media').upsert({ id: m.id, entry_id: m.entryId, data: { ...meta, type: blob.type }, path, updated_at: now, deleted: false });
@@ -194,7 +206,7 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
     }
     tick();
   }
-  return { refused, unreadable };
+  return { refused, unreadable, tooBig };
 }
 
 // ─── Pull ───────────────────────────────────────────────────────────────────
