@@ -80,7 +80,7 @@ export async function syncNow(): Promise<void> {
       set({ lastSync: Date.now(), pending: await pendingCount() });
       if (refused.length) throw new Error(`the server refused ${refused.length} changes (${refused[0]})`);
       if (tooBig.length)
-        throw new Error(`a video in "${tooBig[0]}"${tooBig.length > 1 ? ` (and ${tooBig.length - 1} more)` : ''} is bigger than 50 MB, the most the free online storage takes, so it stays on this device only. Everything else synced`);
+        throw new Error(`a video in "${tooBig[0]}"${tooBig.length > 1 ? ` (and ${tooBig.length - 1} more)` : ''} is bigger than 50 MB (the most the free online storage takes) and this browser couldn't make it smaller, so it stays on this device only. Everything else synced. Opening the app on your iPhone may fix it`);
       if (unreadable.length)
         throw new Error(`a photo or video in "${unreadable[0]}"${unreadable.length > 1 ? ` (and ${unreadable.length - 1} more)` : ''} can't be read on this device, so it was not uploaded. Open the entry, remove it, and add it again`);
     } catch (e) {

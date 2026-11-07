@@ -10,6 +10,7 @@
  */
 import Dexie, { type Table, type Transaction } from 'dexie';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { needsShrink, shrinkVideo } from '../shrink';
 import { db, type Entry, type Journal, type Media } from '../db';
 
 export type Kind = 'journal' | 'entry' | 'media';
@@ -181,6 +182,14 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
         // Read the file first: a photo saved by an older version on an iPhone can
         // be unreadable (empty). Uploading it fails with "No content provided"
         // and used to stop all syncing, so skip it and say which entry it is in.
+        // A video saved before shrinking existed: make the smaller copy now and keep it.
+        if (!item.metaOnly && m.kind === 'video' && needsShrink(m.blob)) {
+          const small = await shrinkVideo(m.blob);
+          if (small) {
+            m.blob = small;
+            await withoutSync(async () => void (await db.media.update(m.id, { blob: small })));
+          }
+        }
         const bytes = item.metaOnly ? null : await m.blob.arrayBuffer().catch(() => null);
         if (!item.metaOnly && !bytes?.byteLength) {
           unreadable.push(entry.title || new Date(entry.date).toLocaleDateString());
