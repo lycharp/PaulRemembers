@@ -15,8 +15,9 @@ export async function makePoster(blob: Blob, timeoutMs = 10000): Promise<string 
   video.setAttribute('playsinline', '');
   video.setAttribute('muted', '');
   video.preload = 'auto';
-  // iPhone Safari only loads videos that are on the page.
-  video.style.cssText = 'position:fixed;left:-10px;top:-10px;width:2px;height:2px;opacity:0;pointer-events:none';
+  // iPhone Safari only loads and draws videos that are on the page and on screen,
+  // so keep it in view but invisible and behind everything.
+  video.style.cssText = 'position:fixed;left:0;top:0;width:64px;height:64px;opacity:0.01;z-index:-1;pointer-events:none';
   document.body.appendChild(video);
   try {
     return await new Promise<string | undefined>((resolve) => {
@@ -38,24 +39,31 @@ export async function makePoster(blob: Blob, timeoutMs = 10000): Promise<string 
           canvas.height = Math.round(h * scale);
           const ctx = canvas.getContext('2d')!;
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          // An all-black picture means the browser couldn't really decode the video.
-          if (isBlank(ctx, canvas.width, canvas.height)) return finish();
+          // All black: no frame decoded yet. Wait for the play fallback (or give up at the time limit).
+          if (isBlank(ctx, canvas.width, canvas.height)) return;
+          clearTimeout(timer);
           finish(canvas.toDataURL('image/jpeg', 0.75));
         } catch {
-          finish();
-        } finally {
           clearTimeout(timer);
+          finish();
         }
       };
       video.addEventListener('error', () => (clearTimeout(timer), finish()));
-      video.addEventListener('seeked', grab, { once: true });
+      video.addEventListener('seeked', () => video.readyState >= 2 && grab());
+      // If seeking alone didn't give us a picture, grab one once it starts playing.
+      video.addEventListener('timeupdate', () => {
+        if (!finished && video.currentTime > 0 && video.readyState >= 2) {
+          video.pause();
+          grab();
+        }
+      });
       video.addEventListener('loadedmetadata', () => {
         // A moment in, so it isn't a black first frame.
         const d = Number.isFinite(video.duration) ? video.duration : 0;
         video.currentTime = Math.min(1, d * 0.25) || 0.01;
         // Some iPhones won't decode a frame until the video has started playing.
         setTimeout(() => {
-          if (!finished && video.readyState < 2) video.play().then(() => video.pause(), () => {});
+          if (!finished) video.play().catch(() => {});
         }, 1500);
       });
       video.src = url;
