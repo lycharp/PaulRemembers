@@ -120,6 +120,11 @@ async function done(item: OutboxItem, updatedAt?: number) {
 }
 
 export async function push(sb: SupabaseClient, userId: string, onProgress?: (left: number) => void) {
+  // A video too big to upload was set aside earlier; try it again (it can be made smaller now).
+  const big = await db.media.filter((m) => m.kind === 'video' && needsShrink(m.blob)).primaryKeys();
+  const waiting = new Set((await sdb.outbox.bulkGet(big.map((id) => `media:${id}`))).filter(Boolean).map((o) => o!.id));
+  const add = big.filter((id) => !waiting.has(id)).map((id): OutboxItem => ({ key: `media:${id}`, kind: 'media', id, deleted: false, at: Date.now() }));
+  if (add.length) await sdb.outbox.bulkPut(add);
   const items = (await sdb.outbox.toArray()).sort((a, b) =>
     a.deleted !== b.deleted ? (a.deleted ? 1 : -1) : a.deleted ? ORDER[b.kind] - ORDER[a.kind] : ORDER[a.kind] - ORDER[b.kind]
   );
