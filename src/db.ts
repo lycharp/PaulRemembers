@@ -51,6 +51,8 @@ export interface Media {
   caption?: string;
   /** Speech-to-text of an audio recording, once someone has asked for it. */
   transcript?: string;
+  /** Videos: a still picture (JPEG data URL) shown as the thumbnail. */
+  poster?: string;
   /** When the photo/video was captured, if known. */
   takenAt?: number;
   place?: Place;

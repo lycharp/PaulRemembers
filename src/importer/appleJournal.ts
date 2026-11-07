@@ -14,6 +14,7 @@
  */
 import JSZip from 'jszip';
 import { db, defaultJournalId, newId, type Entry, type Media, type MediaKind, type Place } from '../db';
+import { makePoster } from '../poster';
 
 /** Seconds between 1970-01-01 and Apple's reference date 2001-01-01. */
 const APPLE_EPOCH_OFFSET = 978307200;
@@ -295,6 +296,7 @@ export async function importAppleJournal(
         entryId,
         kind,
         blob,
+        poster: kind === 'video' ? await makePoster(blob, 8000).catch(() => undefined) : undefined,
         caption: a.caption,
         takenAt: meta?.date != null ? (meta.date + APPLE_EPOCH_OFFSET) * 1000 : undefined,
         place,

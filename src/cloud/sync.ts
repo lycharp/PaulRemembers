@@ -24,6 +24,8 @@ interface OutboxItem {
   deleted: boolean;
   /** For media deletes: where the file lives in Storage. */
   entryId?: string;
+  /** Media: only details changed (such as a video snapshot), so the file needn't be uploaded again. */
+  metaOnly?: boolean;
   at: number;
 }
 
@@ -50,10 +52,15 @@ const FROM_CLOUD = Symbol('fromCloud');
 let onQueued: () => void = () => {};
 export const setOnQueued = (fn: () => void) => (onQueued = fn);
 
-function queue(tx: Transaction, kind: Kind, id: string, deleted: boolean, entryId?: string) {
+function queue(tx: Transaction, kind: Kind, id: string, deleted: boolean, entryId?: string, metaOnly?: boolean) {
   if ((tx as unknown as Record<symbol, boolean>)[FROM_CLOUD] || (Dexie.currentTransaction as unknown as Record<symbol, boolean> | null)?.[FROM_CLOUD]) return;
   const item: OutboxItem = { key: `${kind}:${id}`, kind, id, deleted, entryId, at: Date.now() };
-  tx.on('complete', () => {
+  tx.on('complete', async () => {
+    // A details-only change must not cancel a file upload that is still waiting.
+    if (metaOnly) {
+      const waiting = await sdb.outbox.get(item.key);
+      if (!waiting || waiting.metaOnly) item.metaOnly = true;
+    }
     sdb.outbox.put(item).then(() => onQueued());
   });
 }
@@ -66,8 +73,9 @@ export function trackChanges() {
     table.hook('creating', function (pk, obj, tx) {
       queue(tx, kind, (pk as string) ?? obj.id, false);
     });
-    table.hook('updating', function (_mods, pk, _obj, tx) {
-      queue(tx, kind, pk as string, false);
+    table.hook('updating', function (mods, pk, _obj, tx) {
+      const keys = Object.keys(mods as object);
+      queue(tx, kind, pk as string, false, undefined, kind === 'media' && keys.length > 0 && keys.every((k) => k === 'poster'));
     });
     table.hook('deleting', function (pk, obj, tx) {
       if (obj) queue(tx, kind, pk as string, true, (obj as unknown as Media).entryId);
@@ -169,14 +177,14 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
         // Read the file first: a photo saved by an older version on an iPhone can
         // be unreadable (empty). Uploading it fails with "No content provided"
         // and used to stop all syncing, so skip it and say which entry it is in.
-        const bytes = await m.blob.arrayBuffer().catch(() => null);
-        if (!bytes?.byteLength) {
+        const bytes = item.metaOnly ? null : await m.blob.arrayBuffer().catch(() => null);
+        if (!item.metaOnly && !bytes?.byteLength) {
           unreadable.push(entry.title || new Date(entry.date).toLocaleDateString());
           await done(item);
           tick();
           continue;
         }
-        const up = await sb.storage.from('media').upload(path, bytes, { upsert: true, contentType: m.blob.type || 'application/octet-stream' });
+        const up = item.metaOnly ? { error: null } : await sb.storage.from('media').upload(path, bytes!, { upsert: true, contentType: m.blob.type || 'application/octet-stream' });
         if (refuse(up.error as never)) {
           const { blob, ...meta } = m;
           const { error } = await sb.from('media').upsert({ id: m.id, entry_id: m.entryId, data: { ...meta, type: blob.type }, path, updated_at: now, deleted: false });
@@ -256,7 +264,10 @@ export async function pull(sb: SupabaseClient, user: { id: string; email?: strin
   const known = new Map((await sdb.known.bulkGet(keys)).map((k, i) => [keys[i], k?.updatedAt]));
   const queued = new Set((await sdb.outbox.bulkGet(keys)).filter(Boolean).map((q) => q!.key));
   const localEntries = new Map((await db.entries.bulkGet(erows.map((e) => e.id))).filter(Boolean).map((e) => [e!.id, e!]));
-  const localMedia = new Set((await db.media.bulkGet(mrows.map((m) => m.id))).filter(Boolean).map((m) => m!.id));
+  const localMediaRows = (await db.media.bulkGet(mrows.map((m) => m.id))).filter(Boolean) as Media[];
+  const localMedia = new Set(localMediaRows.map((m) => m.id));
+  // A file never changes once added, so for one this device already has, only the details (caption, video snapshot…) need updating.
+  const haveFile = new Set(localMediaRows.filter((m) => m.blob?.size > 0).map((m) => m.id));
   /** Should a server version replace what this device has? */
   const isNewer = (key: string, updatedAt: number, localUpdatedAt?: number) => {
     const k = known.get(key);
@@ -271,6 +282,7 @@ export async function pull(sb: SupabaseClient, user: { id: string; email?: strin
     if (m.deleted || !m.path) continue;
     const key = `media:${m.id}`;
     if (localMedia.has(m.id) && (known.get(key) == null || !isNewer(key, m.updated_at))) continue;
+    if (haveFile.has(m.id)) continue;
     const { data, error } = await sb.storage.from('media').download(m.path);
     if (error || !data) continue; // try again next time
     blobs.set(m.id, new Blob([data], { type: (m.data.type as string) || data.type }));
@@ -323,10 +335,13 @@ export async function pull(sb: SupabaseClient, user: { id: string; email?: strin
         }
         continue;
       }
-      const blob = blobs.get(m.id);
-      if (!blob) continue;
       const { type: _type, ...meta } = m.data as Record<string, unknown>;
-      await db.media.put({ ...(meta as unknown as Media), id: m.id, entryId: m.entry_id, blob });
+      const blob = blobs.get(m.id);
+      if (blob) await db.media.put({ ...(meta as unknown as Media), id: m.id, entryId: m.entry_id, blob });
+      else if (haveFile.has(m.id) && known.get(key) != null && isNewer(key, m.updated_at)) {
+        const { blob: _b, id: _i, ...details } = meta as Partial<Media>;
+        await db.media.update(m.id, { ...details, entryId: m.entry_id });
+      } else continue;
       applied.push({ key, updatedAt: m.updated_at });
     }
   });

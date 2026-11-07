@@ -6,6 +6,7 @@ import { AudioTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Me
 import { JournalDot, useCurrentJournal, useJournals, useWritableJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { PlaceInput } from './PlaceInput';
+import { makePoster } from '../poster';
 import { Dialog, ShareEntryButton } from './Sharing';
 
 async function fileToMedia(file: File, entryId: string): Promise<Media> {
@@ -16,7 +17,8 @@ async function fileToMedia(file: File, entryId: string): Promise<Media> {
   let kind: MediaKind = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'photo';
   if (/\.mov$/i.test(file.name)) blob = new Blob([blob], { type: 'video/mp4' });
   if (kind === 'photo' && (await isHeic(file))) blob = await heicToJpeg(file);
-  return { id: newId(), entryId, kind, blob, takenAt: file.lastModified };
+  const poster = kind === 'video' ? await makePoster(blob) : undefined;
+  return { id: newId(), entryId, kind, blob, poster, takenAt: file.lastModified };
 }
 
 /** Image files on the clipboard, from a paste event. */
