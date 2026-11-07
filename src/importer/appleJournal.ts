@@ -15,6 +15,7 @@
 import JSZip from 'jszip';
 import { db, defaultJournalId, newId, type Entry, type Media, type MediaKind, type Place } from '../db';
 import { makePoster } from '../poster';
+import { needsShrink, shrinkVideo } from '../shrink';
 
 /** Seconds between 1970-01-01 and Apple's reference date 2001-01-01. */
 const APPLE_EPOCH_OFFSET = 978307200;
@@ -286,6 +287,10 @@ export async function importAppleJournal(
       const ext = a.file.split('.').pop()!.toLowerCase();
       let blob = await src.read(resourcePath(a.file));
       blob = new Blob([blob], { type: MIME[ext] ?? blob.type });
+      if (kind === 'video' && needsShrink(blob)) {
+        const label = `Making a big video smaller in ${fileName.replace(/\.html?$/, '').replace(/_/g, ' ')}`;
+        blob = (await shrinkVideo(blob, (p) => onProgress({ done: i, total, message: `${label}… ${Math.round(p * 100)}%` }))) ?? blob;
+      }
       try {
         blob = await toViewable(blob, kind);
       } catch {

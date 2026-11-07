@@ -7,9 +7,10 @@ import { JournalDot, useCurrentJournal, useJournals, useWritableJournals } from 
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { PlaceInput } from './PlaceInput';
 import { makePoster } from '../poster';
+import { needsShrink, shrinkVideo } from '../shrink';
 import { Dialog, ShareEntryButton } from './Sharing';
 
-async function fileToMedia(file: File, entryId: string): Promise<Media> {
+async function fileToMedia(file: File, entryId: string, onShrink?: (fraction: number) => void): Promise<Media> {
   // Copy the bytes now. Safari (iPhone/iPad) stores a picked file as a link to
   // the original, which can no longer be read after the page reloads, so the
   // photo would show blank and never upload.
@@ -18,6 +19,10 @@ async function fileToMedia(file: File, entryId: string): Promise<Media> {
   if (/\.mov$/i.test(file.name)) blob = new Blob([blob], { type: 'video/mp4' });
   if (kind === 'photo' && (await isHeic(file))) blob = await heicToJpeg(file);
   const poster = kind === 'video' ? await makePoster(blob) : undefined;
+  if (kind === 'video' && needsShrink(blob)) {
+    onShrink?.(0);
+    blob = (await shrinkVideo(blob, onShrink)) ?? blob;
+  }
   return { id: newId(), entryId, kind, blob, poster, takenAt: file.lastModified };
 }
 
@@ -142,7 +147,8 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
     setBusy('Adding media…');
     try {
       const added: Media[] = [];
-      for (const f of files) added.push(await fileToMedia(f, draftRef.current.id));
+      for (const f of files)
+        added.push(await fileToMedia(f, draftRef.current.id, (p) => setBusy(`Making a big video smaller so it can sync… ${Math.round(p * 100)}%`)));
       setPendingMedia((p) => [...p, ...added]);
       setDraft({ ...draftRef.current, mediaIds: [...draftRef.current.mediaIds, ...added.map((m) => m.id)] });
     } finally {
