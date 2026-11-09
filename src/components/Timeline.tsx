@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { type Entry } from '../db';
-import { JournalDot, JournalSelect, useCurrentJournal, useEntries, useJournals } from '../journals';
+import { JournalDot, JournalSelect, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
 import { Gallery, MediaTile } from './Media';
 import { PoquitoBadge } from './About';
 import { useCloud } from '../cloud/cloud';
 
 export function EntryCard({ e }: { e: Entry }) {
+  const bookmarked = useIsBookmarked()(e);
   const mood = moodFor(e.mood);
   const snippet = e.body.replace(/\s+/g, ' ').slice(0, 220);
   const journals = useJournals();
@@ -33,7 +34,7 @@ export function EntryCard({ e }: { e: Entry }) {
           {e.place && <span>· 📍 {e.place.name}</span>}
           {mood && <span title={mood.label}>· {mood.emoji}</span>}
           {journal && <span className="card-journal"><JournalDot color={journal.color} /> {journal.name}</span>}
-          {e.bookmarked && <span className="bookmark-on" title="Bookmarked">🔖</span>}
+          {bookmarked && <span className="bookmark-on" title="Bookmarked">🔖</span>}
         </div>
       </div>
     </article>
@@ -47,19 +48,20 @@ export function Timeline() {
   const journals = useJournals();
   const [current] = useCurrentJournal();
   const cloud = useCloud();
+  const isBookmarked = useIsBookmarked();
   const title = current === 'all' ? (journals && journals.length > 1 ? 'All journals' : journals?.[0]?.name) : journals?.find((j) => j.id === current)?.name;
 
   const shown = useMemo(() => {
     if (!entries) return [];
     const needle = q.trim().toLowerCase();
     return entries.filter((e) => {
-      if (filter === 'bookmarked' && !e.bookmarked) return false;
+      if (filter === 'bookmarked' && !isBookmarked(e)) return false;
       if (filter === 'media' && e.mediaIds.length === 0) return false;
       if (filter === 'places' && !e.place) return false;
       if (!needle) return true;
       return [e.title, e.body, e.place?.name, e.prompt].some((s) => s?.toLowerCase().includes(needle));
     });
-  }, [entries, q, filter]);
+  }, [entries, q, filter, isBookmarked]);
 
   const groups = useMemo(() => {
     const m = new Map<string, Entry[]>();
