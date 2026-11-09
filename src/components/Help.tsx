@@ -38,7 +38,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'How do I share?',
-    a: <>To share one entry, open it and click <strong>🔗 Share</strong> to get a private link. To share a whole journal, go to <strong>Settings → Share a journal</strong> and type the other person's email. The app doesn't email them, so click <strong>Email invite</strong> next to their name to send them a note from your own email. They sign in with that same email address and the journal shows up. You need to be signed in for both.</>,
+    a: <>To share one entry, open it and click <strong>🔗 Share</strong> to get a private link. To share a whole journal, go to <strong>Settings → Share a journal</strong> and type the other person's email. The app doesn't email them, so click <strong>Send with Gmail</strong> next to their name to send them a note (or <strong>Copy invite</strong> to paste it into a text or another email). They sign in with that same email address and the journal shows up. You need to be signed in for both.</>,
   },
   {
     q: 'How do I keep a backup?',
