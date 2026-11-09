@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
-import { useCloud } from '../cloud/cloud';
+import { appUrl, useCloud } from '../cloud/cloud';
 import { cloudConfigured } from '../cloud/config';
 import { addMember, createEntryShare, getEntryShare, listMembers, loadSharedEntry, removeMember, shareUrl, stopEntryShare, type Member, type SharedMedia } from '../cloud/sharing';
 import type { LocalJournal } from '../cloud/sync';
@@ -121,7 +121,7 @@ export function JournalSharingCard() {
   return (
     <section className="card pad">
       <h3>Share a journal</h3>
-      <p className="muted">Invite people by email. They sign in (or create an account) with that email address, and the journal shows up for them. Viewers can read it; editors can also add and change entries.</p>
+      <p className="muted">Add people by email. The app doesn't send them anything, so use <strong>Send with Gmail</strong> or <strong>Copy invite</strong> to send them a note. They sign in (or create an account) with that same email address, and the journal shows up for them. Viewers can read it; editors can also add and change entries.</p>
       {mine.map((j) => <JournalMembers key={j.id} journal={j} />)}
       {shared.length > 0 && (
         <>
@@ -133,6 +133,43 @@ export function JournalSharingCard() {
       )}
     </section>
   );
+}
+
+/** The app sends no email itself, so Paul sends this invite from his own Gmail (or pastes it anywhere). */
+function inviteText(journalName: string, email: string, role: Member['role']) {
+  const subject = `I shared my journal "${journalName}" with you`;
+  const body = [
+    'Hi,',
+    '',
+    `I shared my journal "${journalName}" with you in Paul Remembers. You can ${role === 'editor' ? 'read it and add entries' : 'read it'}.`,
+    '',
+    `1. Open ${appUrl()}`,
+    `2. Sign in, or create an account, using this email address: ${email}`,
+    '3. The journal shows up for you once you are signed in.',
+    '',
+    'If you create a new account, check your inbox (and spam folder) for a confirmation email first.',
+  ].join('\n');
+  return { subject, body };
+}
+
+function gmailLink(journalName: string, email: string, role: Member['role']) {
+  const { subject, body } = inviteText(journalName, email, role);
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function CopyInvite({ journalName, member }: { journalName: string; member: Member }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    const { subject, body } = inviteText(journalName, member.email, member.role);
+    try {
+      await navigator.clipboard.writeText(`${subject}\n\n${body}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt('Copy this invite:', body);
+    }
+  };
+  return <button className="btn small ghost" onClick={copy}>{copied ? 'Copied ✓' : 'Copy invite'}</button>;
 }
 
 function JournalMembers({ journal }: { journal: LocalJournal }) {
@@ -152,7 +189,7 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
     setMsg('');
     try {
       await addMember(journal.id, email, role);
-      setMsg(`Shared with ${email}. Let them know to sign in to the journal with that email address.`);
+      setMsg(`Shared with ${email}. The app doesn't send an email by itself, so click "Send with Gmail" next to their name (or "Copy invite" to paste it into a text or any email).`);
       setEmail('');
       await reload();
     } catch (err) {
@@ -170,6 +207,8 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
           {members.map((m) => (
             <li key={m.email} className="row">
               <span className="grow">{m.email} <span className="muted small">· {m.role === 'editor' ? 'can edit' : 'can read'}</span></span>
+              <a className="btn small ghost" href={gmailLink(journal.name, m.email, m.role)} target="_blank" rel="noopener">Send with Gmail</a>
+              <CopyInvite journalName={journal.name} member={m} />
               <button className="btn small ghost danger" onClick={() => removeMember(journal.id, m.email).then(reload)}>Remove</button>
             </li>
           ))}
