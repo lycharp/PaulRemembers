@@ -468,3 +468,5 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 }
 .paste-box:empty::before { content: attr(data-placeholder); }
 .tile-video-blank { width: 100%; height: 100%; cursor: zoom-in; }
+.invite-senders { display: flex; flex-direction: column; gap: 8px; }
+.invite-senders .btn { width: 100%; justify-content: center; min-height: 44px; }
