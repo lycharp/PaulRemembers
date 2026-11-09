@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { Dialog } from './Sharing';
+import { buildDate } from './UpdateBar';
 
 export const APP_NAME = 'Paul Remembers';
 export const APP_VERSION = '1.0';
@@ -41,7 +42,7 @@ export function AboutBox({ onClose }: { onClose: () => void }) {
       <div className="about">
         <PoquitoLogo size={96} />
         <h3>{APP_NAME}</h3>
-        <p>Version {APP_VERSION}</p>
+        <p>Version {APP_VERSION}{buildDate() && ` (updated ${buildDate()})`}</p>
         <p className="brand-line">This product is brought to you by PoquitoWare</p>
         <div className="poquito-story">
           {STORY.map((p) => <p key={p}>{p}</p>)}
