@@ -479,3 +479,5 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 }
 .update-bar span { white-space: nowrap; }
 .update-bar .btn { min-height: 40px; }
+.invite-senders { display: flex; flex-direction: column; gap: 8px; }
+.invite-senders .btn { width: 100%; justify-content: center; min-height: 44px; }

@@ -121,7 +121,7 @@ export function JournalSharingCard() {
   return (
     <section className="card pad">
       <h3>Share a journal</h3>
-      <p className="muted">Add people by email. The app doesn't send them anything, so use <strong>Send with Gmail</strong> or <strong>Copy invite</strong> to send them a note. They sign in (or create an account) with that same email address, and the journal shows up for them. Viewers can read it; editors can also add and change entries.</p>
+      <p className="muted">Add people by email. The app doesn't send them anything, so click <strong>Send invite</strong> next to their name to send them a note from Gmail, Outlook, Yahoo, your email app, or copy it to paste anywhere. They sign in (or create an account) with that same email address, and the journal shows up for them. Viewers can read it; editors can also add and change entries.</p>
       {mine.map((j) => <JournalMembers key={j.id} journal={j} />)}
       {shared.length > 0 && (
         <>
@@ -135,7 +135,7 @@ export function JournalSharingCard() {
   );
 }
 
-/** The app sends no email itself, so Paul sends this invite from his own Gmail (or pastes it anywhere). */
+/** The app sends no email itself, so the owner sends this invite from their own email (or pastes it anywhere). */
 function inviteText(journalName: string, email: string, role: Member['role']) {
   const subject = `I shared my journal "${journalName}" with you`;
   const body = [
@@ -152,24 +152,71 @@ function inviteText(journalName: string, email: string, role: Member['role']) {
   return { subject, body };
 }
 
-function gmailLink(journalName: string, email: string, role: Member['role']) {
-  const { subject, body } = inviteText(journalName, email, role);
-  return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+type Sender = 'gmail' | 'outlook' | 'yahoo' | 'app' | 'copy';
+const SENDERS: { id: Sender; label: string }[] = [
+  { id: 'gmail', label: 'Gmail' },
+  { id: 'outlook', label: 'Outlook.com' },
+  { id: 'yahoo', label: 'Yahoo Mail' },
+  { id: 'app', label: 'My email app' },
+  { id: 'copy', label: 'Copy invite (to paste anywhere)' },
+];
+const LAST_SENDER = 'pr.inviteSender';
+
+function senderLink(id: Sender, to: string, subject: string, body: string): string | null {
+  const t = encodeURIComponent(to), s = encodeURIComponent(subject), b = encodeURIComponent(body);
+  switch (id) {
+    case 'gmail': return `https://mail.google.com/mail/?view=cm&fs=1&to=${t}&su=${s}&body=${b}`;
+    case 'outlook': return `https://outlook.live.com/mail/0/deeplink/compose?to=${t}&subject=${s}&body=${b}`;
+    case 'yahoo': return `https://compose.mail.yahoo.com/?to=${t}&subject=${s}&body=${b}`;
+    case 'app': return `mailto:${t}?subject=${s}&body=${b}`;
+    default: return null;
+  }
 }
 
-function CopyInvite({ journalName, member }: { journalName: string; member: Member }) {
+function SendInvite({ journalName, member }: { journalName: string; member: Member }) {
+  const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const copy = async () => {
+  let last: string | null = null;
+  try { last = localStorage.getItem(LAST_SENDER); } catch { /* private window */ }
+  const ordered = [...SENDERS].sort((x, y) => (y.id === last ? 1 : 0) - (x.id === last ? 1 : 0));
+
+  const pick = async (id: Sender) => {
+    try { localStorage.setItem(LAST_SENDER, id); } catch { /* ignore */ }
     const { subject, body } = inviteText(journalName, member.email, member.role);
+    const link = senderLink(id, member.email, subject, body);
+    if (link) {
+      if (id === 'app') location.href = link;
+      else window.open(link, '_blank', 'noopener');
+      setOpen(false);
+      return;
+    }
     try {
       await navigator.clipboard.writeText(`${subject}\n\n${body}`);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => { setCopied(false); setOpen(false); }, 1500);
     } catch {
       window.prompt('Copy this invite:', body);
+      setOpen(false);
     }
   };
-  return <button className="btn small ghost" onClick={copy}>{copied ? 'Copied ✓' : 'Copy invite'}</button>;
+
+  return (
+    <>
+      <button className="btn small ghost" onClick={() => setOpen(true)}>Send invite</button>
+      {open && (
+        <Dialog title={`Send an invite to ${member.email}`} onClose={() => setOpen(false)}>
+          <p className="muted small">Pick where to send it from. A new email opens with everything filled in.</p>
+          <div className="invite-senders">
+            {ordered.map((o) => (
+              <button key={o.id} className={o.id === last ? 'btn' : 'btn ghost'} onClick={() => pick(o.id)}>
+                {o.id === 'copy' && copied ? 'Copied ✓ Paste it into a text or email' : o.label}
+              </button>
+            ))}
+          </div>
+        </Dialog>
+      )}
+    </>
+  );
 }
 
 function JournalMembers({ journal }: { journal: LocalJournal }) {
@@ -189,7 +236,7 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
     setMsg('');
     try {
       await addMember(journal.id, email, role);
-      setMsg(`Shared with ${email}. The app doesn't send an email by itself, so click "Send with Gmail" next to their name (or "Copy invite" to paste it into a text or any email).`);
+      setMsg(`Shared with ${email}. The app doesn't send an email by itself, so click "Send invite" next to their name and pick Gmail, Outlook, Yahoo, your email app, or Copy.`);
       setEmail('');
       await reload();
     } catch (err) {
@@ -207,8 +254,7 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
           {members.map((m) => (
             <li key={m.email} className="row">
               <span className="grow">{m.email} <span className="muted small">· {m.role === 'editor' ? 'can edit' : 'can read'}</span></span>
-              <a className="btn small ghost" href={gmailLink(journal.name, m.email, m.role)} target="_blank" rel="noopener">Send with Gmail</a>
-              <CopyInvite journalName={journal.name} member={m} />
+              <SendInvite journalName={journal.name} member={m} />
               <button className="btn small ghost danger" onClick={() => removeMember(journal.id, m.email).then(reload)}>Remove</button>
             </li>
           ))}
