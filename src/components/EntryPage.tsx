@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, setLeaveGuard, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
 import { AudioTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
-import { JournalDot, useCurrentJournal, useJournals, useWritableJournals } from '../journals';
+import { JournalDot, toggleSharedBookmark, useCurrentJournal, useIsBookmarked, useJournals, useWritableJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { PlaceInput } from './PlaceInput';
 import { makePoster } from '../poster';
@@ -47,12 +47,16 @@ export function EntryPage({ id }: { id?: string }) {
   const [lightbox, setLightbox] = useState<number | null>(null);
   // Journals someone shared with you as a viewer are read-only.
   const readOnly = useLiveQuery(async () => {
-    const j = stored ? await db.journals.get(stored.journalId) : undefined;
-    return j?.role === 'viewer';
-  }, [stored]);
+    // Keyed on the journal id, not the entry, so an entry update (sync, video
+    // snapshot…) doesn't reset this and make the buttons blink.
+    const journalId = stored?.journalId;
+    if (!journalId) return undefined;
+    return (await db.journals.get(journalId))?.role === 'viewer';
+  }, [stored?.journalId]);
 
   const [current, , currentLoaded] = useCurrentJournal();
   const journals = useJournals();
+  const isBookmarked = useIsBookmarked();
   useEffect(() => {
     if (id || !currentLoaded) return;
     let live = true;
@@ -69,6 +73,7 @@ export function EntryPage({ id }: { id?: string }) {
   if (!stored) return null;
 
   const e = stored;
+  const bookmarked = isBookmarked(e);
   const mood = moodFor(e.mood);
   const journal = journals?.find((j) => j.id === e.journalId);
   return (
@@ -76,12 +81,12 @@ export function EntryPage({ id }: { id?: string }) {
       <div className="entry-actions">
         <button className="btn ghost back-btn" onClick={() => go('/')} aria-label="Back to journal"><span className="back-chevron" aria-hidden="true">‹</span> Journal</button>
         <div className="row nowrap">
-          {!readOnly && <button className={`btn ghost ${e.bookmarked ? 'on' : ''}`} title={e.bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-label={e.bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-pressed={!!e.bookmarked}
-            onClick={() => db.entries.update(e.id, { bookmarked: !e.bookmarked, updatedAt: Date.now() })}>
-            🔖 <span className="btn-label">{e.bookmarked ? 'Bookmarked' : 'Bookmark'}</span>
+          {readOnly !== undefined && <button className={`btn ghost ${bookmarked ? 'on' : ''}`} title={bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-pressed={bookmarked}
+            onClick={() => (readOnly ? toggleSharedBookmark(e.id) : db.entries.update(e.id, { bookmarked: !e.bookmarked, updatedAt: Date.now() }))}>
+            🔖 <span className="btn-label">{bookmarked ? 'Bookmarked' : 'Bookmark'}</span>
           </button>}
           <ShareEntryButton entry={e} />
-          {!readOnly && <button className="btn primary" onClick={() => setDraft({ ...e })}>Edit</button>}
+          {readOnly === false && <button className="btn primary" onClick={() => setDraft({ ...e })}>Edit</button>}
         </div>
       </div>
       <div className="entry-date">{fmtDay(e.date)}</div>
@@ -116,6 +121,7 @@ export function EntryPage({ id }: { id?: string }) {
 }
 
 function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry | null) => void; isNew: boolean }) {
+  const [current, setCurrent] = useCurrentJournal();
   const [pendingMedia, setPendingMedia] = useState<Media[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [busy, setBusy] = useState('');
@@ -270,6 +276,8 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       await db.media.bulkDelete(removed);
       await db.entries.put(entry);
     });
+    // Highlight the journal the entry went into (unless "All journals" is showing, which includes it).
+    if (current !== 'all' && current !== entry.journalId) setCurrent(entry.journalId);
     leave(to ?? (isNew ? `/entry/${entry.id}` : undefined));
   };
 

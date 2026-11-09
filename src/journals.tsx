@@ -24,6 +24,26 @@ export function useCurrentJournal(): [JournalChoice, (c: JournalChoice) => void,
   return [stored ?? 'all', choose, stored !== undefined];
 }
 
+/**
+ * Bookmarks on entries in journals shared with you read-only. They are kept
+ * on this device only, so the owner's journal is never changed.
+ */
+const SHARED_BOOKMARKS = 'sharedBookmarks';
+export async function toggleSharedBookmark(entryId: string) {
+  const ids = new Set((await getSetting<string[]>(SHARED_BOOKMARKS)) ?? []);
+  if (ids.has(entryId)) ids.delete(entryId); else ids.add(entryId);
+  await setSetting(SHARED_BOOKMARKS, [...ids]);
+}
+
+/** Tells whether an entry is bookmarked: your own bookmark for read-only journals, the entry's flag otherwise. */
+export function useIsBookmarked(): (e: Entry) => boolean {
+  const data = useLiveQuery(async () => ({
+    shared: new Set((await getSetting<string[]>(SHARED_BOOKMARKS)) ?? []),
+    viewer: new Set((await listJournals()).filter((j) => j.role === 'viewer').map((j) => j.id)),
+  }), []);
+  return (e: Entry) => (data?.viewer.has(e.journalId) ? data.shared.has(e.id) : !!e.bookmarked);
+}
+
 /** Entries in the chosen journal (or all), newest first. */
 export function useEntries(): Entry[] | undefined {
   const [current] = useCurrentJournal();
