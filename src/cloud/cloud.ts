@@ -32,6 +32,9 @@ const set = (patch: Partial<CloudState>) => {
 export const useCloud = () =>
   useSyncExternalStore((cb) => (listeners.add(cb), () => listeners.delete(cb)), () => state);
 
+/** The signed-in person, if any (for code outside React). */
+export const cloudUser = () => state.user;
+
 let client: SupabaseClient | null = null;
 export function supabase(): SupabaseClient {
   if (!client) {

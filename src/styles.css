@@ -481,3 +481,18 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .update-bar .btn { min-height: 40px; }
 .invite-senders { display: flex; flex-direction: column; gap: 8px; }
 .invite-senders .btn { width: 100%; justify-content: center; min-height: 44px; }
+.update-bar span.wrap { white-space: normal; }
+.daily-backup, .backup-log { margin-top: 18px; border-top: 1px solid var(--border, rgba(0,0,0,.08)); padding-top: 12px; }
+.daily-backup h4, .backup-log h4 { margin: 0 0 8px; }
+.daily-backup .row { gap: 10px; align-items: center; margin: 6px 0; }
+.daily-backup input[type="time"] { font-size: 16px; padding: 6px 8px; }
+.row.check { cursor: pointer; gap: 10px; align-items: center; }
+.row.check input[type="checkbox"] { width: 20px; height: 20px; }
+.backup-log ul { list-style: none; margin: 0; padding: 0; }
+.backup-log li { display: flex; gap: 8px; padding: 6px 0; font-size: 14px; line-height: 1.4; }
+.backup-log .bl-icon { color: #2e9e6a; font-weight: 700; }
+.backup-log li.failed .bl-icon { color: #d8584b; }
+.restore-list { list-style: none; margin: 8px 0; padding: 0; max-height: 50vh; overflow: auto; }
+.restore-list li { padding: 6px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,.08)); }
+.restore-list .indent { margin: 4px 0 4px 30px; }
+.update-bar + .update-bar { top: calc(env(safe-area-inset-top) + 70px); }

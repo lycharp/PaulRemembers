@@ -166,7 +166,8 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
       if (!j || roleOf(j.id) !== 'owner') {
         await done(item);
       } else {
-        const { error } = await sb.from('journals').upsert({ id: j.id, data: strip(j, ['ownerId', 'ownerEmail', 'role']), updated_at: j.updatedAt });
+        // deleted: false brings back a journal that was deleted for good and then restored from a backup.
+        const { error } = await sb.from('journals').upsert({ id: j.id, data: strip(j, ['ownerId', 'ownerEmail', 'role']), updated_at: j.updatedAt, deleted: false });
         if (refuse(error)) await done(item, j.updatedAt);
       }
     } else if (item.kind === 'entry') {

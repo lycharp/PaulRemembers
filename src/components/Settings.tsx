@@ -1,56 +1,18 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useState } from 'react';
-import { exportBackup, download, restoreBackup } from '../backup';
+import { useState } from 'react';
 import { createJournal, db, deleteJournal, getSetting, isOwnJournal, JOURNAL_COLORS, setSetting, updateJournal } from '../db';
 import { JournalDot, useJournals } from '../journals';
 import { sha256 } from '../util';
 import { AccountCard } from './Account';
 import { PoquitoBadge } from './About';
 import { JournalSharingCard } from './Sharing';
-import { useCloud } from '../cloud/cloud';
 import { EraseCard } from './EraseCard';
 import { InstallCard } from './Install';
-import { IosSaveTip, isIPhoneOrIPad } from './IosSaveTip';
+import { BackupCard } from './BackupCard';
 
 export function Settings({ onLock }: { onLock: () => void }) {
-  const [usage, setUsage] = useState<string>('');
-  const [persisted, setPersisted] = useState<boolean | null>(null);
   const [msg, setMsg] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [backedUp, setBackedUp] = useState(false);
   const hasPass = useLiveQuery(async () => !!(await getSetting<string>('passcode')), []);
-  const count = useLiveQuery(() => db.entries.count(), []);
-  const cloud = useCloud();
-
-  useEffect(() => {
-    navigator.storage?.estimate?.().then((e) => setUsage(`${((e.usage ?? 0) / 1e6).toFixed(1)} MB used`));
-    navigator.storage?.persisted?.().then(setPersisted);
-  }, [count]);
-
-  const backup = async () => {
-    setBusy(true);
-    try {
-      download(await exportBackup(), `journal-backup-${new Date().toISOString().slice(0, 10)}.zip`);
-      await setSetting('lastBackup', Date.now());
-      setBackedUp(true);
-      if (!isIPhoneOrIPad()) setMsg('Backup downloaded. Keep it somewhere safe, like OneDrive or iCloud Drive.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const restore = async (f?: File) => {
-    if (!f) return;
-    setBusy(true);
-    try {
-      const r = await restoreBackup(f);
-      setMsg(`Restored ${r.entries} entries${r.skipped ? `, ${r.skipped} were already here` : ''}.`);
-    } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const setPasscode = async () => {
     const a = prompt('Choose a passcode (at least 4 characters)');
@@ -69,25 +31,7 @@ export function Settings({ onLock }: { onLock: () => void }) {
       <Journals />
       <JournalSharingCard />
 
-      <section className="card pad">
-        <h3>Backup</h3>
-        <p className="muted">{cloud.user ? 'Your journal is saved on this computer and in your account online. A backup file is an extra copy you control.' : 'Your journal is saved in this browser on this computer. Download a backup now and then, so you have a copy if the browser data is ever cleared.'}</p>
-        <div className="row">
-          <button className="btn primary" onClick={backup} disabled={busy}>Download backup</button>
-          <label className="btn">
-            Restore from backup
-            <input type="file" accept=".zip" hidden onChange={(e) => restore(e.target.files?.[0])} />
-          </label>
-        </div>
-        <IosSaveTip after={backedUp} />
-        <p className="muted small">
-          {count ?? 0} entries · {usage}
-          {persisted === false && (
-            <> · <button className="link" onClick={() => navigator.storage.persist().then(setPersisted)}>Protect storage from automatic cleanup</button></>
-          )}
-          {persisted && ' · Storage is protected'}
-        </p>
-      </section>
+      <BackupCard />
 
       <section className="card pad">
         <h3>Lock</h3>
