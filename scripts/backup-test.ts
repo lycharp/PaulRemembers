@@ -68,7 +68,7 @@ await sync.withoutSync(async () => {
 
 // Backup (signed out in this test: no sharing list), then delete jA for good.
 const built = await backup.buildBackup();
-assert.equal(built.entries, 3);
+assert.equal(built.entries, 2, "a friend's shared journal is left out");
 const { deleteJournalsAndEntries } = await import('../src/db');
 await deleteJournalsAndEntries(['jA']);
 await settle();
@@ -77,9 +77,9 @@ const deletedAt = tables.journals.find((j) => j.id === 'jA')!.updated_at;
 assert.equal(tables.journals.find((j) => j.id === 'jA')!.deleted, true);
 assert.equal(tables.entries.find((e) => e.id === 'a1')!.deleted, true);
 
-// Open the backup: lists the journals, the friend's one can't be restored.
+// Open the backup: lists the journals.
 const opened = await backup.openBackup(built.blob);
-assert.deepEqual(opened.journals.map((j) => [j.id, j.entries, j.here, j.theirs]), [['jA', 1, false, false], ['jB', 1, true, false], ['jF', 1, true, true]]);
+assert.deepEqual(opened.journals.map((j) => [j.id, j.entries, j.here, j.theirs]), [['jA', 1, false, false], ['jB', 1, true, false]]);
 
 // Restore only jA.
 await new Promise((r) => setTimeout(r, 5));
@@ -128,5 +128,15 @@ for (let i = 0; i < 9; i++) await auto.addLog({ at: i, kind: 'daily', ok: true }
 const log = (await (await import('../src/db')).getSetting<any[]>('backupLog'))!;
 assert.equal(log.length, 7);
 assert.equal(log[0].at, 8);
+// File names and which old daily backups are removed (newest 7 of this account, plus older unnamed ones).
+assert.match(backup.backupFileName(undefined, new Date(2026, 10, 10)), /^Paul Remembers backup - not signed in - 2026-11-10\.zip$/);
+assert.match(auto.dailyFileName(new Date(2026, 10, 10, 21, 5)), /^Paul Remembers daily backup - not signed in - 2026-11-10 2105\.zip$/);
+const names = [
+  ...Array.from({ length: 8 }, (_, i) => `Paul Remembers daily backup - paul - 2026-11-${String(10 + i)} 2100.zip`),
+  'Paul Remembers daily backup 2026-11-01 2100.zip',
+  'Paul Remembers daily backup - friend - 2026-11-01 2100.zip',
+  'notes.txt',
+];
+assert.deepEqual(auto.dailyFilesToRemove(names, 'paul').sort(), ['Paul Remembers daily backup - paul - 2026-11-10 2100.zip', 'Paul Remembers daily backup 2026-11-01 2100.zip'].sort());
 console.log('backup test passed');
 process.exit(0);

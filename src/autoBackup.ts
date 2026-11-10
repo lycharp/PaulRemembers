@@ -12,7 +12,7 @@
  * - Other browsers (iPhone/iPad Safari, Firefox) can't save a file by themselves,
  *   so a bar asks the person to tap Save.
  */
-import { buildBackup, download, type BuiltBackup } from './backup';
+import { accountLabel, buildBackup, download, fileDate, type BuiltBackup } from './backup';
 import { getSetting, setSetting } from './db';
 
 export interface DailyBackup {
@@ -31,7 +31,9 @@ export interface BackupLogItem {
   bytes?: number;
   file?: string;
   /** Saved into the backup folder, or handed to the browser to save. */
-  where?: 'folder' | 'download';
+  where?: 'folder' | 'download' | 'file';
+  /** Which account it was made from (the part of the email before the @). */
+  account?: string;
   folder?: string;
   note?: string;
 }
@@ -126,8 +128,18 @@ export async function allowFolder(): Promise<boolean> {
 }
 
 const two = (n: number) => String(n).padStart(2, '0');
+/** "Paul Remembers daily backup - paulprachyl - 2026-11-10 2100.zip" */
 export function dailyFileName(now = new Date()) {
-  return `${FILE_PREFIX}${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}${two(now.getMinutes())}.zip`;
+  return `${FILE_PREFIX}- ${accountLabel()} - ${fileDate(now)} ${two(now.getHours())}${two(now.getMinutes())}.zip`;
+}
+
+/** Daily backups of this account (and older ones named without an account), newest first. */
+export function dailyFilesToRemove(names: string[], account = accountLabel()): string[] {
+  const mine = `${FILE_PREFIX}- ${account} - `;
+  const stamp = (n: string) => n.match(/(\d{4}-\d{2}-\d{2} \d{4})\.zip$/)?.[1];
+  const ours = names.filter((n) => stamp(n) && (n.startsWith(mine) || /^Paul Remembers daily backup \d{4}-/.test(n)));
+  ours.sort((a, b) => stamp(b)!.localeCompare(stamp(a)!));
+  return ours.slice(KEEP_FILES);
 }
 
 async function saveToFolder(dir: DirHandle, name: string, blob: Blob) {
@@ -135,11 +147,10 @@ async function saveToFolder(dir: DirHandle, name: string, blob: Blob) {
   const w = await file.createWritable();
   await w.write(blob);
   await w.close();
-  // Keep only the newest few daily backups (names sort by date).
-  const old: string[] = [];
-  for await (const h of dir.values()) if (h.kind === 'file' && h.name.startsWith(FILE_PREFIX) && h.name.endsWith('.zip')) old.push(h.name);
-  old.sort().reverse();
-  for (const n of old.slice(KEEP_FILES)) await dir.removeEntry(n).catch(() => {});
+  // Keep only the newest few daily backups of this account.
+  const names: string[] = [];
+  for await (const h of dir.values()) if (h.kind === 'file') names.push(h.name);
+  for (const n of dailyFilesToRemove(names)) await dir.removeEntry(n).catch(() => {});
 }
 
 // ─── Running it ─────────────────────────────────────────────────────────────
@@ -203,7 +214,7 @@ export async function saveDailyToFolder(): Promise<Waiting | undefined> {
   try {
     const b = await buildBackup();
     await saveToFolder(dir, name, b.blob);
-    await finish({ at: Date.now(), kind: 'daily', ok: true, entries: b.entries, bytes: b.blob.size, file: name, where: 'folder', folder: dir.name, note: b.sharesIncluded ? undefined : 'Sharing list not included (offline).' });
+    await finish({ at: Date.now(), kind: 'daily', ok: true, account: accountLabel(), entries: b.entries, bytes: b.blob.size, file: name, where: 'folder', folder: dir.name, note: b.sharesIncluded ? undefined : 'Sharing list not included (offline).' });
   } catch (e) {
     failedThisVisit = true;
     const msg = e instanceof Error ? e.message : String(e);
@@ -214,5 +225,5 @@ export async function saveDailyToFolder(): Promise<Waiting | undefined> {
 /** The person tapped Save on the bar. Runs inside the click, so the browser allows the download. */
 export async function saveDailyByDownload(w: Extract<Waiting, { kind: 'save' }>) {
   download(w.backup.blob, w.name);
-  await finish({ at: Date.now(), kind: 'daily', ok: true, entries: w.backup.entries, bytes: w.backup.blob.size, file: w.name, where: 'download', note: w.backup.sharesIncluded ? undefined : 'Sharing list not included (offline).' });
+  await finish({ at: Date.now(), kind: 'daily', ok: true, account: accountLabel(), entries: w.backup.entries, bytes: w.backup.blob.size, file: w.name, where: 'download', note: w.backup.sharesIncluded ? undefined : 'Sharing list not included (offline).' });
 }

@@ -35,16 +35,19 @@ export interface BuiltBackup {
 export async function buildBackup(journalIds?: string[]): Promise<BuiltBackup> {
   const zip = new JSZip();
   const only = journalIds && new Set(journalIds);
-  const journals = (await db.journals.toArray()).filter((j) => !only || only.has(j.id));
-  const entries = (await db.entries.toArray()).filter((e) => !only || only.has(e.journalId));
+  // Journals other people shared with you are left out: they are safe in their
+  // owner's account, restore can't bring them back, and it keeps their entries out of your file.
+  const journals = (await db.journals.toArray()).filter((j) => isOwnJournal(j) && (!only || only.has(j.id)));
+  const kept = new Set(journals.map((j) => j.id));
+  const entries = (await db.entries.toArray()).filter((e) => kept.has(e.journalId));
   const entryIds = new Set(entries.map((e) => e.id));
-  const media = (await db.media.toArray()).filter((m) => !only || entryIds.has(m.entryId));
+  const media = (await db.media.toArray()).filter((m) => entryIds.has(m.entryId));
   const mediaMeta = media.map(({ blob, ...m }) => ({ ...m, type: blob.type, file: `media/${m.id}.${extFor(blob.type)}` }));
   let shares: Record<string, Member[]> | undefined;
   let sharesIncluded = true;
   if (cloudUser()) {
     try {
-      shares = await membersOf(journals.filter(isOwnJournal).map((j) => j.id));
+      shares = await membersOf(journals.map((j) => j.id));
     } catch {
       sharesIncluded = false;
     }
@@ -196,6 +199,62 @@ export async function restoreBackup(b: OpenedBackup, journalIds: string[], share
     }
   }
   return result;
+}
+
+// ─── File names and saving ─────────────────────────────────────────────────
+
+/** Which account a backup is from, for file names and the log: the part of the email before the @. */
+export function accountLabel(): string {
+  const email = cloudUser()?.email;
+  return email ? email.split('@')[0].replace(/[\\/:*?"<>|]+/g, '-') : 'not signed in';
+}
+
+const two = (n: number) => String(n).padStart(2, '0');
+export const fileDate = (d = new Date()) => `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+
+/** "Paul Remembers backup - paulprachyl - 2026-11-10.zip" (with the journal name for a one-journal backup). */
+export function backupFileName(journalName?: string, d = new Date()) {
+  const journal = journalName ? ` - ${journalName.replace(/[\\/:*?"<>|]+/g, '-')}` : '';
+  return `Paul Remembers backup - ${accountLabel()}${journal} - ${fileDate(d)}.zip`;
+}
+
+export type Saved = { where: 'file' | 'download'; file: string } | null;
+
+/** This browser has a "Save as" window (Edge and Chrome on a computer). */
+export const canSaveAs = () => typeof window !== 'undefined' && 'showSaveFilePicker' in window && window.isSecureContext;
+
+/**
+ * Make a backup and save it. In Edge and Chrome a "Save as" window lets the
+ * person pick the folder (it opens in the one used last time); elsewhere it
+ * downloads. The window opens first, while the click still counts, and the
+ * backup is made after. Returns null if they cancelled.
+ */
+export async function saveBackup(make: () => Promise<BuiltBackup>, name: string): Promise<{ saved: Saved; backup?: BuiltBackup }> {
+  if (canSaveAs()) {
+    type Picker = (o: object) => Promise<FileSystemFileHandle>;
+    let handle: FileSystemFileHandle | null = null;
+    try {
+      handle = await (window as unknown as { showSaveFilePicker: Picker }).showSaveFilePicker({
+        id: 'paul-remembers-backup',
+        suggestedName: name,
+        startIn: 'documents',
+        types: [{ description: 'Journal backup', accept: { 'application/zip': ['.zip'] } }],
+      });
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return { saved: null };
+      // The window couldn't open (for example the click timed out): download instead.
+    }
+    if (handle) {
+      const backup = await make();
+      const w = await handle.createWritable();
+      await w.write(backup.blob);
+      await w.close();
+      return { saved: { where: 'file', file: handle.name }, backup };
+    }
+  }
+  const backup = await make();
+  download(backup.blob, name);
+  return { saved: { where: 'download', file: name }, backup };
 }
 
 export function download(blob: Blob, name: string) {
