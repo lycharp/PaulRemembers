@@ -3,7 +3,9 @@ import { Dialog } from './Sharing';
 import { buildDate } from './UpdateBar';
 
 export const APP_NAME = 'Paul Remembers';
-export const APP_VERSION = '1.0';
+declare const __APP_VERSION__: string;
+/** "1.<latest merged PR number>", filled in at build time (see vite.config.ts). */
+export const APP_VERSION = __APP_VERSION__;
 
 /** The PoquitoWare hummingbird. */
 export function PoquitoLogo({ size = 40 }: { size?: number }) {
