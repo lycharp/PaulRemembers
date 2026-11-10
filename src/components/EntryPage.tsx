@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, setLeaveGuard, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
 import { AudioTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
@@ -99,7 +99,7 @@ export function EntryPage({ id }: { id?: string }) {
       {e.mediaIds.map((m) => <AudioTranscript key={m} id={m} readOnly={!!readOnly} />)}
       {e.title && <h1 className="entry-title">{e.title}</h1>}
       <div className="entry-body">
-        {e.body.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}
+        {e.body.split(/\n{2,}/).map((p, i) => <p key={i}><Linkified text={p} /></p>)}
       </div>
       <div className="entry-footer">
         {e.place && (
@@ -332,10 +332,11 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       )}
 
       <textarea ref={titleRef} className="title-input" placeholder="Title" rows={1} value={draft.title}
+        autoFocus={isNew}
         onChange={(e) => set({ title: e.target.value.replace(/\s*\n\s*/g, ' ') })}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); bodyRef.current?.focus(); } }} />
       <textarea ref={bodyRef} className="body-input" placeholder="Start writing…" value={draft.body}
-        autoFocus={isNew} onChange={(e) => set({ body: e.target.value })} />
+        onChange={(e) => set({ body: e.target.value })} />
 
       <div className="edit-tools">
         <input ref={fileRef} type="file" accept="image/*,video/*,audio/*,.heic,.heif" multiple hidden onChange={(e) => addFiles(e.target.files)} />
@@ -389,4 +390,30 @@ function JournalPicker({ value, onChange }: { value: string; onChange: (id: stri
       </select>
     </label>
   );
+}
+
+// Web addresses in text: https://…, http://…, or www.…
+const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"]+/gi;
+
+/** Shows text with any web addresses turned into links that open in a new tab. */
+function Linkified({ text }: { text: string }) {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const m of text.matchAll(URL_RE)) {
+    // Leave trailing punctuation (a full stop, comma, closing bracket…) out of the link.
+    let url = m[0];
+    while (/[.,;:!?'")\]}]$/.test(url)) {
+      const ch = url.slice(-1);
+      const open = { ')': '(', ']': '[', '}': '{' }[ch];
+      if (open && url.split(open).length > url.split(ch).length - 1) break; // keep balanced brackets, e.g. Wikipedia links
+      url = url.slice(0, -1);
+    }
+    const start = m.index ?? 0;
+    if (start > last) parts.push(text.slice(last, start));
+    const href = /^https?:/i.test(url) ? url : `https://${url}`;
+    parts.push(<a key={start} href={href} target="_blank" rel="noopener noreferrer">{url}</a>);
+    last = start + url.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
 }
