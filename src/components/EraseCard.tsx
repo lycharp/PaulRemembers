@@ -1,9 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
-import { download, exportBackup } from '../backup';
+import { buildBackup, download } from '../backup';
+import { addLog } from '../autoBackup';
 import { IosSaveTip } from './IosSaveTip';
 import { eraseJournalsLocal, signOut, syncSoon, useCloud } from '../cloud/cloud';
 import { resetSync } from '../cloud/sync';
+import { clearShares } from '../cloud/sharing';
 import { db, deleteJournalsAndEntries, isOwnJournal, setSetting, type Journal } from '../db';
 import { useJournals } from '../journals';
 import { Dialog } from './Sharing';
@@ -101,9 +103,11 @@ function ConfirmDialog({ action, signedIn, all, journals, skipped, entries, onCl
   const backup = async () => {
     setBusy(true);
     try {
-      const blob = await exportBackup(all ? undefined : journals.map((j) => j.id));
+      const b = await buildBackup(all ? undefined : journals.map((j) => j.id));
       const name = all ? 'journal-backup' : `journal-backup-${journals[0].name.replace(/[^\w-]+/g, '-')}`;
-      download(blob, `${name}-${new Date().toISOString().slice(0, 10)}.zip`);
+      const file = `${name}-${new Date().toISOString().slice(0, 10)}.zip`;
+      download(b.blob, file);
+      await addLog({ at: Date.now(), kind: 'manual', ok: true, entries: b.entries, bytes: b.blob.size, file, where: 'download' });
       if (all) await setSetting('lastBackup', Date.now());
       setBackedUp(true);
     } catch (e) {
@@ -117,7 +121,16 @@ function ConfirmDialog({ action, signedIn, all, journals, skipped, entries, onCl
     setBusy(true);
     try {
       if (action === 'delete') {
-        await deleteJournalsAndEntries(journals.map((j) => j.id));
+        const ids = journals.map((j) => j.id);
+        // Stop sharing first, so a journal later restored from a backup starts out private.
+        if (signedIn) {
+          try {
+            await clearShares(ids, await db.entries.where('journalId').anyOf(ids).primaryKeys());
+          } catch {
+            throw new Error('Could not reach your account to stop sharing this journal, so nothing was deleted. Check your internet connection and try again.');
+          }
+        }
+        await deleteJournalsAndEntries(ids);
         syncSoon(0);
         onDone();
       } else if (all && signedIn) {
@@ -142,7 +155,7 @@ function ConfirmDialog({ action, signedIn, all, journals, skipped, entries, onCl
     <Dialog title={title} onClose={onClose}>
       <p>
         {action === 'delete'
-          ? <>This deletes {n} with their photos and recordings from this computer, from your account online, from your other devices, and for anyone the journal is shared with. It cannot be undone.</>
+          ? <>This deletes {n} with their photos and recordings from this computer, from your account online, from your other devices, and for anyone the journal is shared with. It also stops sharing it, so if you restore it later from a backup, you choose who to share it with again. It cannot be undone.</>
           : signedIn
             ? <>This removes {n} from this computer and signs you out. Your account keeps everything online, and it all downloads again when you sign in here.</>
             : <>This removes {n} from this computer. You are not signed in, so this is the only copy: without a backup, they are gone for good.</>}

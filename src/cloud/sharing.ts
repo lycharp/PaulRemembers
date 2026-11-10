@@ -77,3 +77,44 @@ export async function removeMember(journalId: string, email: string) {
   const { error } = await supabase().from('journal_members').delete().eq('journal_id', journalId).eq('email', email);
   if (error) throw error;
 }
+
+const chunks = <T,>(a: T[], n = 100) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+
+/** Who each of these journals is shared with (for a backup). */
+export async function membersOf(journalIds: string[]): Promise<Record<string, Member[]>> {
+  const out: Record<string, Member[]> = {};
+  for (const ids of chunks(journalIds)) {
+    const { data, error } = await supabase().from('journal_members').select('journal_id, email, role').in('journal_id', ids).order('added_at');
+    if (error) throw error;
+    for (const r of data ?? []) (out[r.journal_id as string] ??= []).push({ email: r.email as string, role: r.role as Member['role'] });
+  }
+  return out;
+}
+
+/**
+ * Stop sharing these journals: nobody keeps access, and private links to
+ * their entries stop working. Used by "Delete for good", so a journal that is
+ * later restored from a backup starts out private.
+ */
+export async function clearShares(journalIds: string[], entryIds: string[]) {
+  const sb = supabase();
+  for (const ids of chunks(journalIds)) {
+    const { error } = await sb.from('journal_members').delete().in('journal_id', ids);
+    if (error) throw error;
+  }
+  for (const ids of chunks(entryIds)) {
+    const { error } = await sb.from('entry_shares').delete().in('entry_id', ids);
+    if (error) throw error;
+  }
+}
+
+/** Share a journal with exactly these people (anyone else loses access). */
+export async function setMembers(journalId: string, members: Member[]) {
+  const sb = supabase();
+  const { error } = await sb.from('journal_members').delete().eq('journal_id', journalId);
+  if (error) throw error;
+  if (!members.length) return;
+  const rows = members.map((m) => ({ journal_id: journalId, email: m.email.trim().toLowerCase(), role: m.role }));
+  const { error: e2 } = await sb.from('journal_members').upsert(rows);
+  if (e2) throw e2;
+}
