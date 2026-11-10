@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
-import { buildBackup, download, openBackup, restoreBackup, type OpenedBackup } from '../backup';
+import { accountLabel, backupFileName, buildBackup, canSaveAs, openBackup, restoreBackup, saveBackup, type OpenedBackup } from '../backup';
 import { addLog, canUseFolder, chooseFolder, DEFAULT_TIME, folderAccess, getDaily, getFolder, LOG_SIZE, nextSlot, setDaily, type BackupLogItem } from '../autoBackup';
 import { useCloud } from '../cloud/cloud';
 import type { Member } from '../cloud/sharing';
@@ -35,17 +35,17 @@ export function BackupCard() {
   const backup = async () => {
     setBusy(true);
     setMsg('');
-    const name = `journal-backup-${new Date().toISOString().slice(0, 10)}.zip`;
     try {
-      const b = await buildBackup();
-      download(b.blob, name);
+      const { saved, backup: b } = await saveBackup(() => buildBackup(), backupFileName());
+      if (!saved || !b) return; // cancelled
       await setSetting('lastBackup', Date.now());
-      await addLog({ at: Date.now(), kind: 'manual', ok: true, entries: b.entries, bytes: b.blob.size, file: name, where: 'download', note: b.sharesIncluded ? undefined : 'Sharing list not included (offline).' });
+      await addLog({ at: Date.now(), kind: 'manual', ok: true, account: accountLabel(), entries: b.entries, bytes: b.blob.size, file: saved.file, where: saved.where, note: b.sharesIncluded ? undefined : 'Sharing list not included (offline).' });
       setBackedUp(true);
-      if (!isIPhoneOrIPad()) setMsg('Backup downloaded. Keep it somewhere safe, like OneDrive or iCloud Drive.');
+      if (saved.where === 'file') setMsg(`Backup saved as “${saved.file}”.`);
+      else if (!isIPhoneOrIPad()) setMsg('Backup downloaded. Keep it somewhere safe, like OneDrive or iCloud Drive.');
     } catch (e) {
       const note = e instanceof Error ? e.message : String(e);
-      await addLog({ at: Date.now(), kind: 'manual', ok: false, note });
+      await addLog({ at: Date.now(), kind: 'manual', ok: false, account: accountLabel(), note });
       setMsg(note);
     } finally {
       setBusy(false);
@@ -76,6 +76,7 @@ export function BackupCard() {
           <input type="file" accept=".zip" hidden onChange={(e) => (pick(e.target.files?.[0]), (e.target.value = ''))} />
         </label>
       </div>
+      {canSaveAs() && <p className="muted small">Download backup asks where to save the file. It starts in the folder you used last time.</p>}
       <IosSaveTip after={backedUp} />
       {msg && <div className="notice ok small">{msg}</div>}
       <p className="muted small">
@@ -139,7 +140,7 @@ function DailyBackup() {
         <>
           <label className="row">
             <span>At</span>
-            <input type="time" value={time} onChange={(e) => e.target.value && setDaily(true, e.target.value)} />
+            <TimeBox value={time} onSave={(t) => setDaily(true, t)} />
           </label>
           {useFolder ? (
             <p className="muted small">
@@ -164,6 +165,42 @@ function DailyBackup() {
   );
 }
 
+/**
+ * The time box keeps what is typed and saves when you leave it, press Enter,
+ * or stop typing for a moment.
+ * Saving on every key reset the box, so a second digit or "A" for AM was lost.
+ */
+function TimeBox({ value, onSave }: { value: string; onSave: (t: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+  const commit = (t: string) => {
+    if (/^\d{2}:\d{2}/.test(t) && t.slice(0, 5) !== value) onSave(t.slice(0, 5));
+  };
+  // Also save a moment after typing stops, in case you leave the page without clicking away.
+  useEffect(() => {
+    if (!editing) return;
+    const t = setTimeout(() => commit(draft), 1500);
+    return () => clearTimeout(t);
+  }, [draft, editing]);
+  const save = () => {
+    setEditing(false);
+    commit(draft);
+  };
+  return (
+    <input
+      type="time"
+      value={draft}
+      onFocus={() => setEditing(true)}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+    />
+  );
+}
+
 function BackupLog() {
   const log = useLiveQuery(() => getSetting<BackupLogItem[]>('backupLog'), []);
   if (!log?.length) return null;
@@ -175,9 +212,9 @@ function BackupLog() {
           <li key={i} className={l.ok ? '' : 'failed'}>
             <span className="bl-icon" aria-hidden>{l.ok ? '✓' : '✗'}</span>
             <span>
-              <strong>{when(l.at)}</strong> · {l.kind === 'daily' ? 'Daily' : 'Manual'}
+              <strong>{when(l.at)}</strong> · {l.kind === 'daily' ? 'Daily' : 'Manual'}{l.account && <> · account {l.account}</>}
               {l.ok
-                ? <> · {l.entries} {l.entries === 1 ? 'entry' : 'entries'} · {size(l.bytes)} · {l.where === 'folder' ? <>saved in “{l.folder}”</> : 'downloaded'}</>
+                ? <> · {l.entries} {l.entries === 1 ? 'entry' : 'entries'} · {size(l.bytes)} · {l.where === 'folder' ? <>saved in the folder “{l.folder}”</> : l.where === 'file' ? <>saved as “{l.file}”</> : <>downloaded as “{l.file}”</>}</>
                 : <> · failed</>}
               {l.note && <span className="muted small"> · {l.note}</span>}
             </span>

@@ -42,7 +42,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'How do I keep a backup?',
-    a: <>Go to <strong>Settings → Backup</strong> and click <strong>Download backup</strong>. Keep the file somewhere safe, like OneDrive. On iPhone or iPad, the phone then shows the file instead of saving it: ignore any "Open in…" app it suggests, tap <strong>More…</strong>, then <strong>Save to Files</strong>, and pick a folder such as iCloud Drive. <strong>Restore from backup</strong> brings it back: you select which journals to restore, and (if you're signed in) who to share them with again. Entries that are already in the app are left as they are.</>,
+    a: <>Go to <strong>Settings → Backup</strong> and click <strong>Download backup</strong>. In Edge or Chrome a <strong>Save as</strong> window lets you pick the folder (it opens in the one you used last). Keep the file somewhere safe, like OneDrive. The file name shows which account it's from. Journals other people shared with you aren't included: they stay safe in their owner's account. On iPhone or iPad, the phone then shows the file instead of saving it: ignore any "Open in…" app it suggests, tap <strong>More…</strong>, then <strong>Save to Files</strong>, and pick a folder such as iCloud Drive. <strong>Restore from backup</strong> brings it back: you select which journals to restore, and (if you're signed in) who to share them with again. Entries that are already in the app are left as they are.</>,
   },
   {
     q: 'Can it back up by itself every day?',

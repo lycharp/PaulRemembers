@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
-import { buildBackup, download } from '../backup';
+import { accountLabel, backupFileName, buildBackup, saveBackup } from '../backup';
 import { addLog } from '../autoBackup';
 import { IosSaveTip } from './IosSaveTip';
 import { eraseJournalsLocal, signOut, syncSoon, useCloud } from '../cloud/cloud';
@@ -103,11 +103,9 @@ function ConfirmDialog({ action, signedIn, all, journals, skipped, entries, onCl
   const backup = async () => {
     setBusy(true);
     try {
-      const b = await buildBackup(all ? undefined : journals.map((j) => j.id));
-      const name = all ? 'journal-backup' : `journal-backup-${journals[0].name.replace(/[^\w-]+/g, '-')}`;
-      const file = `${name}-${new Date().toISOString().slice(0, 10)}.zip`;
-      download(b.blob, file);
-      await addLog({ at: Date.now(), kind: 'manual', ok: true, entries: b.entries, bytes: b.blob.size, file, where: 'download' });
+      const { saved, backup: b } = await saveBackup(() => buildBackup(all ? undefined : journals.map((j) => j.id)), backupFileName(all ? undefined : journals[0].name));
+      if (!saved || !b) return; // cancelled
+      await addLog({ at: Date.now(), kind: 'manual', ok: true, account: accountLabel(), entries: b.entries, bytes: b.blob.size, file: saved.file, where: saved.where });
       if (all) await setSetting('lastBackup', Date.now());
       setBackedUp(true);
     } catch (e) {
