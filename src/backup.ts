@@ -183,7 +183,7 @@ export async function restoreBackup(b: OpenedBackup, journalIds: string[], share
       await syncNow();
       const waiting = await sdb.outbox.bulkGet(newJournals.map((j) => `journal:${j.id}`));
       if (waiting.some(Boolean)) throw new Error('the journal has not finished uploading');
-      // Old private links to restored entries stay off; the people you ticked get access again.
+      // Old private links to restored entries stay off; the people you selected get access again.
       await clearShares([], [...freshIds]);
       for (const j of newJournals) {
         const people = shares[j.id] ?? [];

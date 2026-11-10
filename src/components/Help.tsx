@@ -34,7 +34,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'What does "Keep me signed in" do?',
-    a: <>When it is ticked, the app stays signed in until you choose <strong>Sign out</strong>. When it is not ticked, you are signed out when you close the app, which is handy on a shared computer.</>,
+    a: <>When it is selected, the app stays signed in until you choose <strong>Sign out</strong>. When it is not selected, you are signed out when you close the app, which is handy on a shared computer.</>,
   },
   {
     q: 'How do I share?',
@@ -42,11 +42,11 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'How do I keep a backup?',
-    a: <>Go to <strong>Settings → Backup</strong> and click <strong>Download backup</strong>. Keep the file somewhere safe, like OneDrive. On iPhone or iPad, the phone then shows the file instead of saving it: ignore any "Open in…" app it suggests, tap <strong>More…</strong>, then <strong>Save to Files</strong>, and pick a folder such as iCloud Drive. <strong>Restore from backup</strong> brings it back: you tick which journals to restore, and (if you're signed in) who to share them with again. Entries that are already in the app are left as they are.</>,
+    a: <>Go to <strong>Settings → Backup</strong> and click <strong>Download backup</strong>. Keep the file somewhere safe, like OneDrive. On iPhone or iPad, the phone then shows the file instead of saving it: ignore any "Open in…" app it suggests, tap <strong>More…</strong>, then <strong>Save to Files</strong>, and pick a folder such as iCloud Drive. <strong>Restore from backup</strong> brings it back: you select which journals to restore, and (if you're signed in) who to share them with again. Entries that are already in the app are left as they are.</>,
   },
   {
     q: 'Can it back up by itself every day?',
-    a: <>Yes. In <strong>Settings → Backup</strong>, tick <strong>Back up every day</strong> and pick a time. In Edge or Chrome on a computer, choose a folder once (a OneDrive folder is best) and each day's backup saves there by itself; the newest 7 are kept. On iPhone, iPad and other browsers, a bar asks you to tap <strong>Save</strong>. The app has to be open: if it's closed at backup time, it backs up the next time you open it. The <strong>Backup log</strong> shows the last 7 backups.</>,
+    a: <>Yes. In <strong>Settings → Backup</strong>, select <strong>Back up every day</strong> and pick a time. In Edge or Chrome on a computer, choose a folder once (a OneDrive folder is best) and each day's backup saves there by itself; the newest 7 are kept. On iPhone, iPad and other browsers, a bar asks you to tap <strong>Save</strong>. The app has to be open: if it's closed at backup time, it backs up the next time you open it. The <strong>Backup log</strong> shows the last 7 backups.</>,
   },
   {
     q: 'Can I lock the journal?',

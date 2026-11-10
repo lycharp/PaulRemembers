@@ -193,7 +193,7 @@ function RestoreDialog({ backup, onClose, onDone }: { backup: OpenedBackup; onCl
   const signedIn = !!cloud.user;
   const usable = backup.journals.filter((j) => !j.theirs && (j.entries > 0 || !j.here));
   const [picked, setPicked] = useState(() => new Set(usable.map((j) => j.id)));
-  // Journal id → emails ticked to share again (all ticked to start).
+  // Journal id → emails selected to share again (all selected to start).
   const [people, setPeople] = useState(() => new Map(usable.map((j) => [j.id, new Set((j.shares ?? []).map((m) => m.email))])));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -232,7 +232,7 @@ function RestoreDialog({ backup, onClose, onDone }: { backup: OpenedBackup; onCl
   return (
     <Dialog title="Restore from backup" onClose={onClose}>
       {backup.exportedAt && <p className="muted small">Backup made {when(backup.exportedAt)}.</p>}
-      <p>Tick the journals to bring back. Entries already here are left as they are.</p>
+      <p>Select the journals to bring back. Entries already here are left as they are.</p>
       <ul className="restore-list">
         {usable.map((j) => {
           const shares = j.shares ?? [];
