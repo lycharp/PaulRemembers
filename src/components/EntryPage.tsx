@@ -395,7 +395,16 @@ function JournalPicker({ value, onChange }: { value: string; onChange: (id: stri
 // Web addresses in text: https://…, http://…, or www.…
 const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"]+/gi;
 
-/** Shows text with any web addresses turned into links that open in a new tab. */
+/** The short site name for a link, e.g. "youtube.com" for https://www.youtube.com/watch?v=… */
+function siteName(href: string): string {
+  try {
+    return new URL(href).hostname.replace(/^www\./i, '');
+  } catch {
+    return '';
+  }
+}
+
+/** Shows text with any web addresses turned into short "🔗 site name" links that open in a new tab. */
 function Linkified({ text }: { text: string }) {
   const parts: ReactNode[] = [];
   let last = 0;
@@ -411,7 +420,11 @@ function Linkified({ text }: { text: string }) {
     const start = m.index ?? 0;
     if (start > last) parts.push(text.slice(last, start));
     const href = /^https?:/i.test(url) ? url : `https://${url}`;
-    parts.push(<a key={start} href={href} target="_blank" rel="noopener noreferrer">{url}</a>);
+    parts.push(
+      <a key={start} className="entry-link" href={href} target="_blank" rel="noopener noreferrer" title={href}>
+        <span aria-hidden="true">🔗</span> {siteName(href) || url}
+      </a>,
+    );
     last = start + url.length;
   }
   if (last < text.length) parts.push(text.slice(last));
