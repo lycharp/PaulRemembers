@@ -161,6 +161,8 @@ input, textarea { font: inherit; color: inherit; }
 .entry-date { color: var(--muted); font-weight: 600; margin-bottom: 12px; }
 .entry-title { font-size: 1.9rem; margin: 18px 0 10px; }
 .entry-body p { margin: 0 0 1em; white-space: pre-wrap; font-size: 1.08rem; line-height: 1.7; }
+.entry-link { display: inline-block; padding: 0 .5em; border-radius: 999px; background: color-mix(in srgb, currentColor 8%, transparent); text-decoration: none; white-space: nowrap; line-height: 1.6; }
+.entry-link:hover, .entry-link:focus-visible { text-decoration: underline; }
 .entry-footer { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 24px; }
 .media-grid { display: grid; gap: 4px; grid-template-columns: repeat(4, 1fr); border-radius: var(--radius); overflow: hidden; }
 .media-grid.n1 { grid-template-columns: 1fr; }
