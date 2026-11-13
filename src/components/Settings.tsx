@@ -5,7 +5,7 @@ import { JournalDot, useJournals } from '../journals';
 import { sha256 } from '../util';
 import { AccountCard } from './Account';
 import { PoquitoBadge } from './About';
-import { JournalSharingCard } from './Sharing';
+import { InviteCard, JournalSharingCard } from './Sharing';
 import { EraseCard } from './EraseCard';
 import { InstallCard } from './Install';
 import { BackupCard } from './BackupCard';
@@ -30,6 +30,7 @@ export function Settings({ onLock }: { onLock: () => void }) {
       <AccountCard />
       <Journals />
       <JournalSharingCard />
+      <InviteCard />
 
       <BackupCard />
 

@@ -69,6 +69,30 @@ That is enough for email + password sign-in.
 
 The Google button in the app works as soon as this is saved.
 
+## Part 3: Make sign-up invite-only (required)
+
+Only people you invite can create an account. Supabase enforces this, so it
+works even if someone skips the app.
+
+1. In Supabase, click **SQL Editor** → **New query**.
+2. Open https://github.com/lycharp/PaulRemembers/blob/main/supabase/setup.sql,
+   click **Copy raw file**, paste it in, and click **Run** (click **Run this
+   query** if it warns about "destructive operations").
+3. Click **New query** again, paste this line with the email address you sign
+   in to the app with, and click **Run**:
+
+   ```sql
+   select make_admin('you@example.com');
+   ```
+
+   It should say *Done: … can now invite people*. This makes you the only
+   person who can invite, and invites everyone you already share a journal with.
+4. Leave **Authentication** → **Sign In / Providers** → **Allow new users to
+   sign up** turned on. Invited people need it; everyone else is refused.
+
+In the app, **Settings → Invite someone** (only you see it) lists who can sign
+up. Sharing a journal with someone adds them there too.
+
 ## Good to know
 
 - The free plan includes 1 GB of photo/video storage and 500 MB of text,
@@ -77,4 +101,7 @@ The Google button in the app works as soon as this is saved.
   and click **Restore**. Your data is kept.
 - New accounts must confirm their email address (Supabase sends the email).
 - Sharing a journal with someone: they create an account using the same
-  email address you shared it with, and the journal appears for them.
+  email address you shared it with (the link in the invite email opens
+  **Create an account**), and the journal appears for them. Only the admin's
+  shares count as invites; anyone else can only share with people who already
+  have an account or were invited.

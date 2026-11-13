@@ -190,8 +190,7 @@ export async function restoreBackup(b: OpenedBackup, journalIds: string[], share
       await clearShares([], [...freshIds]);
       for (const j of newJournals) {
         const people = shares[j.id] ?? [];
-        await setMembers(j.id, people);
-        result.shared += people.length;
+        result.shared += await setMembers(j.id, people);
       }
     } catch (e) {
       const why = e instanceof Error ? e.message : String(e);

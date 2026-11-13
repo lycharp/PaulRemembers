@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SUPABASE_KEY, SUPABASE_URL } from '../cloud/config';
-import { appUrl, keepSignedIn, replaceOtherAccount, setKeepSignedIn, setRecovering, signOut, supabase, syncNow, useCloud } from '../cloud/cloud';
+import { appUrl, keepSignedIn, NOT_INVITED_SIGNUP, replaceOtherAccount, setKeepSignedIn, setRecovering, signOut, supabase, syncNow, useCloud } from '../cloud/cloud';
 import { go } from '../util';
 
 /** #/account: sign in, create an account, reset a password, or see sync status. */
@@ -34,7 +34,7 @@ export function AccountCard() {
       <section className="card pad">
         <h3>Account & sync</h3>
         <p className="muted">Sign in to keep your journal safe online, see it on your phone and other computers, and share entries or whole journals.</p>
-        <button className="btn primary" onClick={() => go('/account')}>Sign in or create an account</button>
+        <button className="btn primary" onClick={() => go('/account')}>Sign in</button>
       </section>
     );
   }
@@ -96,11 +96,14 @@ function useGoogleEnabled() {
   return on;
 }
 
-/** The sign-in form. On the start screen, onSkip offers "Continue without signing in". */
-export function SignIn({ onSkip }: { onSkip?: () => void }) {
-  const [mode, setMode] = useState<'in' | 'up' | 'forgot'>('in');
+/**
+ * The sign-in form. Paul Remembers is invite-only, so "Create an account" only
+ * opens from the link in an invite email (#/join/<email>), with the email filled in.
+ */
+export function SignIn({ join }: { join?: string }) {
+  const [mode, setMode] = useState<'in' | 'up' | 'forgot'>(join ? 'up' : 'in');
   const [keep, setKeep] = useState(keepSignedIn);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(join ?? '');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string }>();
@@ -146,6 +149,7 @@ export function SignIn({ onSkip }: { onSkip?: () => void }) {
       <img src="./icon.svg" alt="" width={56} />
       <h2>{mode === 'in' ? 'Sign in' : mode === 'up' ? 'Create an account' : 'Reset your password'}</h2>
       {cloud.error && !msg && <div className="notice error">{cloud.error}</div>}
+      {mode === 'up' && <p className="muted small">Paul Remembers is invite-only. Use the email address your invite was sent to.</p>}
       {mode !== 'forgot' && googleOn && (
         <>
           <button type="button" className="btn google" onClick={google}>
@@ -171,22 +175,12 @@ export function SignIn({ onSkip }: { onSkip?: () => void }) {
       {msg && <div className={`notice ${msg.ok ? 'ok' : 'error'}`}>{msg.text}</div>}
       <div className="auth-links">
         {mode === 'in' ? (
-          <>
-            <button type="button" className="link" onClick={() => setMode('up')}>New here? Create an account</button>
-            <button type="button" className="link" onClick={() => setMode('forgot')}>Forgot password?</button>
-          </>
+          <button type="button" className="link" onClick={() => setMode('forgot')}>Forgot password?</button>
         ) : (
-          <button type="button" className="link" onClick={() => setMode('in')}>Back to sign in</button>
+          <button type="button" className="link" onClick={() => setMode('in')}>{mode === 'up' ? 'Already have an account? Sign in' : 'Back to sign in'}</button>
         )}
       </div>
-      {onSkip ? (
-        <p className="muted small">
-          No account? <button type="button" className="link" onClick={onSkip}>Continue without signing in</button>
-          <br />Your journal still works on this computer, it just is not backed up online.
-        </p>
-      ) : (
-        <p className="muted small">Your journal keeps working on this computer without an account.</p>
-      )}
+      {mode === 'in' && <p className="muted small">Paul Remembers is invite-only. New here? Use the link in your invite email to create an account.</p>}
     </form>
   );
 }
@@ -216,6 +210,7 @@ function friendly(err: unknown) {
   const m = err instanceof Error ? err.message : (err as { message?: string })?.message ?? String(err);
   if (/invalid login credentials/i.test(m)) return 'That email and password do not match. Check them, or use "Forgot password?".';
   if (/email not confirmed/i.test(m)) return 'Please confirm your email first: click the link in the email we sent you.';
+  if (/database error saving new user|invite-only/i.test(m)) return NOT_INVITED_SIGNUP;
   if (/already registered/i.test(m)) return 'There is already an account with that email. Sign in instead.';
   if (/provider is not enabled/i.test(m)) return 'Google sign-in is not switched on yet. Use email and password for now.';
   if (/failed to fetch|network/i.test(m)) return 'Could not reach the server. Check your internet connection.';

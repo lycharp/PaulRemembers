@@ -24,19 +24,17 @@ const NAV = [
   { path: '/help', label: 'Help', icon: '❓' },
 ];
 
-const SKIP_KEY = 'pr.skipSignIn';
-const skippedSignIn = () => {
+const safeDecode = (s: string) => {
   try {
-    return sessionStorage.getItem(SKIP_KEY) === '1';
+    return decodeURIComponent(s);
   } catch {
-    return false;
+    return s;
   }
 };
 
 export function App() {
   const route = useRoute();
   const [locked, setLocked] = useState<boolean | null>(null);
-  const [skipped, setSkipped] = useState(skippedSignIn);
   const cloud = useCloud();
 
   // Only coming straight back from an entry returns the list to that entry.
@@ -66,23 +64,22 @@ export function App() {
   if (locked === null) return null;
   if (locked) return <LockScreen onUnlock={() => setLocked(false)} />;
 
-  // Signed out: start at the sign-in screen (until "Continue without signing in" for this visit).
-  if (cloud.configured && !cloud.user && !skipped && route !== '/account' && !(hasSavedSignIn() && !cloud.ready)) {
+  // Invite-only: signed out, the app shows nothing but the sign-in screen. The
+  // invite email's link (#/join/<email>) opens "Create an account" instead.
+  const joinEmail = /^\/join\/(.+)$/.exec(route)?.[1];
+  if (cloud.configured && !cloud.user && !(hasSavedSignIn() && !cloud.ready)) {
     if (!cloud.ready) return null;
-    const skip = () => {
-      try {
-        sessionStorage.setItem(SKIP_KEY, '1');
-      } catch {
-        /* fine, it just asks again next time */
-      }
-      setSkipped(true);
-    };
     return (
       <div className="welcome">
-        <SignIn onSkip={skip} />
+        <SignIn key={joinEmail ?? ''} join={joinEmail ? safeDecode(joinEmail) : undefined} />
         <PoquitoBadge />
       </div>
     );
+  }
+  // Already signed in when opening an invite link: just open the journal.
+  if (joinEmail) {
+    go('/');
+    return null;
   }
 
   const entryId = /^\/entry\/(.+)$/.exec(route)?.[1];

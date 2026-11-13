@@ -29,8 +29,8 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
     a: <>iPhone videos use a format called HEVC. On Windows, install the free <strong>HEVC Video Extensions</strong> from the Microsoft Store, then reopen the app.</>,
   },
   {
-    q: 'Why should I sign in?',
-    a: <>Signed in, your journal is saved online too. It shows up on your other computers and your phone, and you can share entries or whole journals. Without an account, everything still works, but it only lives on this computer.</>,
+    q: 'Why do I have to sign in?',
+    a: <>Signed in, your journal is saved online. It shows up on your other computers and your phone, and you can share entries or whole journals. Paul Remembers is invite-only: you need to be signed in to use it, and you can create an account only with an email address Paul has invited, using the link in your invite email.</>,
   },
   {
     q: 'What does "Keep me signed in" do?',
