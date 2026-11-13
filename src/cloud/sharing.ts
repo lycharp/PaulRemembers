@@ -69,9 +69,13 @@ export async function addMember(journalId: string, email: string, role: Member['
   const { error } = await supabase().from('journal_members').upsert({ journal_id: journalId, email: email.trim().toLowerCase(), role });
   if (error) {
     if (/foreign key/i.test(error.message)) throw new Error('This journal has not finished uploading yet. Try again in a moment.');
+    if (/row-level security/i.test(error.message)) throw new Error(NOT_INVITED);
     throw error;
   }
 }
+
+/** Supabase refuses to share with someone who has no account and no invite (only the admin can invite). */
+export const NOT_INVITED = "This person doesn't have an account yet, and Paul Remembers is invite-only. Ask Paul to invite them first, then share again.";
 
 export async function removeMember(journalId: string, email: string) {
   const { error } = await supabase().from('journal_members').delete().eq('journal_id', journalId).eq('email', email);
@@ -108,13 +112,56 @@ export async function clearShares(journalIds: string[], entryIds: string[]) {
   }
 }
 
-/** Share a journal with exactly these people (anyone else loses access). */
-export async function setMembers(journalId: string, members: Member[]) {
+/**
+ * Share a journal with exactly these people (anyone else loses access).
+ * Returns how many it could share with: people without an account or an
+ * invite are skipped, since the app is invite-only.
+ */
+export async function setMembers(journalId: string, members: Member[]): Promise<number> {
   const sb = supabase();
   const { error } = await sb.from('journal_members').delete().eq('journal_id', journalId);
   if (error) throw error;
-  if (!members.length) return;
+  if (!members.length) return 0;
   const rows = members.map((m) => ({ journal_id: journalId, email: m.email.trim().toLowerCase(), role: m.role }));
   const { error: e2 } = await sb.from('journal_members').upsert(rows);
-  if (e2) throw e2;
+  if (!e2) return rows.length;
+  if (!/row-level security/i.test(e2.message)) throw e2;
+  // Someone on the list can't be shared with: add the others one by one.
+  let added = 0;
+  for (const row of rows) {
+    const { error: e3 } = await sb.from('journal_members').upsert(row);
+    if (!e3) added++;
+    else if (!/row-level security/i.test(e3.message)) throw e3;
+  }
+  return added;
+}
+
+// ─── Invite-only sign-up (only the admin, Paul, can invite) ───────────────
+
+/** Is the signed-in person the admin? False if the invite rules aren't set up yet. */
+export async function isAdmin(): Promise<boolean> {
+  const { data, error } = await supabase().rpc('is_admin');
+  return !error && data === true;
+}
+
+export interface Invite {
+  email: string;
+  added_at: string;
+  joined: boolean; // has created an account
+}
+
+export async function listInvites(): Promise<Invite[]> {
+  const { data, error } = await supabase().rpc('list_invites');
+  if (error) throw error;
+  return (data ?? []) as Invite[];
+}
+
+export async function addInvite(email: string) {
+  const { error } = await supabase().from('invites').upsert({ email: email.trim().toLowerCase() }, { ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+export async function removeInvite(email: string) {
+  const { error } = await supabase().from('invites').delete().eq('email', email);
+  if (error) throw error;
 }

@@ -199,7 +199,7 @@ export function startCloud() {
   // Supabase sends people back with ?code=… or ?error=…; show the error once, then tidy the address.
   const params = new URLSearchParams(location.search);
   const err = params.get('error_description');
-  if (err) set({ error: err });
+  if (err) set({ error: /database error saving new user|invite-only/i.test(err) ? NOT_INVITED_SIGNUP : err });
   if (params.has('code') || err) setTimeout(() => history.replaceState(null, '', appUrl() + location.hash), 1500);
 
   window.addEventListener('online', () => syncSoon(500));
@@ -208,6 +208,9 @@ export function startCloud() {
   });
   setInterval(() => document.visibilityState === 'visible' && syncSoon(0), 5 * 60 * 1000);
 }
+
+/** Supabase refused a new account: the email isn't on Paul's invite list. */
+export const NOT_INVITED_SIGNUP = "Sorry, Paul Remembers is invite-only, and that email address hasn't been invited. Ask Paul to invite you, then try again. If you already have an account, sign in with the email you used before.";
 
 // ─── Account actions ────────────────────────────────────────────────────────
 
