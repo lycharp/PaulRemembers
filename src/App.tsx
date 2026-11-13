@@ -12,7 +12,7 @@ import { EntryPage } from './components/EntryPage';
 import { ImportPage } from './components/ImportPage';
 import { Insights } from './components/Insights';
 import { Settings } from './components/Settings';
-import { Timeline } from './components/Timeline';
+import { forgetListPosition, Timeline } from './components/Timeline';
 import { go, sha256, useRoute } from './util';
 
 const NAV = [
@@ -38,6 +38,11 @@ export function App() {
   const [locked, setLocked] = useState<boolean | null>(null);
   const [skipped, setSkipped] = useState(skippedSignIn);
   const cloud = useCloud();
+
+  // Only coming straight back from an entry returns the list to that entry.
+  useEffect(() => {
+    if (route !== '/' && !route.startsWith('/entry/')) forgetListPosition();
+  }, [route]);
 
   useEffect(() => {
     getSetting<string>('passcode').then((p) => setLocked(!!p));
@@ -100,7 +105,8 @@ export function App() {
         <button className="btn primary new-btn" data-tour="new" onClick={() => go('/new')} title="New entry (Ctrl+N)">＋ New entry</button>
         <nav>
           {NAV.map((n) => (
-            <a key={n.path} href={`#${n.path}`} data-tour={`nav-${n.path}`} className={active === n.path ? 'on' : ''}>
+            <a key={n.path} href={`#${n.path}`} data-tour={`nav-${n.path}`} className={active === n.path ? 'on' : ''}
+              onClick={n.path === '/' ? forgetListPosition : undefined}>
               <span aria-hidden>{n.icon}</span> {n.label}
             </a>
           ))}
