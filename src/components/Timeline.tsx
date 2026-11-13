@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { type Entry } from '../db';
 import { JournalDot, JournalSelect, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
@@ -6,7 +6,21 @@ import { Gallery, MediaTile } from './Media';
 import { PoquitoBadge } from './About';
 import { useCloud } from '../cloud/cloud';
 
-export function EntryCard({ e }: { e: Entry }) {
+type Filter = 'all' | 'bookmarked' | 'media' | 'places';
+
+/**
+ * What the journal list looked like when an entry was opened from it, so going
+ * back puts the list right where it was (at that entry, same search and filter)
+ * instead of the top. Kept in memory only, for this visit.
+ */
+let returnTo: { entryId?: string; journal?: string; q: string; filter: Filter } = { q: '', filter: 'all' };
+
+/** Start the journal list fresh at the top (the sidebar's Journal link, switching journals). */
+export function forgetListPosition() {
+  returnTo = { q: '', filter: 'all' };
+}
+
+export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
   const bookmarked = useIsBookmarked()(e);
   const mood = moodFor(e.mood);
   const snippet = e.body.replace(/\s+/g, ' ').slice(0, 220);
@@ -15,8 +29,9 @@ export function EntryCard({ e }: { e: Entry }) {
   const journal = current === 'all' && journals && journals.length > 1 ? journals.find((j) => j.id === e.journalId) : undefined;
   const shownMedia = e.mediaIds.slice(0, 3);
   return (
-    <article className="card entry-card" onClick={() => go(`/entry/${e.id}`)} tabIndex={0}
-      onKeyDown={(k) => k.key === 'Enter' && go(`/entry/${e.id}`)}>
+    <article className="card entry-card" data-entry-id={e.id} tabIndex={0}
+      onClick={() => { onOpen?.(); go(`/entry/${e.id}`); }}
+      onKeyDown={(k) => { if (k.key === 'Enter') { onOpen?.(); go(`/entry/${e.id}`); } }}>
       {e.mediaIds.length > 0 && (
         <div className="card-media">
           <Gallery ids={shownMedia} singleRow maxHeight={420}>
@@ -42,11 +57,12 @@ export function EntryCard({ e }: { e: Entry }) {
 }
 
 export function Timeline() {
-  const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'all' | 'bookmarked' | 'media' | 'places'>('all');
+  const [q, setQ] = useState(returnTo.q);
+  const [filter, setFilter] = useState<Filter>(returnTo.filter);
   const entries = useEntries();
   const journals = useJournals();
-  const [current] = useCurrentJournal();
+  const [current, , currentLoaded] = useCurrentJournal();
+  const listRef = useRef<HTMLDivElement>(null);
   const cloud = useCloud();
   const isBookmarked = useIsBookmarked();
   const title = current === 'all' ? (journals && journals.length > 1 ? 'All journals' : journals?.[0]?.name) : journals?.find((j) => j.id === current)?.name;
@@ -72,6 +88,40 @@ export function Timeline() {
     }
     return [...m];
   }, [shown]);
+
+  // Coming back from an entry: show the list already at that entry. This runs
+  // before the screen is drawn, so there's no visible scrolling. Photos above it
+  // can still change size as they load, so for a moment keep the entry where it
+  // is, until the person scrolls or touches the page themselves.
+  const placed = useRef(false);
+  useLayoutEffect(() => {
+    if (placed.current || !entries || !currentLoaded) return;
+    placed.current = true;
+    const id = returnTo.entryId;
+    if (!id) return;
+    if (returnTo.journal !== current) return forgetListPosition();
+    const card = listRef.current?.querySelector<HTMLElement>(`[data-entry-id="${CSS.escape(id)}"]`);
+    if (!card) return;
+    const top = 12;
+    const put = () => window.scrollTo({ top: window.scrollY + card.getBoundingClientRect().top - top, behavior: 'instant' });
+    put();
+    const ro = new ResizeObserver(put);
+    ro.observe(listRef.current!);
+    const stop = () => {
+      ro.disconnect();
+      for (const ev of ['wheel', 'touchstart', 'keydown', 'mousedown'] as const) window.removeEventListener(ev, stop);
+    };
+    for (const ev of ['wheel', 'touchstart', 'keydown', 'mousedown'] as const) window.addEventListener(ev, stop, { passive: true });
+    const timer = setTimeout(stop, 2500);
+    return () => {
+      clearTimeout(timer);
+      stop();
+    };
+  }, [entries, current, currentLoaded]);
+
+  const remember = (entryId: string) => {
+    returnTo = { entryId, journal: current, q, filter };
+  };
 
   if (!entries) return null;
 
@@ -105,7 +155,7 @@ export function Timeline() {
   }
 
   return (
-    <div className="timeline">
+    <div className="timeline" ref={listRef}>
       <div className="page-head">
         <h1>{title}</h1>
         <JournalSelect className="mobile-only" />
@@ -124,7 +174,7 @@ export function Timeline() {
       {groups.map(([k, list]) => (
         <section key={k}>
           <h2 className="month">{fmtMonth(k)}</h2>
-          <div className="cards">{list.map((e) => <EntryCard key={e.id} e={e} />)}</div>
+          <div className="cards">{list.map((e) => <EntryCard key={e.id} e={e} onOpen={() => remember(e.id)} />)}</div>
         </section>
       ))}
       <PoquitoBadge className="home-badge" />
