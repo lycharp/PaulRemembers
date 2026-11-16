@@ -32,11 +32,26 @@ interface TileProps {
 }
 
 export function MediaTile({ id, ...rest }: TileProps & { id: string }) {
-  const media = useLiveQuery(() => db.media.get(id), [id]);
+  // null: this device has no such file (e.g. a recording that came out empty and never synced).
+  const media = useLiveQuery(async () => (await db.media.get(id)) ?? null, [id]);
   const url = useMediaUrl(id);
-  const poster = usePoster(media);
+  const poster = usePoster(media ?? undefined);
+  if (media === null) return <MissingTile {...rest} />;
   if (!media || !url) return <div className="tile tile-loading" style={rest.style} />;
   return <TileBody kind={media.kind} url={url} poster={poster} caption={media.caption} {...rest} />;
+}
+
+/** A short strip saying the file isn't here, with the usual × while editing so it can be removed. */
+function MissingTile({ style, onRatio, onRemove }: TileProps) {
+  useEffect(() => onRatio?.(0), []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="tile tile-missing tile-strip" style={style}>
+      <span className="muted small">This item isn’t on this device.</span>
+      {onRemove && (
+        <button className="tile-remove" title="Remove" onClick={(e) => (e.stopPropagation(), onRemove())}>×</button>
+      )}
+    </div>
+  );
 }
 
 /** A tile for media that is not saved yet (picked in the editor). */
