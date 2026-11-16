@@ -46,7 +46,7 @@ export function SharedEntryPage({ token }: { token: string }) {
         {e.title && <h1 className="entry-title">{e.title}</h1>}
         <div className="entry-body">{e.body.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
         <div className="entry-footer">
-          {e.place && <span>📍 {e.place.name}</span>}
+          {e.place && <span><Icon name="pin" className="inline-icon" /> {e.place.name}</span>}
           {mood && <span>{mood.emoji} {mood.label}</span>}
         </div>
       </div>
@@ -64,7 +64,7 @@ export function ShareEntryButton({ entry }: { entry: Entry }) {
   if (!cloud.user || (journal?.role && journal.role !== 'owner')) return null;
   return (
     <>
-      <button className="btn ghost" onClick={() => setOpen(true)} aria-label="Share">🔗 <span className="btn-label">Share</span></button>
+      <button className="btn ghost icon-tile" onClick={() => setOpen(true)} title="Share" aria-label="Share"><Icon name="share" /></button>
       {open && <ShareEntryDialog entryId={entry.id} onClose={() => setOpen(false)} />}
     </>
   );

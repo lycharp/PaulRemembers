@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { JournalSelect, useEntries } from '../journals';
 import { dayKey, wordCount } from '../util';
 import { EntryCard } from './Timeline';
+import { Icon } from './Icon';
 import { removePlace, renamePlace, usePlaces } from '../places';
 
 export function Insights() {
@@ -110,7 +111,7 @@ function PlacesSection() {
       <ul className="place-list">
         {shown.map((p) => (
           <li key={p.name}>
-            <span>📍 {p.name} <span className="muted small">· {p.count} {p.count === 1 ? 'entry' : 'entries'}</span></span>
+            <span><Icon name="pin" className="inline-icon" /> {p.name} <span className="muted small">· {p.count} {p.count === 1 ? 'entry' : 'entries'}</span></span>
             <span className="place-actions">
               <button className="btn small ghost" onClick={() => rename(p.name)}>Rename</button>
               <button className="btn small ghost danger" onClick={() => remove(p.name, p.count)}>Remove</button>

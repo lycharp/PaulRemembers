@@ -93,7 +93,8 @@ h1 { font-size: 1.7rem; }
     flex: 1 1 0; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
     font-size: 0.68rem; padding: 6px 1px; margin: 0; border-radius: 10px; text-align: center; white-space: nowrap;
   }
-  .sidebar nav a > span:first-child, .sidebar .account-link > span:first-child { font-size: 1.15rem; line-height: 1.2; }
+  .sidebar nav a > span:first-child, .sidebar .account-link > span:first-child { line-height: 1; }
+  .nav-icon .icon { width: 23px; height: 23px; }
   .sidebar .account-text { display: none !important; }
   .sidebar .account-short { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .main { width: 100%; padding: calc(14px + env(safe-area-inset-top)) 14px calc(110px + env(safe-area-inset-bottom)); }
@@ -157,7 +158,8 @@ input, textarea { font: inherit; color: inherit; }
 .bookmark-on { margin-left: auto; }
 
 .empty { text-align: center; padding: 70px 20px; }
-.empty-icon { font-size: 3.5rem; }
+.empty-icon { color: var(--accent); }
+.empty-icon .icon { width: 56px; height: 56px; stroke-width: 1.5; }
 .empty p { color: var(--muted); max-width: 420px; margin: 0 auto 20px; }
 
 /* Entry */
@@ -205,7 +207,7 @@ input, textarea { font: inherit; color: inherit; }
   background: var(--accent-soft); border-radius: 12px; padding: 8px 8px 8px 12px; margin-bottom: 12px;
   display: flex; align-items: center; gap: 8px; font-weight: 600; line-height: 1.35;
 }
-.prompt-bulb { font-size: 1.1rem; }
+.prompt-bulb { width: 20px; height: 20px; flex: none; color: var(--accent); }
 .round-btn {
   flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface);
   color: var(--accent); font-size: 1.1rem; font-weight: 700; cursor: pointer; display: grid; place-items: center; padding: 0;
@@ -578,3 +580,24 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .audio-mark { width: 22px; height: 22px; flex: none; color: var(--accent); }
 .transcript-head { display: inline-flex; align-items: center; gap: 6px; }
 .thumb-audio .icon, .tile-audio-icon .icon { width: 40%; height: 40%; color: var(--accent); }
+
+/* Drawn icons */
+.icon { flex: none; }
+.inline-icon { width: 1.05em; height: 1.05em; vertical-align: -0.17em; color: var(--accent); }
+.btn .inline-icon { color: inherit; }
+.btn.primary .inline-icon { color: inherit; }
+.chip { display: inline-flex; align-items: center; gap: 5px; }
+.nav-icon { position: relative; display: inline-grid; place-items: center; }
+.nav-icon .icon { width: 20px; height: 20px; }
+.sidebar nav a.on .nav-icon, .account-link.on .nav-icon { color: var(--accent); }
+.nav-icon.has-problem::after {
+  content: ''; position: absolute; top: -1px; right: -3px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--danger); border: 1.5px solid var(--surface);
+}
+.icon.spin { animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.fab .icon { width: 26px; height: 26px; }
+/* Back / Bookmark / Share / Edit on an entry: square icon tiles, no words. */
+.entry-view .entry-actions .btn.icon-tile { min-width: 44px; width: 44px; padding: 0; }
+.entry-view .entry-actions .btn.icon-tile .icon { width: 22px; height: 22px; }
+.sidebar nav a, .account-link { align-items: center; }

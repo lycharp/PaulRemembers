@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import type { Place } from '../db';
+import { Icon } from './Icon';
 import { usePlaces } from '../places';
 
 /**
@@ -68,7 +69,7 @@ export function PlaceInput({ value, onChange }: { value?: Place; onChange: (p: P
             <li key={p.name} role="option" aria-selected={i === active} className={i === active ? 'on' : ''}
               // mousedown, not click, so it happens before the field loses focus
               onMouseDown={(e) => (e.preventDefault(), pick(p))} onMouseEnter={() => setActive(i)}>
-              <span>📍 {p.name}</span>
+              <span><Icon name="pin" className="inline-icon" /> {p.name}</span>
               <span className="muted small">{p.count}</span>
             </li>
           ))}

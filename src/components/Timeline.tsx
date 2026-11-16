@@ -5,6 +5,7 @@ import { JournalDot, JournalSelect, useCurrentJournal, useEntries, useIsBookmark
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
 import { Gallery, MediaTile, VoiceNote } from './Media';
 import { PoquitoBadge } from './About';
+import { Icon } from './Icon';
 import { useCloud } from '../cloud/cloud';
 
 type Filter = 'all' | 'bookmarked' | 'media' | 'places';
@@ -51,10 +52,10 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
         {snippet && <p>{snippet}{e.body.length > 220 ? '…' : ''}</p>}
         <div className="card-meta">
           <span>{fmtShort(e.date)}</span>
-          {e.place && <span>· 📍 {e.place.name}</span>}
+          {e.place && <span>· <Icon name="pin" className="inline-icon" /> {e.place.name}</span>}
           {mood && <span title={mood.label}>· {mood.emoji}</span>}
           {journal && <span className="card-journal"><JournalDot color={journal.color} /> {journal.name}</span>}
-          {bookmarked && <span className="bookmark-on" title="Bookmarked">🔖</span>}
+          {bookmarked && <span className="bookmark-on" title="Bookmarked"><Icon name="bookmarked" className="inline-icon" /></span>}
         </div>
       </div>
     </article>
@@ -147,7 +148,7 @@ export function Timeline() {
     return (
       <div className="empty">
         <JournalSelect />
-        <div className="empty-icon">📓</div>
+        <div className="empty-icon"><Icon name="journal" /></div>
         <h2>{current === 'all' ? 'Your journal is empty' : `${title ?? 'This journal'} is empty`}</h2>
         <p>Write your first entry, or bring in the entries you exported from Apple Journal.</p>
         <div className="row center">
@@ -170,7 +171,7 @@ export function Timeline() {
         <div className="chips">
           {(['all', 'bookmarked', 'media', 'places'] as const).map((f) => (
             <button key={f} className={`chip ${filter === f ? 'on' : ''}`} onClick={() => setFilter(f)}>
-              {{ all: 'All', bookmarked: '🔖 Bookmarked', media: '🖼️ Photos & videos', places: '📍 Places' }[f]}
+              {{ all: <>All</>, bookmarked: <><Icon name="bookmark" className="inline-icon" /> Bookmarked</>, media: <><Icon name="photo" className="inline-icon" /> Photos &amp; videos</>, places: <><Icon name="pin" className="inline-icon" /> Places</> }[f]}
             </button>
           ))}
         </div>

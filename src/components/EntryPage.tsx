@@ -84,14 +84,14 @@ export function EntryPage({ id }: { id?: string }) {
   return (
     <div className="entry-view">
       <div className="entry-actions">
-        <button className="btn ghost back-btn" onClick={() => go('/')} aria-label="Back to journal"><svg className="back-chevron" viewBox="0 0 12 20" aria-hidden="true"><path d="M9.5 2.5 2.5 10l7 7.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg> Journal</button>
+        <button className="btn ghost icon-tile" onClick={() => go('/')} title="Back to journal" aria-label="Back to journal"><Icon name="back" /></button>
         <div className="row nowrap">
-          {readOnly !== undefined && <button className={`btn ghost ${bookmarked ? 'on' : ''}`} title={bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-pressed={bookmarked}
+          {readOnly !== undefined && <button className={`btn ghost icon-tile ${bookmarked ? 'on' : ''}`} title={bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-pressed={bookmarked}
             onClick={() => (readOnly ? toggleSharedBookmark(e.id) : db.entries.update(e.id, { bookmarked: !e.bookmarked, updatedAt: Date.now() }))}>
-            🔖 <span className="btn-label">{bookmarked ? 'Bookmarked' : 'Bookmark'}</span>
+            <Icon name={bookmarked ? 'bookmarked' : 'bookmark'} />
           </button>}
           <ShareEntryButton entry={e} />
-          {readOnly === false && <button className="btn primary" onClick={() => setDraft({ ...e })}>Edit</button>}
+          {readOnly === false && <button className="btn primary icon-tile" onClick={() => setDraft({ ...e })} title="Edit" aria-label="Edit"><Icon name="pen" /></button>}
         </div>
       </div>
       <div className="entry-date">{fmtDay(e.date)}</div>
@@ -109,7 +109,7 @@ export function EntryPage({ id }: { id?: string }) {
       <div className="entry-footer">
         {e.place && (
           <span>
-            📍{' '}
+            <Icon name="pin" className="inline-icon" />{' '}
             {e.place.lat != null ? (
               <a href={`https://www.openstreetmap.org/?mlat=${e.place.lat}&mlon=${e.place.lng}#map=15/${e.place.lat}/${e.place.lng}`} target="_blank" rel="noreferrer">{e.place.name}</a>
             ) : e.place.name}
@@ -351,7 +351,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         </div>
       ) : isNew && !draft.body && (
         <div className="prompt-suggest">
-          <span className="prompt-bulb" aria-hidden="true">💡</span>
+          <Icon name="bulb" className="prompt-bulb" />
           <span className="grow">{PROMPTS[promptIdx]}</span>
           <button className="round-btn" title="Use this idea" aria-label="Use this idea" onClick={() => set({ prompt: PROMPTS[promptIdx] })}>✓</button>
           <button className="round-btn" title="Show another idea" aria-label="Show another idea" onClick={() => setPromptIdx((promptIdx + 1) % PROMPTS.length)}>↻</button>
@@ -466,7 +466,7 @@ function siteName(href: string): string {
   }
 }
 
-/** Shows text with any web addresses turned into short "🔗 site name" links that open in a new tab. */
+/** Shows text with any web addresses turned into short "site name" link pills that open in a new tab. */
 function Linkified({ text }: { text: string }) {
   const parts: ReactNode[] = [];
   let last = 0;
@@ -484,7 +484,7 @@ function Linkified({ text }: { text: string }) {
     const href = /^https?:/i.test(url) ? url : `https://${url}`;
     parts.push(
       <a key={start} className="entry-link" href={href} target="_blank" rel="noopener noreferrer" title={href}>
-        <span aria-hidden="true">🔗</span> {siteName(href) || url}
+        <Icon name="link" className="inline-icon" /> {siteName(href) || url}
       </a>,
     );
     last = start + url.length;
