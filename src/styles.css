@@ -162,10 +162,8 @@ input, textarea { font: inherit; color: inherit; }
 
 /* Entry */
 .entry-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 8px; }
-/* Cancel and Done again at the end of the entry being written (phones only). */
-.entry-actions-bottom { display: none; }
-/* The round + would sit on top of them while writing. */
-.app:has(.entry-edit) .fab { display: none !important; }
+/* Cancel and Done floating above the keyboard while writing (phones only, see EditBar). */
+.edit-bar { display: none; }
 .entry-date { color: var(--muted); font-weight: 600; margin-bottom: 12px; }
 .entry-title { font-size: 1.9rem; margin: 18px 0 10px; }
 .entry-body p { margin: 0 0 1em; white-space: pre-wrap; font-size: 1.08rem; line-height: 1.7; }
@@ -456,8 +454,14 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
   .entry-view .btn-label { display: none; }
   .entry-view .entry-actions .btn { padding: 0 10px; }
   .entry-view .entry-actions .row .btn.ghost { font-size: 1.15rem; min-width: 44px; }
-  .entry-actions-bottom { display: flex; gap: 10px; margin: 18px 0 8px; }
-  .entry-actions-bottom .btn { flex: 1; justify-content: center; min-height: 48px; font-size: 1.05rem; }
+  .edit-bar {
+    display: flex; gap: 10px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    padding: 8px 14px; background: var(--accent-soft); border-top: 1px solid var(--line);
+    box-shadow: 0 -4px 14px rgba(0, 0, 0, .08); transform: translateZ(0);
+  }
+  .edit-bar .btn { flex: 1; justify-content: center; min-height: 44px; font-size: 1.05rem; }
+  /* Room at the end of the entry so the bar doesn't cover the last lines. */
+  .entry-edit { padding-bottom: 70px; }
   .entry-title, .title-input { font-size: 1.55rem; }
   .edit-tools .btn { flex: 1 1 auto; justify-content: center; }
   .place-field { flex-basis: 100%; }
