@@ -508,3 +508,15 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .restore-list li { padding: 6px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,.08)); }
 .restore-list .indent { margin: 4px 0 4px 30px; }
 .update-bar + .update-bar { top: calc(env(safe-area-inset-top) + 70px); }
+
+/* 🎤 Speak to write (DictateButton.tsx) */
+.dictate { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 2px; }
+.dictate-btn {
+  width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2);
+  font-size: 1.35rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.dictate-btn:hover { border-color: var(--accent); }
+.dictate-btn.on { background: var(--err); border-color: var(--danger); animation: dictate-pulse 1.4s ease-in-out infinite; }
+@keyframes dictate-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger) 25%, transparent); } }
+.dictate-note { color: var(--danger); font-size: .92rem; }
+.dictate-error { color: var(--danger); font-size: .92rem; flex-basis: 100%; }

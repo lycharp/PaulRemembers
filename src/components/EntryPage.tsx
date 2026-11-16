@@ -9,6 +9,7 @@ import { PlaceInput } from './PlaceInput';
 import { makePoster } from '../poster';
 import { needsShrink, shrinkVideo } from '../shrink';
 import { Dialog, ShareEntryButton } from './Sharing';
+import { DictateButton } from './DictateButton';
 
 async function fileToMedia(file: File, entryId: string, onShrink?: (fraction: number) => void): Promise<Media> {
   // Copy the bytes now. Safari (iPhone/iPad) stores a picked file as a link to
@@ -337,6 +338,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); bodyRef.current?.focus(); } }} />
       <textarea ref={bodyRef} className="body-input" placeholder="Start writing…" value={draft.body}
         onChange={(e) => set({ body: e.target.value })} />
+      <DictateButton target={bodyRef} text={draft.body} onText={(body) => setDraft({ ...draftRef.current, body })} />
 
       <div className="edit-tools">
         <input ref={fileRef} type="file" accept="image/*,video/*,audio/*,.heic,.heif" multiple hidden onChange={(e) => addFiles(e.target.files)} />
