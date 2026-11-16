@@ -457,8 +457,9 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .entry-view .entry-actions .btn.ghost { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
 .entry-view .entry-actions .btn.ghost:hover { filter: brightness(0.97); }
 .entry-view .entry-actions .btn.ghost.on { border-color: var(--accent); }
-.entry-view .back-btn { font-weight: 600; gap: 4px; padding-left: 10px; }
-.back-chevron { font-size: 1.9rem; line-height: 0; margin-top: -4px; font-weight: 400; }
+.entry-view .back-btn { font-weight: 600; gap: 6px; padding-left: 10px; }
+/* Drawn (not a ‹ character), so it looks the same on Windows and iPhone. */
+.back-chevron { width: 9px; height: 15px; flex: none; }
 @media (max-width: 760px) {
   .entry-actions { gap: 4px; margin-bottom: 12px; }
   .entry-actions .btn { padding: 8px 10px; }
