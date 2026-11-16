@@ -524,3 +524,4 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .voice-text { min-width: 0; flex: 1; }
 .voice-label { font-weight: 600; }
 .voice-transcript { font-style: italic; color: var(--muted, inherit); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .95rem; }
+.transcript-tools { flex-wrap: wrap; gap: 6px; margin-top: 8px; }
