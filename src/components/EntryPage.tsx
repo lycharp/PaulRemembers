@@ -302,6 +302,8 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
     <div className="entry-edit">
       <div className="entry-actions">
         <button className="btn ghost" onClick={cancel}>Cancel</button>
+        {/* So writing never looks like reading (the area is tinted too, see .entry-edit). */}
+        <span className="edit-badge">✏️ {isNew ? 'New entry' : 'Editing'}</span>
         <div className="row">
           {!isNew && <button className="btn ghost danger" onClick={remove}>Delete</button>}
           <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Done</button>
