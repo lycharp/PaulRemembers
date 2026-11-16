@@ -6,6 +6,7 @@ import { AudioTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Me
 import { JournalDot, toggleSharedBookmark, useCurrentJournal, useIsBookmarked, useJournals, useWritableJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { PlaceInput } from './PlaceInput';
+import { EditBar } from './EditBar';
 import { makePoster } from '../poster';
 import { needsShrink, shrinkVideo } from '../shrink';
 import { Dialog, ShareEntryButton } from './Sharing';
@@ -355,11 +356,11 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       </div>
       {busy && <p className="muted">{busy}</p>}
       <p className="muted small">{fmtDay(draft.date)} at {fmtTime(draft.date)} · {wordCount(draft.body)} words</p>
-      {/* On a phone the Done at the top scrolls away, so it's here too. */}
-      <div className="entry-actions-bottom">
+      {/* On a phone the Done at the top scrolls away, so it also floats above the keyboard. */}
+      <EditBar>
         <button className="btn" onClick={cancel}>Cancel</button>
         <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder}>Done</button>
-      </div>
+      </EditBar>
       {pasteBox && (
         <Dialog title="Paste a photo" onClose={() => setPasteBox(false)}>
           <p className="muted">First copy a photo. In the Photos app, open it, tap <strong>Share</strong>, then <strong>Copy Photo</strong>. Then come back here.</p>
