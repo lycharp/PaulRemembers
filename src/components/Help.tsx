@@ -46,7 +46,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'Can it back up by itself every day?',
-    a: <>Yes. In <strong>Settings → Backup</strong>, select <strong>Back up every day</strong> and pick a time. In Edge or Chrome on a computer, choose a folder once (a OneDrive folder is best) and each day's backup saves there by itself; the newest 7 are kept. On iPhone, iPad and other browsers, a bar asks you to tap <strong>Save</strong>. The app has to be open: if it's closed at backup time, it backs up the next time you open it. The <strong>Backup log</strong> shows the last 7 backups.</>,
+    a: <>Yes. In <strong>Settings → Backup</strong>, select <strong>Back up every day</strong> and pick a time. In Edge or Chrome on a computer, choose a folder once (a OneDrive folder is best) and each day's backup saves there by itself; the newest 7 are kept. On iPhone, iPad and other browsers, a bar asks you to tap <strong>Save</strong>. iPhone and iPad can’t delete old backups by themselves, so each day’s file is named by the day of the week (like “…daily backup - Monday.zip”). Save it in the same folder each time and tap <strong>Replace</strong> when asked: that keeps the last 7 days. You can also delete old backups yourself in the Files app. The app has to be open: if it's closed at backup time, it backs up the next time you open it. The <strong>Backup log</strong> shows the last 7 backups.</>,
   },
   {
     q: 'Can I lock the journal?',

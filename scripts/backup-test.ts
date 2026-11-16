@@ -131,6 +131,7 @@ assert.equal(log[0].at, 8);
 // File names and which old daily backups are removed (newest 7 of this account, plus older unnamed ones).
 assert.match(backup.backupFileName(undefined, new Date(2026, 10, 10)), /^Paul Remembers backup - not signed in - 2026-11-10\.zip$/);
 assert.match(auto.dailyFileName(new Date(2026, 10, 10, 21, 5)), /^Paul Remembers daily backup - not signed in - 2026-11-10 2105\.zip$/);
+assert.match(auto.weekdayFileName(new Date(2026, 10, 16, 21, 5)), /^Paul Remembers daily backup - not signed in - Monday\.zip$/);
 const names = [
   ...Array.from({ length: 8 }, (_, i) => `Paul Remembers daily backup - paul - 2026-11-${String(10 + i)} 2100.zip`),
   'Paul Remembers daily backup 2026-11-01 2100.zip',
