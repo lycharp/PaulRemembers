@@ -66,9 +66,10 @@ export function BackupCard() {
   };
 
   return (
-    <section className="card pad">
+    <section className="card pad" id="backup">
       <h3>Backup</h3>
       <p className="muted">{cloud.user ? 'Your journal is saved on this computer and in your account online. A backup file is an extra copy you control.' : 'Your journal is saved in this browser on this computer. Download a backup now and then, so you have a copy if the browser data is ever cleared.'}</p>
+      <p className="muted small">We suggest a backup at least once a week. If this device goes a week without one, the app reminds you.</p>
       <div className="row">
         <button className="btn primary" onClick={backup} disabled={busy}>Download backup</button>
         <label className="btn">
