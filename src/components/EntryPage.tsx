@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, setLeaveGuard, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
-import { AudioTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
+import { AudioTranscript, EditTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
 import { JournalDot, toggleSharedBookmark, useCurrentJournal, useIsBookmarked, useJournals, useWritableJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { PlaceInput } from './PlaceInput';
@@ -97,7 +97,7 @@ export function EntryPage({ id }: { id?: string }) {
           {(m, i, tile) => <MediaTile key={m} id={m} onOpen={() => setLightbox(i)} {...tile} />}
         </Gallery>
       )}
-      {e.mediaIds.map((m) => <AudioTranscript key={m} id={m} readOnly={!!readOnly} />)}
+      {e.mediaIds.map((m) => <AudioTranscript key={m} id={m} />)}
       {e.title && <h1 className="entry-title">{e.title}</h1>}
       <div className="entry-body">
         {e.body.split(/\n{2,}/).map((p, i) => <p key={i}><Linkified text={p} /></p>)}
@@ -127,6 +127,9 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
   const [removed, setRemoved] = useState<string[]>([]);
   const [busy, setBusy] = useState('');
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
+  // Transcripts changed in this edit (saved with the entry on Done), and how many are being made now.
+  const [transcripts, setTranscripts] = useState<Record<string, string>>({});
+  const [transcribing, setTranscribing] = useState(0);
   const [promptIdx, setPromptIdx] = useState(() => Math.floor(Math.random() * PROMPTS.length));
   const fileRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -250,7 +253,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
   // Ask before leaving with unsaved writing (a new entry with something in it, or edits).
   const initial = useRef(JSON.stringify(draft));
   const empty = !draft.title.trim() && !draft.body.trim() && draft.mediaIds.length === 0;
-  const dirty = isNew ? !empty : JSON.stringify(draft) !== initial.current || removed.length > 0;
+  const dirty = isNew ? !empty : JSON.stringify(draft) !== initial.current || removed.length > 0 || Object.keys(transcripts).length > 0;
   const [leavingTo, setLeavingTo] = useState<string | null>(null);
   useEffect(() => {
     if (!dirty) return;
@@ -273,7 +276,12 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
     if (isNew && empty) return leave(to ?? '/');
     const entry = { ...draft, updatedAt: Date.now() };
     await db.transaction('rw', db.entries, db.media, async () => {
-      await db.media.bulkPut(pendingMedia.filter((m) => entry.mediaIds.includes(m.id)));
+      const kept = (id: string) => entry.mediaIds.includes(id);
+      await db.media.bulkPut(pendingMedia.filter((m) => kept(m.id)).map((m) => (m.id in transcripts ? { ...m, transcript: transcripts[m.id] } : m)));
+      for (const [id, transcript] of Object.entries(transcripts)) {
+        // Saved as empty text (not removed) so other devices also clear a deleted one when they sync.
+        if (kept(id) && !pendingMedia.some((m) => m.id === id)) await db.media.update(id, { transcript });
+      }
       await db.media.bulkDelete(removed);
       await db.entries.put(entry);
     });
@@ -296,7 +304,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         <button className="btn ghost" onClick={cancel}>Cancel</button>
         <div className="row">
           {!isNew && <button className="btn ghost danger" onClick={remove}>Delete</button>}
-          <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder}>Done</button>
+          <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Done</button>
         </div>
       </div>
 
@@ -331,6 +339,15 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
           }}
         </Gallery>
       )}
+      {draft.mediaIds.map((m) => (
+        <EditTranscript key={m} id={m} pending={pendingMedia.find((p) => p.id === m)} value={transcripts[m]}
+          onChange={(t) => setTranscripts((all) => ({ ...all, [m]: t }))}
+          onBusy={(b) => setTranscribing((n) => n + (b ? 1 : -1))}
+          onAddToEntry={(t) => {
+            const body = draftRef.current.body.trimEnd();
+            setDraft({ ...draftRef.current, body: body ? `${body}\n\n${t}` : t });
+          }} />
+      ))}
 
       <textarea ref={titleRef} className="title-input" placeholder="Title" rows={1} value={draft.title}
         autoFocus={isNew}
@@ -359,7 +376,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       {/* On a phone the Done at the top scrolls away, so it also floats above the keyboard. */}
       <EditBar>
         <button className="btn" onClick={cancel}>Cancel</button>
-        <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder}>Done</button>
+        <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Done</button>
       </EditBar>
       {pasteBox && (
         <Dialog title="Paste a photo" onClose={() => setPasteBox(false)}>
@@ -374,7 +391,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         <Dialog title={isNew ? 'Save this entry?' : 'Save your changes?'} onClose={() => setLeavingTo(null)}>
           <p className="muted">{isNew ? 'You have not saved this new entry yet.' : 'You have changes to this entry that are not saved yet.'}</p>
           <div className="row">
-            <button className="btn primary" onClick={() => save(leavingTo)} disabled={!!busy || !!recorder}>Save</button>
+            <button className="btn primary" onClick={() => save(leavingTo)} disabled={!!busy || !!recorder || transcribing > 0}>Save</button>
             <button className="btn danger" onClick={() => leave(leavingTo)}>Discard</button>
             <button className="btn ghost" onClick={() => setLeavingTo(null)}>Keep writing</button>
           </div>

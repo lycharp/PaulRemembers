@@ -32,11 +32,26 @@ interface TileProps {
 }
 
 export function MediaTile({ id, ...rest }: TileProps & { id: string }) {
-  const media = useLiveQuery(() => db.media.get(id), [id]);
+  // null: this device has no such file (e.g. a recording that came out empty and never synced).
+  const media = useLiveQuery(async () => (await db.media.get(id)) ?? null, [id]);
   const url = useMediaUrl(id);
-  const poster = usePoster(media);
+  const poster = usePoster(media ?? undefined);
+  if (media === null) return <MissingTile {...rest} />;
   if (!media || !url) return <div className="tile tile-loading" style={rest.style} />;
   return <TileBody kind={media.kind} url={url} poster={poster} caption={media.caption} {...rest} />;
+}
+
+/** A short strip saying the file isn't here, with the usual × while editing so it can be removed. */
+function MissingTile({ style, onRatio, onRemove }: TileProps) {
+  useEffect(() => onRatio?.(0), []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="tile tile-missing tile-strip" style={style}>
+      <span className="muted small">This item isn’t on this device.</span>
+      {onRemove && (
+        <button className="tile-remove" title="Remove" onClick={(e) => (e.stopPropagation(), onRemove())}>×</button>
+      )}
+    </div>
+  );
 }
 
 /** A tile for media that is not saved yet (picked in the editor). */
@@ -220,63 +235,96 @@ function VideoFallback({ url }: { url: string }) {
   );
 }
 
-/** Under an entry: turn an audio recording into text you can copy. */
-export function AudioTranscript({ id, readOnly }: { id: string; readOnly?: boolean }) {
+/** Under an entry being read: the recording's transcript, if any, with Copy text. */
+export function AudioTranscript({ id }: { id: string }) {
   const media = useLiveQuery(() => db.media.get(id), [id]);
+  const text = media?.kind === 'audio' ? media.transcript : undefined;
+  if (!text) return null;
+  return (
+    <div className="transcript">
+      <div className="row">
+        <strong className="grow">🎙️ Transcript</strong>
+        <CopyButton text={text} />
+      </div>
+      <p>{text}</p>
+    </div>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return <button type="button" className="btn small" onClick={copy}>{copied ? 'Copied ✓' : 'Copy text'}</button>;
+}
+
+/**
+ * While editing an entry: transcribe a recording, redo or delete the transcript,
+ * copy it, or add it to the entry's text. Changes are kept only when the entry is
+ * saved (Done), like any other edit. `value` is the edited transcript, if changed.
+ */
+export function EditTranscript({ id, pending, value, onChange, onBusy, onAddToEntry }: {
+  id: string;
+  /** A recording made in this edit, not saved yet. */
+  pending?: Media;
+  value: string | undefined;
+  onChange: (text: string) => void;
+  onBusy: (busy: boolean) => void;
+  onAddToEntry: (text: string) => void;
+}) {
+  const saved = useLiveQuery(() => (pending ? undefined : db.media.get(id)), [id, pending]);
+  const media = pending ?? saved;
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
-  const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  // For a journal shared with you read-only, the transcript is shown but not saved.
-  const [unsaved, setUnsaved] = useState<string>();
+  const [added, setAdded] = useState(false);
   if (!media || media.kind !== 'audio') return null;
-  const text = media.transcript ?? unsaved;
+  const text = value ?? media.transcript ?? '';
 
   const run = async () => {
     setError('');
+    setAdded(false);
+    onBusy(true);
     try {
       const { transcribe } = await import('../transcribe');
-      const result = (await transcribe(media.blob, setBusy)) || '(No speech found in this recording.)';
-      if (readOnly) setUnsaved(result);
-      else await db.media.update(id, { transcript: result });
+      onChange((await transcribe(media.blob, setBusy)) || '(No speech found in this recording.)');
     } catch (e) {
       setError(`Could not transcribe this recording: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBusy('');
+      onBusy(false);
     }
   };
-  // Saved as empty text (not removed) so other devices also clear it when they sync.
-  const remove = async () => {
-    setConfirmDelete(false);
-    await db.media.update(id, { transcript: '' });
-  };
-  const copy = async () => {
-    await navigator.clipboard.writeText(text ?? '');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const hasSpeech = text && text !== '(No speech found in this recording.)';
 
   return (
     <div className="transcript">
       {text ? (
         <>
-          <div className="row">
-            <strong className="grow">🎙️ Transcript</strong>
-            <button className="btn small" onClick={copy}>{copied ? 'Copied ✓' : 'Copy text'}</button>
-            <button className="btn small ghost" onClick={run} disabled={!!busy}>Redo</button>
-            {!readOnly && <button className="btn small ghost danger" onClick={() => setConfirmDelete(true)} disabled={!!busy}>Delete</button>}
+          <strong>🎙️ Transcript</strong>
+          <div className="row transcript-tools">
+            {hasSpeech && <CopyButton text={text} />}
+            {hasSpeech && (
+              <button type="button" className="btn small" disabled={added}
+                onClick={() => { onAddToEntry(text); setAdded(true); }}>{added ? 'Added ✓' : '➕ Add to entry'}</button>
+            )}
+            <button type="button" className="btn small ghost" onClick={run} disabled={!!busy}>Redo</button>
+            <button type="button" className="btn small ghost danger" onClick={() => setConfirmDelete(true)} disabled={!!busy}>Delete</button>
           </div>
           {confirmDelete && (
             <div className="row transcript-confirm">
               <span className="grow">Delete this transcript? The recording stays.</span>
-              <button className="btn small danger" onClick={remove}>Delete</button>
-              <button className="btn small" onClick={() => setConfirmDelete(false)}>Keep</button>
+              <button type="button" className="btn small danger" onClick={() => { setConfirmDelete(false); setAdded(false); onChange(''); }}>Delete</button>
+              <button type="button" className="btn small" onClick={() => setConfirmDelete(false)}>Keep</button>
             </div>
           )}
           <p>{text}</p>
         </>
       ) : (
-        <button className="btn small" onClick={run} disabled={!!busy}>📝 Transcribe recording</button>
+        <button type="button" className="btn small" onClick={run} disabled={!!busy}>📝 Transcribe recording</button>
       )}
       {busy && <p className="muted small">{busy}</p>}
       {error && <p className="error-text small">{error}</p>}
