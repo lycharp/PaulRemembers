@@ -10,10 +10,12 @@
  * - Edge and Chrome on a computer can save into a folder the person picked once
  *   (ideally in OneDrive). Only the newest KEEP_FILES daily backups are kept there.
  * - Other browsers (iPhone/iPad Safari, Firefox) can't save a file by themselves,
- *   so a bar asks the person to tap Save.
+ *   so a bar asks the person to tap Save. On iPhone and iPad the file is named
+ *   by weekday, so saving it replaces last week's and at most 7 pile up.
  */
 import { accountLabel, buildBackup, download, fileDate, type BuiltBackup } from './backup';
 import { getSetting, setSetting } from './db';
+import { isIPhoneOrIPad } from './components/IosSaveTip';
 
 export interface DailyBackup {
   on: boolean;
@@ -133,6 +135,16 @@ export function dailyFileName(now = new Date()) {
   return `${FILE_PREFIX}- ${accountLabel()} - ${fileDate(now)} ${two(now.getHours())}${two(now.getMinutes())}.zip`;
 }
 
+/**
+ * iPhone and iPad: "Paul Remembers daily backup - paulprachyl - Monday.zip".
+ * Safari can't see or delete old files in the Files app, so naming each day's
+ * backup by its weekday keeps at most 7: saving next Monday's into the same
+ * folder offers to replace last Monday's.
+ */
+export function weekdayFileName(now = new Date()) {
+  return `${FILE_PREFIX}- ${accountLabel()} - ${now.toLocaleDateString('en-US', { weekday: 'long' })}.zip`;
+}
+
 /** Daily backups of this account (and older ones named without an account), newest first. */
 export function dailyFilesToRemove(names: string[], account = accountLabel()): string[] {
   const mine = `${FILE_PREFIX}- ${account} - `;
@@ -193,7 +205,7 @@ export async function runDailyIfDue(): Promise<Waiting> {
           if (perm !== 'granted') return { kind: 'allow', folder: dir.name } as Waiting;
           return (await saveDailyToFolder()) ?? ({ kind: 'none' } as Waiting);
         }
-        const name = dailyFileName();
+        const name = isIPhoneOrIPad() ? weekdayFileName() : dailyFileName();
         return { kind: 'save', backup: await buildBackup(), name } as Waiting;
       })) ?? { kind: 'none' }
     );

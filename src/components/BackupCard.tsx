@@ -151,7 +151,7 @@ function DailyBackup() {
           ) : (
             <p className="muted small">
               {isIPhoneOrIPad()
-                ? 'iPhone and iPad can’t save a file by themselves, so at backup time a bar asks you to tap Save. Then tap More… → Save to Files → iCloud Drive.'
+                ? 'iPhone and iPad can’t save a file by themselves, so at backup time a bar asks you to tap Save. Then tap More… → Save to Files → iCloud Drive. Each file is named by the day of the week, so save it in the same folder each time and tap Replace: you’ll keep the last 7 days. (You can also delete old backups yourself in the Files app.)'
                 : 'This browser can’t save into a folder by itself, so at backup time a bar asks you to tap Save. (Edge or Chrome can save into a folder for you.)'}
             </p>
           )}
