@@ -49,6 +49,10 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
     a: <>Yes. In <strong>Settings → Backup</strong>, select <strong>Back up every day</strong> and pick a time. In Edge or Chrome on a computer, choose a folder once (a OneDrive folder is best) and each day's backup saves there by itself; the newest 7 are kept. On iPhone, iPad and other browsers, a bar asks you to tap <strong>Save</strong>. The app has to be open: if it's closed at backup time, it backs up the next time you open it. The <strong>Backup log</strong> shows the last 7 backups.</>,
   },
   {
+    q: 'I can’t find my backup file on my iPhone.',
+    a: <>Backup file names are long, so in the Files app they get cut short in the icon view. Open the folder you saved to (such as iCloud Drive), tap <strong>⋯</strong> at the top right, and select <strong>List</strong>. Now you can see each file’s whole name and the date it was saved, with the newest easy to spot. To restore one, go to <strong>Settings → Backup</strong>, tap <strong>Restore from backup</strong>, and pick it the same way.</>,
+  },
+  {
     q: 'Can I lock the journal?',
     a: <>Yes. In <strong>Settings → Lock</strong>, set a passcode. The journal asks for it each time it opens.</>,
   },
