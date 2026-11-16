@@ -33,6 +33,16 @@ const safeDecode = (s: string) => {
   }
 };
 
+/** Same look as the splash built into index.html, so the hand-over is seamless. */
+function Splash() {
+  return (
+    <div className="splash" role="status">
+      <img src="./icon.svg" alt="" />
+      <span>Opening {APP_NAME}…</span>
+    </div>
+  );
+}
+
 export function App() {
   const route = useRoute();
   const [locked, setLocked] = useState<boolean | null>(null);
@@ -62,14 +72,14 @@ export function App() {
   const shareToken = /^\/s\/([\w-]+)$/.exec(route)?.[1];
   if (shareToken) return <SharedEntryPage token={shareToken} />;
 
-  if (locked === null) return null;
+  if (locked === null) return <Splash />;
   if (locked) return <LockScreen onUnlock={() => setLocked(false)} />;
 
   // Invite-only: signed out, the app shows nothing but the sign-in screen. The
   // invite email's link (#/join/<email>) opens "Create an account" instead.
   const joinEmail = /^\/join\/(.+)$/.exec(route)?.[1];
   if (cloud.configured && !cloud.user && !(hasSavedSignIn() && !cloud.ready)) {
-    if (!cloud.ready) return null;
+    if (!cloud.ready) return <Splash />;
     return (
       <div className="welcome">
         <SignIn key={joinEmail ?? ''} join={joinEmail ? safeDecode(joinEmail) : undefined} />
