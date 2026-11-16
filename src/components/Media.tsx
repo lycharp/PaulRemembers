@@ -283,3 +283,59 @@ export function AudioTranscript({ id, readOnly }: { id: string; readOnly?: boole
     </div>
   );
 }
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+/**
+ * On a journal card: "▶ Voice note · 0:42" that plays right there, plus the first
+ * line of the transcript if there is one. Clicks don't open the entry.
+ */
+export function VoiceNote({ id }: { id: string }) {
+  const media = useLiveQuery(() => db.media.get(id), [id]);
+  const url = useMediaUrl(id);
+  const ref = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [length, setLength] = useState(0);
+  const [at, setAt] = useState(0);
+  const fixing = useRef(false);
+  if (!media || !url) return <div className="voice-note loading" />;
+
+  // Chrome doesn't know a fresh recording's length until it skips to the end once.
+  const findLength = (a: HTMLAudioElement) => {
+    if (a.duration === Infinity) { fixing.current = true; a.currentTime = 1e9; }
+    else gotLength(a);
+  };
+  const gotLength = (a: HTMLAudioElement) => {
+    if (!Number.isFinite(a.duration) || a.duration <= 0) return;
+    setLength(a.duration);
+    if (fixing.current) { fixing.current = false; a.currentTime = 0; }
+  };
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const a = ref.current;
+    if (!a) return;
+    if (a.paused) void a.play().catch(() => setPlaying(false));
+    else a.pause();
+  };
+  const transcript = media.transcript?.replace(/\s+/g, ' ').trim();
+
+  return (
+    <div className="voice-note" onClick={(e) => e.stopPropagation()}>
+      <audio ref={ref} src={url} preload="metadata"
+        onLoadedMetadata={(e) => findLength(e.currentTarget)}
+        onDurationChange={(e) => gotLength(e.currentTarget)}
+        onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+        onEnded={(e) => { setPlaying(false); setAt(0); e.currentTarget.currentTime = 0; }}
+        onTimeUpdate={(e) => playing && setAt(e.currentTarget.currentTime)} />
+      <button type="button" className="voice-play" onClick={toggle} aria-label={playing ? 'Pause voice note' : 'Play voice note'}>
+        {playing ? '⏸' : '▶'}
+      </button>
+      <div className="voice-text">
+        <div className="voice-label">
+          Voice note{length > 0 && <span className="muted"> · {playing || at > 0 ? `${clock(at)} / ` : ''}{clock(length)}</span>}
+        </div>
+        {transcript && transcript !== '(No speech found in this recording.)' && <div className="voice-transcript">“{transcript}”</div>}
+      </div>
+    </div>
+  );
+}

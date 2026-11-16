@@ -513,3 +513,14 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .restore-list .indent { margin: 4px 0 4px 30px; }
 .update-bar + .update-bar { top: calc(env(safe-area-inset-top) + 70px); }
 .transcript-confirm { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--err); flex-wrap: wrap; gap: 8px; }
+
+/* "▶ Voice note · 0:42" on journal cards (VoiceNote in Media.tsx) */
+.voice-note { display: flex; align-items: center; gap: 12px; margin: 12px 14px 0; padding: 8px 12px 8px 8px; border-radius: 14px; background: var(--accent-soft); cursor: default; }
+.voice-note.loading { min-height: 56px; }
+.voice-play {
+  flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--accent); color: var(--accent-text); font-size: 1.1rem; display: grid; place-items: center;
+}
+.voice-text { min-width: 0; flex: 1; }
+.voice-label { font-weight: 600; }
+.voice-transcript { font-style: italic; color: var(--muted, inherit); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .95rem; }
