@@ -6,7 +6,7 @@ import { goAndStartTour } from './Tour';
 const TOPICS: { q: string; a: React.ReactNode }[] = [
   {
     q: 'How do I write a new entry?',
-    a: <>Click <strong>＋ New entry</strong> (or press Ctrl+N). Give it a title if you like, write, and click <strong>Done</strong>. You can add photos and videos (or paste a photo you copied: press Ctrl+V, or tap <strong>📋 Paste photo</strong>), record your voice, set a place and pick a mood. If you leave without saving, the app asks first.</>,
+    a: <>Click <strong>＋ New entry</strong> (or press Ctrl+N). Give it a title if you like, write, and click <strong>Done</strong>. You can add photos and videos (or paste a photo you copied: press Ctrl+V, or tap <strong>📋 Paste</strong>), record your voice with <strong>🎙️ Record</strong>, set a place (tap <strong>📍</strong> to use where you are) and pick a mood. If you leave without saving, the app asks first.</>,
   },
   {
     q: 'How do I change or delete an entry?',

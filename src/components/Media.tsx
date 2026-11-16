@@ -3,6 +3,7 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type C
 import { db, type Media } from '../db';
 import { useMediaUrl } from '../util';
 import { backfillPoster } from '../poster';
+import { Dialog } from './Sharing';
 
 /** A video's snapshot: the saved one, or one made now for a video added before snapshots existed. */
 function usePoster(media: Media | undefined) {
@@ -309,17 +310,19 @@ export function EditTranscript({ id, pending, value, onChange, onBusy, onAddToEn
             {hasSpeech && <CopyButton text={text} />}
             {hasSpeech && (
               <button type="button" className="btn small" disabled={added}
-                onClick={() => { onAddToEntry(text); setAdded(true); }}>{added ? 'Added ✓' : '➕ Add to entry'}</button>
+                onClick={() => { onAddToEntry(text); setAdded(true); }}>{added ? 'Added ✓' : 'Add to entry'}</button>
             )}
-            <button type="button" className="btn small ghost" onClick={run} disabled={!!busy}>Redo</button>
-            <button type="button" className="btn small ghost danger" onClick={() => setConfirmDelete(true)} disabled={!!busy}>Delete</button>
+            <button type="button" className="btn small" onClick={run} disabled={!!busy}>Redo</button>
+            <button type="button" className="btn small danger" onClick={() => setConfirmDelete(true)} disabled={!!busy}>Delete</button>
           </div>
           {confirmDelete && (
-            <div className="row transcript-confirm">
-              <span className="grow">Delete this transcript? The recording stays.</span>
-              <button type="button" className="btn small danger" onClick={() => { setConfirmDelete(false); setAdded(false); onChange(''); }}>Delete</button>
-              <button type="button" className="btn small" onClick={() => setConfirmDelete(false)}>Keep</button>
-            </div>
+            <Dialog title="Delete this transcript?" onClose={() => setConfirmDelete(false)}>
+              <p className="muted">Only the written words are removed. The voice recording stays in the entry.</p>
+              <div className="row">
+                <button type="button" className="btn delete-btn" onClick={() => { setConfirmDelete(false); setAdded(false); onChange(''); }}>Delete</button>
+                <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>Keep</button>
+              </div>
+            </Dialog>
           )}
           <p>{text}</p>
         </>

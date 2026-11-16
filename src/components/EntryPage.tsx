@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, setLeaveGuard, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
 import { AudioTranscript, EditTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
@@ -46,6 +46,9 @@ export function EntryPage({ id }: { id?: string }) {
   const [draft, setDraft] = useState<Entry | null>(null);
   const [isNew] = useState(!id);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  // Open every entry at the very top. Otherwise the page keeps where the list was
+  // scrolled to, and on iPhone the Back/Edit row ends up behind the clock.
+  useLayoutEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [id]);
   // Journals someone shared with you as a viewer are read-only.
   const readOnly = useLiveQuery(async () => {
     // Keyed on the journal id, not the entry, so an entry update (sync, video
@@ -292,6 +295,31 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
 
   const cancel = () => leave(isNew ? '/' : undefined);
 
+  // Photos and videos at the top; voice recordings further down (see below).
+  const storedKinds = useLiveQuery(
+    async () => Object.fromEntries((await db.media.bulkGet(draft.mediaIds)).filter((m) => !!m).map((m) => [m!.id, m!.kind])),
+    [draft.mediaIds.join()]) as Record<string, MediaKind> | undefined;
+  const isAudio = (m: string) => (pendingMedia.find((p) => p.id === m)?.kind ?? storedKinds?.[m]) === 'audio';
+  // Wait for the stored ones' kinds so nothing jumps from one place to the other.
+  const known = draft.mediaIds.filter((m) => storedKinds || pendingMedia.some((p) => p.id === m));
+  const audioIds = known.filter(isAudio);
+  const pictureIds = known.filter((m) => !isAudio(m));
+  const mediaTile = (m: string, tile: { style: CSSProperties; onRatio: (r: number) => void }) => {
+    const pending = pendingMedia.find((p) => p.id === m);
+    const onRemove = () => {
+      set({ mediaIds: draftRef.current.mediaIds.filter((x) => x !== m) });
+      if (!pending) setRemoved((r) => [...r, m]);
+    };
+    return pending ? <PendingTile key={m} media={pending} onRemove={onRemove} {...tile} /> : <MediaTile key={m} id={m} onRemove={onRemove} {...tile} />;
+  };
+  // A new recording: bring it into view if it landed off screen.
+  const audioRef = useRef<HTMLDivElement>(null);
+  const audioCount = useRef(audioIds.length);
+  useEffect(() => {
+    if (audioIds.length > audioCount.current) audioRef.current?.lastElementChild?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    audioCount.current = audioIds.length;
+  }, [audioIds.length]);
+
   const remove = async () => {
     if (!confirm('Delete this entry? This cannot be undone.')) return;
     await deleteEntry(draft.id);
@@ -300,13 +328,14 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
 
   return (
     <div className="entry-edit">
-      <div className="entry-actions">
-        <button className="btn ghost" onClick={cancel}>Cancel</button>
-        {/* So writing never looks like reading (the area is tinted too, see .entry-edit). */}
-        <span className="edit-badge">✏️ {isNew ? 'New entry' : 'Editing'}</span>
-        <div className="row">
-          {!isNew && <button className="btn ghost danger" onClick={remove}>Delete</button>}
-          <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Done</button>
+      <div className="entry-actions edit-actions">
+        {/* Plain words, not a button: tells you you're writing (the area is tinted too, see .entry-edit). */}
+        <span className="edit-label">{isNew ? 'New entry' : 'Editing'}</span>
+        <div className="row nowrap">
+          {/* On a phone, Cancel and Done are in the bar at the bottom instead. */}
+          <button className="btn edit-top-only" onClick={cancel}>Cancel</button>
+          {!isNew && <button className="btn delete-btn" onClick={remove}>Delete</button>}
+          <button className="btn primary edit-top-only" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Done</button>
         </div>
       </div>
 
@@ -321,35 +350,18 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         </div>
       ) : isNew && !draft.body && (
         <div className="prompt-suggest">
-          <span className="muted">Need an idea?</span> <strong>{PROMPTS[promptIdx]}</strong>
-          <div className="row">
-            <button className="btn small" onClick={() => set({ prompt: PROMPTS[promptIdx] })}>Use this prompt</button>
-            <button className="btn small ghost" onClick={() => setPromptIdx((promptIdx + 1) % PROMPTS.length)}>Another</button>
-          </div>
+          <span className="prompt-bulb" aria-hidden="true">💡</span>
+          <span className="grow">{PROMPTS[promptIdx]}</span>
+          <button className="round-btn" title="Use this idea" aria-label="Use this idea" onClick={() => set({ prompt: PROMPTS[promptIdx] })}>✓</button>
+          <button className="round-btn" title="Show another idea" aria-label="Show another idea" onClick={() => setPromptIdx((promptIdx + 1) % PROMPTS.length)}>↻</button>
         </div>
       )}
 
-      {draft.mediaIds.length > 0 && (
-        <Gallery ids={draft.mediaIds} className="media-gallery" rowHeight={180} maxHeight={360}>
-          {(m, _i, tile) => {
-            const pending = pendingMedia.find((p) => p.id === m);
-            const onRemove = () => {
-              set({ mediaIds: draft.mediaIds.filter((x) => x !== m) });
-              if (!pending) setRemoved((r) => [...r, m]);
-            };
-            return pending ? <PendingTile key={m} media={pending} onRemove={onRemove} {...tile} /> : <MediaTile key={m} id={m} onRemove={onRemove} {...tile} />;
-          }}
+      {pictureIds.length > 0 && (
+        <Gallery ids={pictureIds} className="media-gallery" rowHeight={180} maxHeight={360}>
+          {(m, _i, tile) => mediaTile(m, tile)}
         </Gallery>
       )}
-      {draft.mediaIds.map((m) => (
-        <EditTranscript key={m} id={m} pending={pendingMedia.find((p) => p.id === m)} value={transcripts[m]}
-          onChange={(t) => setTranscripts((all) => ({ ...all, [m]: t }))}
-          onBusy={(b) => setTranscribing((n) => n + (b ? 1 : -1))}
-          onAddToEntry={(t) => {
-            const body = draftRef.current.body.trimEnd();
-            setDraft({ ...draftRef.current, body: body ? `${body}\n\n${t}` : t });
-          }} />
-      ))}
 
       <textarea ref={titleRef} className="title-input" placeholder="Title" rows={1} value={draft.title}
         autoFocus={isNew}
@@ -358,16 +370,38 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       <textarea ref={bodyRef} className="body-input" placeholder="Start writing…" value={draft.body}
         onChange={(e) => set({ body: e.target.value })} />
 
+      {/* Voice recordings sit under the writing, next to the Record button, so a new one shows where you tapped. */}
+      {audioIds.length > 0 && (
+        <div className="edit-audio" ref={audioRef}>
+          {audioIds.map((m) => (
+            <div key={m}>
+              <Gallery ids={[m]} className="media-gallery">{(id, _i, tile) => mediaTile(id, tile)}</Gallery>
+              <EditTranscript id={m} pending={pendingMedia.find((p) => p.id === m)} value={transcripts[m]}
+                onChange={(t) => setTranscripts((all) => ({ ...all, [m]: t }))}
+                onBusy={(b) => setTranscribing((n) => n + (b ? 1 : -1))}
+                onAddToEntry={(t) => {
+                  const body = draftRef.current.body.trimEnd();
+                  setDraft({ ...draftRef.current, body: body ? `${body}\n\n${t}` : t });
+                }} />
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="edit-tools">
         <input ref={fileRef} type="file" accept="image/*,video/*,audio/*,.heic,.heif" multiple hidden onChange={(e) => addFiles(e.target.files)} />
-        <button className="btn" onClick={() => fileRef.current?.click()}>🖼️ Photos & videos</button>
-        <button className="btn" onClick={pastePhoto} title="Paste a photo you copied (or press Ctrl+V)">📋 Paste photo</button>
-        <button className={`btn ${recorder ? 'recording' : ''}`} onClick={toggleRecording}>{recorder ? '⏹ Stop recording' : '🎙️ Record audio'}</button>
-        <button className="btn" onClick={useLocation}>📍 Use my location</button>
-        <PlaceInput value={draft.place} onChange={(place) => set({ place })} />
+        <div className="tool-row">
+          <button className="btn" onClick={() => fileRef.current?.click()}>🖼️ Photos</button>
+          <button className="btn" onClick={pastePhoto} title="Paste a photo you copied (or press Ctrl+V)">📋 Paste</button>
+          <button className={`btn ${recorder ? 'recording' : ''}`} onClick={toggleRecording}>{recorder ? '⏹ Stop' : '🎙️ Record'}</button>
+        </div>
+        <div className="place-row">
+          <PlaceInput value={draft.place} onChange={(place) => set({ place })} />
+          <button className="btn locate-btn" onClick={useLocation} title="Use my location" aria-label="Use my location">📍</button>
+        </div>
       </div>
       <div className="moods">
-        <span className="muted">How are you feeling?</span>
+        <span className="muted moods-label">How are you feeling?</span>
         {MOODS.map((m) => (
           <button key={m.id} className={`mood ${draft.mood === m.id ? 'on' : ''}`} title={m.label}
             onClick={() => set({ mood: draft.mood === m.id ? undefined : m.id })}>{m.emoji}</button>
