@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { appUrl, useCloud } from '../cloud/cloud';
 import { cloudConfigured } from '../cloud/config';
 import { addInvite, addMember, createEntryShare, getEntryShare, isAdmin, listInvites, listMembers, loadSharedEntry, removeInvite, removeMember, shareUrl, stopEntryShare, type Invite, type Member, type SharedMedia } from '../cloud/sharing';
@@ -299,13 +300,16 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
-  return (
-    <div className="dialog-backdrop" onClick={onClose}>
+  // Drawn at the top of the page, so it covers everything even when opened from
+  // inside the sidebar (which otherwise kept it underneath the journal list).
+  return createPortal(
+    <div className="dialog-backdrop" onClick={(e) => { e.stopPropagation(); onClose(); }}>
       <div className="dialog card pad" role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="row"><h3 className="grow">{title}</h3><button className="btn ghost small" onClick={onClose} aria-label="Close">×</button></div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
