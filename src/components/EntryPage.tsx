@@ -390,14 +390,16 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
 
       <div className="edit-tools">
         <input ref={fileRef} type="file" accept="image/*,video/*,audio/*,.heic,.heif" multiple hidden onChange={(e) => addFiles(e.target.files)} />
+        {/* Icons only, to save room. Hover (on a computer) shows what each one does. */}
         <div className="tool-row">
-          <button className="btn" onClick={() => fileRef.current?.click()}>🖼️ Photos</button>
-          <button className="btn" onClick={pastePhoto} title="Paste a photo you copied (or press Ctrl+V)">📋 Paste</button>
-          <button className={`btn ${recorder ? 'recording' : ''}`} onClick={toggleRecording}>{recorder ? '⏹ Stop' : '🎙️ Record'}</button>
-        </div>
-        <div className="place-row">
+          <button className="icon-btn" onClick={() => fileRef.current?.click()} title="Add photos & videos" aria-label="Add photos & videos"><Icon name="photo" /></button>
+          <button className="icon-btn" onClick={pastePhoto} title="Paste a copied photo (or press Ctrl+V)" aria-label="Paste a copied photo"><Icon name="paste" /></button>
+          <button className={`icon-btn ${recorder ? 'recording' : ''}`} onClick={toggleRecording}
+            title={recorder ? 'Stop recording' : 'Record your voice'} aria-label={recorder ? 'Stop recording' : 'Record your voice'}>
+            <Icon name={recorder ? 'stop' : 'mic'} />
+          </button>
           <PlaceInput value={draft.place} onChange={(place) => set({ place })} />
-          <button className="btn locate-btn" onClick={useLocation} title="Use my location" aria-label="Use my location">📍</button>
+          <button className="icon-btn" onClick={useLocation} title="Use my location" aria-label="Use my location"><Icon name="locate" /></button>
         </div>
       </div>
       <div className="moods">
@@ -434,6 +436,22 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         </Dialog>
       )}
     </div>
+  );
+}
+
+/** Simple line icons (drawn, so they look the same on Windows and iPhone). */
+function Icon({ name }: { name: 'photo' | 'paste' | 'mic' | 'stop' | 'locate' }) {
+  const parts = {
+    photo: <><rect x="3" y="3" width="18" height="18" rx="4" /><circle cx="9" cy="9" r="1.8" /><path d="m21 15-4.5-4.5L6 21" /></>,
+    paste: <><rect x="8" y="2" width="8" height="4" rx="1.2" /><path d="M16 4h1.5A2.5 2.5 0 0 1 20 6.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 19.5v-13A2.5 2.5 0 0 1 6.5 4H8" /><path d="M9 12.5h6M9 16.5h4" /></>,
+    mic: <><rect x="9" y="2.5" width="6" height="12" rx="3" /><path d="M18.5 11a6.5 6.5 0 0 1-13 0M12 17.5V21.5" /></>,
+    stop: <rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor" />,
+    locate: <path d="M3.5 10.8 20.5 3.5l-7.3 17-2-8.2z" strokeLinejoin="round" />,
+  };
+  return (
+    <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {parts[name]}
+    </svg>
   );
 }
 

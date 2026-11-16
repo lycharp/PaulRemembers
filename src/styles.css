@@ -237,10 +237,15 @@ input, textarea { font: inherit; color: inherit; }
   font-size: 1.08rem; line-height: 1.7; padding: 0;
 }
 .edit-tools { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 10px; }
-.tool-row { display: flex; gap: 8px; }
-.tool-row .btn { flex: 1; justify-content: center; white-space: nowrap; }
-.place-row { display: flex; gap: 8px; align-items: stretch; }
-.locate-btn { flex: none; width: 44px; justify-content: center; padding: 0; font-size: 1.1rem; }
+.tool-row { display: flex; gap: 6px; align-items: center; }
+.tool-row .place-field { min-width: 0; }
+.icon-btn {
+  flex: none; width: 42px; height: 42px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--accent); display: grid; place-items: center; padding: 0; cursor: pointer;
+}
+.icon-btn:hover { background: var(--surface-2); }
+.icon-btn .icon { width: 22px; height: 22px; }
+.icon-btn.recording { background: var(--err); color: var(--danger); border-color: var(--danger); }
 .edit-audio { margin-top: 12px; }
 .place-input { flex: 1; min-width: 160px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
 .moods { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
@@ -499,7 +504,8 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
   /* Start small and grow with the writing, so the buttons below stay above the keyboard. */
   .body-input { min-height: 7em; }
   .title-input { padding-top: 6px; }
-  .tool-row .btn { padding: 8px 6px; }
+  .tool-row { gap: 5px; }
+  .icon-btn { width: 40px; height: 40px; }
   .moods { gap: 2px; justify-content: space-between; }
   .moods-label { font-size: 0.85rem; }
   .mood { width: 38px; height: 38px; font-size: 1.25rem; padding: 0; }
