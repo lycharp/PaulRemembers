@@ -6,7 +6,7 @@ import { goAndStartTour } from './Tour';
 const TOPICS: { q: string; a: React.ReactNode }[] = [
   {
     q: 'How do I write a new entry?',
-    a: <>Click <strong>＋ New entry</strong> (or press Ctrl+N). Give it a title if you like, write, and click <strong>Done</strong>. You can add photos and videos (or paste a photo you copied: press Ctrl+V, or tap <strong>📋 Paste photo</strong>), record your voice, set a place and pick a mood. If you leave without saving, the app asks first.</>,
+    a: <>Click <strong>＋ New entry</strong> (or press Ctrl+N). Give it a title if you like, write, and click <strong>Done</strong>. You can add photos and videos (or paste a photo you copied: press Ctrl+V, or use the paste button), record your voice, set a place (the arrow button fills in where you are) and pick a mood. Hold the pointer over a button to see what it does. If you leave without saving, the app asks first.</>,
   },
   {
     q: 'How do I change or delete an entry?',
@@ -38,7 +38,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'How do I share?',
-    a: <>To share one entry, open it and click <strong>🔗 Share</strong> to get a private link. To share a whole journal, go to <strong>Settings → Share a journal</strong> and type the other person's email. The app doesn't email them, so click <strong>Send invite</strong> next to their name and pick Gmail, Outlook.com, Yahoo Mail, your email app, or Copy invite (to paste into a text or any other email). They sign in with that same email address and the journal shows up. You need to be signed in for both.</>,
+    a: <>To share one entry, open it and click the <strong>Share</strong> button (the box with an arrow) to get a private link. To share a whole journal, go to <strong>Settings → Share a journal</strong> and type the other person's email. The app doesn't email them, so click <strong>Send invite</strong> next to their name and pick Gmail, Outlook.com, Yahoo Mail, your email app, or Copy invite (to paste into a text or any other email). They sign in with that same email address and the journal shows up. You need to be signed in for both.</>,
   },
   {
     q: 'How do I keep a backup?',

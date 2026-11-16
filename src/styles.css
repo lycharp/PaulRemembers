@@ -93,7 +93,8 @@ h1 { font-size: 1.7rem; }
     flex: 1 1 0; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
     font-size: 0.68rem; padding: 6px 1px; margin: 0; border-radius: 10px; text-align: center; white-space: nowrap;
   }
-  .sidebar nav a > span:first-child, .sidebar .account-link > span:first-child { font-size: 1.15rem; line-height: 1.2; }
+  .sidebar nav a > span:first-child, .sidebar .account-link > span:first-child { line-height: 1; }
+  .nav-icon .icon { width: 23px; height: 23px; }
   .sidebar .account-text { display: none !important; }
   .sidebar .account-short { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .main { width: 100%; padding: calc(14px + env(safe-area-inset-top)) 14px calc(110px + env(safe-area-inset-bottom)); }
@@ -157,7 +158,8 @@ input, textarea { font: inherit; color: inherit; }
 .bookmark-on { margin-left: auto; }
 
 .empty { text-align: center; padding: 70px 20px; }
-.empty-icon { font-size: 3.5rem; }
+.empty-icon { color: var(--accent); }
+.empty-icon .icon { width: 56px; height: 56px; stroke-width: 1.5; }
 .empty p { color: var(--muted); max-width: 420px; margin: 0 auto 20px; }
 
 /* Entry */
@@ -201,7 +203,16 @@ input, textarea { font: inherit; color: inherit; }
   border-radius: 12px; margin-bottom: 14px; display: flex; justify-content: space-between; gap: 10px;
 }
 .prompt-card .link { color: #fff; font-weight: 400; }
-.prompt-suggest { background: var(--accent-soft); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 8px; }
+.prompt-suggest {
+  background: var(--accent-soft); border-radius: 12px; padding: 8px 8px 8px 12px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px; font-weight: 600; line-height: 1.35;
+}
+.prompt-bulb { width: 20px; height: 20px; flex: none; color: var(--accent); }
+.round-btn {
+  flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface);
+  color: var(--accent); font-size: 1.1rem; font-weight: 700; cursor: pointer; display: grid; place-items: center; padding: 0;
+}
+.round-btn:hover { background: var(--surface-2); }
 
 /* Writing or editing an entry: a soft purple area with a purple edge, so it
    never looks like just reading one. */
@@ -210,10 +221,13 @@ input, textarea { font: inherit; color: inherit; }
   border: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent);
   border-radius: 16px; padding: 16px 20px 20px;
 }
-.edit-badge {
-  margin-right: auto; padding: 4px 12px; border-radius: 999px; white-space: nowrap;
-  background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); font-weight: 600; font-size: 0.9rem;
+/* "Editing" / "New entry": plain small words, so it doesn't look like a button. */
+.edit-label {
+  margin-right: auto; color: var(--accent); font-weight: 700; font-size: 0.78rem;
+  letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
 }
+.btn.delete-btn { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+.btn.delete-btn:hover { filter: brightness(1.07); background: var(--danger); }
 .entry-edit .date-input {
   border: 0; background: transparent; color: var(--muted); font-weight: 600; margin-bottom: 12px; padding: 0;
 }
@@ -224,9 +238,20 @@ input, textarea { font: inherit; color: inherit; }
   width: 100%; min-height: 240px; border: 0; background: transparent; resize: none; outline: none;
   font-size: 1.08rem; line-height: 1.7; padding: 0;
 }
-.edit-tools { display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 10px; }
+.edit-tools { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 10px; }
+.tool-row { display: flex; gap: 6px; align-items: center; }
+.tool-row .place-field { min-width: 0; }
+.icon-btn {
+  flex: none; width: 42px; height: 42px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--accent); display: grid; place-items: center; padding: 0; cursor: pointer;
+}
+.icon-btn:hover { background: var(--surface-2); }
+.icon-btn .icon { width: 22px; height: 22px; }
+.icon-btn.recording { background: var(--err); color: var(--danger); border-color: var(--danger); }
+.edit-audio { margin-top: 12px; }
 .place-input { flex: 1; min-width: 160px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
-.moods { display: flex; align-items: center; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.moods { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.moods-label { margin-right: 4px; white-space: nowrap; }
 .mood { font-size: 1.4rem; background: transparent; border: 2px solid transparent; border-radius: 50%; width: 44px; height: 44px; cursor: pointer; }
 .mood.on { border-color: var(--accent); background: var(--accent-soft); }
 
@@ -474,10 +499,22 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
   .edit-bar .btn { flex: 1; justify-content: center; min-height: 44px; font-size: 1.05rem; }
   /* Room at the end of the entry so the bar doesn't cover the last lines. */
   .entry-edit { padding: 12px 12px 16px; margin-bottom: 70px; }
-  .edit-badge { padding: 3px 8px; font-size: 0.82rem; }
+  /* Cancel and Done live in the bar at the bottom on a phone. */
+  .edit-actions .edit-top-only { display: none; }
+  .edit-actions { min-height: 36px; margin-bottom: 6px; }
+  .edit-actions .btn { min-height: 36px; padding: 6px 14px; border-radius: 10px; }
+  /* Start small and grow with the writing, so the buttons below stay above the keyboard. */
+  .body-input { min-height: 7em; }
+  .title-input { padding-top: 6px; }
+  .tool-row { gap: 5px; }
+  .icon-btn { width: 40px; height: 40px; }
+  .moods { gap: 2px; justify-content: space-between; }
+  .moods-label { font-size: 0.85rem; }
+  .mood { width: 38px; height: 38px; font-size: 1.25rem; padding: 0; }
+  .prompt-suggest { font-weight: 500; font-size: 0.95rem; }
+  .transcript-tools { flex-wrap: nowrap; gap: 4px; }
+  .transcript-tools .btn { padding: 5px 8px; white-space: nowrap; }
   .entry-title, .title-input { font-size: 1.55rem; }
-  .edit-tools .btn { flex: 1 1 auto; justify-content: center; }
-  .place-field { flex-basis: 100%; }
   .cal-grid { gap: 4px; }
   .cal-num { font-size: 0.72rem; min-width: 19px; height: 19px; top: 3px; left: 3px; }
   .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -525,7 +562,6 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .restore-list li { padding: 6px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,.08)); }
 .restore-list .indent { margin: 4px 0 4px 30px; }
 .update-bar + .update-bar { top: calc(env(safe-area-inset-top) + 70px); }
-.transcript-confirm { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--err); flex-wrap: wrap; gap: 8px; }
 
 /* "▶ Voice note · 0:42" on journal cards (VoiceNote in Media.tsx) */
 .voice-note { display: flex; align-items: center; gap: 12px; margin: 12px 14px 0; padding: 8px 12px 8px 8px; border-radius: 14px; background: var(--accent-soft); cursor: default; }
@@ -539,3 +575,29 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .voice-transcript { font-style: italic; color: var(--muted, inherit); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .95rem; }
 .transcript-tools { flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .tile-missing { grid-column: 1 / -1; display: flex; align-items: center; min-height: 48px; padding: 12px 44px 12px 14px; background: var(--surface-2); }
+
+/* Drawn microphone beside recordings and transcripts (matches the editor's icons). */
+.audio-mark { width: 22px; height: 22px; flex: none; color: var(--accent); }
+.transcript-head { display: inline-flex; align-items: center; gap: 6px; }
+.thumb-audio .icon, .tile-audio-icon .icon { width: 40%; height: 40%; color: var(--accent); }
+
+/* Drawn icons */
+.icon { flex: none; }
+.inline-icon { width: 1.05em; height: 1.05em; vertical-align: -0.17em; color: var(--accent); }
+.btn .inline-icon { color: inherit; }
+.btn.primary .inline-icon { color: inherit; }
+.chip { display: inline-flex; align-items: center; gap: 5px; }
+.nav-icon { position: relative; display: inline-grid; place-items: center; }
+.nav-icon .icon { width: 20px; height: 20px; }
+.sidebar nav a.on .nav-icon, .account-link.on .nav-icon { color: var(--accent); }
+.nav-icon.has-problem::after {
+  content: ''; position: absolute; top: -1px; right: -3px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--danger); border: 1.5px solid var(--surface);
+}
+.icon.spin { animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.fab .icon { width: 26px; height: 26px; }
+/* Back / Bookmark / Share / Edit on an entry: square icon tiles, no words. */
+.entry-view .entry-actions .btn.icon-tile { min-width: 44px; width: 44px; padding: 0; }
+.entry-view .entry-actions .btn.icon-tile .icon { width: 22px; height: 22px; }
+.sidebar nav a, .account-link { align-items: center; }

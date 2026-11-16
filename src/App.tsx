@@ -9,6 +9,7 @@ import { SharedEntryPage } from './components/Sharing';
 import { hasSavedSignIn, useCloud } from './cloud/cloud';
 import { CalendarView } from './components/CalendarView';
 import { EntryPage } from './components/EntryPage';
+import { Icon, type IconName } from './components/Icon';
 import { ImportPage } from './components/ImportPage';
 import { Insights } from './components/Insights';
 import { Settings } from './components/Settings';
@@ -16,13 +17,13 @@ import { forgetListPosition, Timeline } from './components/Timeline';
 import { go, sha256, useRoute } from './util';
 
 const NAV = [
-  { path: '/', label: 'Journal', icon: '📓' },
-  { path: '/calendar', label: 'Calendar', icon: '🗓️' },
-  { path: '/insights', label: 'Insights', icon: '✨' },
-  { path: '/import', label: 'Import', icon: '📥' },
-  { path: '/settings', label: 'Settings', icon: '⚙️' },
-  { path: '/help', label: 'Help', icon: '❓' },
-];
+  { path: '/', label: 'Journal', icon: 'journal' },
+  { path: '/calendar', label: 'Calendar', icon: 'calendar' },
+  { path: '/insights', label: 'Insights', icon: 'insights' },
+  { path: '/import', label: 'Import', icon: 'import' },
+  { path: '/settings', label: 'Settings', icon: 'settings' },
+  { path: '/help', label: 'Help', icon: 'help' },
+] satisfies { path: string; label: string; icon: IconName }[];
 
 const safeDecode = (s: string) => {
   try {
@@ -99,12 +100,14 @@ export function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand"><img src="./icon.svg" alt="" /> {APP_NAME}</div>
-        <button className="btn primary new-btn" data-tour="new" onClick={() => go('/new')} title="New entry (Ctrl+N)">＋ New entry</button>
+        <button className="btn primary new-btn" data-tour="new" onClick={() => go('/new')} title="New entry (Ctrl+N)">
+          <Icon name="plus" className="inline-icon" /> New entry
+        </button>
         <nav>
           {NAV.map((n) => (
             <a key={n.path} href={`#${n.path}`} data-tour={`nav-${n.path}`} className={active === n.path ? 'on' : ''}
               onClick={n.path === '/' ? forgetListPosition : undefined}>
-              <span aria-hidden>{n.icon}</span> {n.label}
+              <span className="nav-icon"><Icon name={n.icon} /></span> {n.label}
             </a>
           ))}
         </nav>
@@ -112,7 +115,9 @@ export function App() {
         <PoquitoBadge className="sidebar-badge" />
         {cloud.configured && (
           <a className={`account-link ${route === '/account' ? 'on' : ''}`} href="#/account" data-tour="account">
-            <span aria-hidden>{cloud.user ? (cloud.error ? '⚠️' : cloud.syncing ? '🔄' : '☁️') : '👤'}</span>
+            <span className={`nav-icon ${cloud.error ? 'has-problem' : ''}`} title={cloud.error ? 'Sync problem' : undefined}>
+              <Icon name={cloud.user && cloud.syncing ? 'sync' : 'account'} className={cloud.user && cloud.syncing ? 'spin' : ''} />
+            </span>
             <span className="account-text">
               {cloud.user ? cloud.user.email : 'Sign in'}
               {cloud.user && <small className="muted"><SyncStatus /></small>}
@@ -122,7 +127,7 @@ export function App() {
         )}
       </aside>
       <main className="main">{page}</main>
-      <button className="fab" data-tour="new" onClick={() => go('/new')} aria-label="New entry" title="New entry (Ctrl+N)">＋</button>
+      <button className="fab" data-tour="new" onClick={() => go('/new')} aria-label="New entry" title="New entry (Ctrl+N)"><Icon name="plus" /></button>
       <Tour autoStart={route === '/'} />
     </div>
   );
@@ -154,7 +159,7 @@ function JournalList() {
           <JournalDot color={j.color} /> {j.name}
         </button>
       ))}
-      <button className="journal-add" onClick={add}>＋ New journal</button>
+      <button className="journal-add" onClick={add}><Icon name="plus" className="inline-icon" /> New journal</button>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { addInvite, addMember, createEntryShare, getEntryShare, isAdmin, listInv
 import type { LocalJournal } from '../cloud/sync';
 import { db, type Entry } from '../db';
 import { fmtDay, moodFor } from '../util';
+import { Icon } from './Icon';
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e));
 
@@ -35,7 +36,7 @@ export function SharedEntryPage({ token }: { token: string }) {
             {data.media.map((m) => (
               <div key={m.id} className={`tile tile-${m.kind}`}>
                 {m.kind === 'video' ? <video src={m.url} controls preload="metadata" />
-                  : m.kind === 'audio' ? <div className="tile-audio-inner"><span aria-hidden>🎙️</span><audio src={m.url} controls /></div>
+                  : m.kind === 'audio' ? <div className="tile-audio-inner"><Icon name="mic" className="audio-mark" /><audio src={m.url} controls /></div>
                   : <a href={m.url} target="_blank" rel="noreferrer"><img src={m.url} alt={m.caption ?? ''} /></a>}
                 {m.caption && <span className="tile-caption">{m.caption}</span>}
               </div>
@@ -45,7 +46,7 @@ export function SharedEntryPage({ token }: { token: string }) {
         {e.title && <h1 className="entry-title">{e.title}</h1>}
         <div className="entry-body">{e.body.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
         <div className="entry-footer">
-          {e.place && <span>📍 {e.place.name}</span>}
+          {e.place && <span><Icon name="pin" className="inline-icon" /> {e.place.name}</span>}
           {mood && <span>{mood.emoji} {mood.label}</span>}
         </div>
       </div>
@@ -63,7 +64,7 @@ export function ShareEntryButton({ entry }: { entry: Entry }) {
   if (!cloud.user || (journal?.role && journal.role !== 'owner')) return null;
   return (
     <>
-      <button className="btn ghost" onClick={() => setOpen(true)} aria-label="Share">🔗 <span className="btn-label">Share</span></button>
+      <button className="btn ghost icon-tile" onClick={() => setOpen(true)} title="Share" aria-label="Share"><Icon name="share" /></button>
       {open && <ShareEntryDialog entryId={entry.id} onClose={() => setOpen(false)} />}
     </>
   );

@@ -3,6 +3,8 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type C
 import { db, type Media } from '../db';
 import { useMediaUrl } from '../util';
 import { backfillPoster } from '../poster';
+import { Dialog } from './Sharing';
+import { Icon } from './Icon';
 
 /** A video's snapshot: the saved one, or one made now for a video added before snapshots existed. */
 function usePoster(media: Media | undefined) {
@@ -87,9 +89,9 @@ function TileBody({ kind, url, poster, caption, style, onRatio, onOpen, onRemove
           onLoadedMetadata={(e) => e.currentTarget.videoHeight && onRatio?.(e.currentTarget.videoWidth / e.currentTarget.videoHeight)}
           onError={() => setFailed(true)} />
       ) : audio ? (
-        compact ? <div className="tile-audio-icon">🎙️</div> : (
+        compact ? <div className="tile-audio-icon"><Icon name="mic" /></div> : (
           <div className="tile-audio-inner">
-            <span aria-hidden>🎙️</span>
+            <Icon name="mic" className="audio-mark" />
             <audio src={url} controls />
           </div>
         )
@@ -215,7 +217,7 @@ export function Thumb({ id }: { id?: string }) {
   const poster = usePoster(media);
   if (!id || !url || !media) return null;
   if (media.kind === 'video') return poster ? <img className="thumb" src={poster} alt="" /> : <video className="thumb" src={url} preload="metadata" muted playsInline />;
-  if (media.kind === 'audio') return <div className="thumb thumb-audio">🎙️</div>;
+  if (media.kind === 'audio') return <div className="thumb thumb-audio"><Icon name="mic" /></div>;
   return <img className="thumb" src={url} alt="" loading="lazy" />;
 }
 
@@ -243,7 +245,7 @@ export function AudioTranscript({ id }: { id: string }) {
   return (
     <div className="transcript">
       <div className="row">
-        <strong className="grow">🎙️ Transcript</strong>
+        <strong className="grow transcript-head"><Icon name="mic" className="audio-mark" /> Transcript</strong>
         <CopyButton text={text} />
       </div>
       <p>{text}</p>
@@ -304,22 +306,24 @@ export function EditTranscript({ id, pending, value, onChange, onBusy, onAddToEn
     <div className="transcript">
       {text ? (
         <>
-          <strong>🎙️ Transcript</strong>
+          <strong className="transcript-head"><Icon name="mic" className="audio-mark" /> Transcript</strong>
           <div className="row transcript-tools">
             {hasSpeech && <CopyButton text={text} />}
             {hasSpeech && (
               <button type="button" className="btn small" disabled={added}
-                onClick={() => { onAddToEntry(text); setAdded(true); }}>{added ? 'Added ✓' : '➕ Add to entry'}</button>
+                onClick={() => { onAddToEntry(text); setAdded(true); }}>{added ? 'Added ✓' : 'Add to entry'}</button>
             )}
-            <button type="button" className="btn small ghost" onClick={run} disabled={!!busy}>Redo</button>
-            <button type="button" className="btn small ghost danger" onClick={() => setConfirmDelete(true)} disabled={!!busy}>Delete</button>
+            <button type="button" className="btn small" onClick={run} disabled={!!busy}>Redo</button>
+            <button type="button" className="btn small danger" onClick={() => setConfirmDelete(true)} disabled={!!busy}>Delete</button>
           </div>
           {confirmDelete && (
-            <div className="row transcript-confirm">
-              <span className="grow">Delete this transcript? The recording stays.</span>
-              <button type="button" className="btn small danger" onClick={() => { setConfirmDelete(false); setAdded(false); onChange(''); }}>Delete</button>
-              <button type="button" className="btn small" onClick={() => setConfirmDelete(false)}>Keep</button>
-            </div>
+            <Dialog title="Delete this transcript?" onClose={() => setConfirmDelete(false)}>
+              <p className="muted">Only the written words are removed. The voice recording stays in the entry.</p>
+              <div className="row">
+                <button type="button" className="btn delete-btn" onClick={() => { setConfirmDelete(false); setAdded(false); onChange(''); }}>Delete</button>
+                <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>Keep</button>
+              </div>
+            </Dialog>
           )}
           <p>{text}</p>
         </>

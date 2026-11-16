@@ -8,6 +8,7 @@ import { PoquitoBadge } from './About';
 import { InviteCard, JournalSharingCard } from './Sharing';
 import { EraseCard } from './EraseCard';
 import { InstallCard } from './Install';
+import { Icon } from './Icon';
 import { BackupCard } from './BackupCard';
 
 export function Settings({ onLock }: { onLock: () => void }) {
@@ -107,7 +108,7 @@ function Journals() {
           </li>
         ))}
       </ul>
-      <button className="btn" onClick={add}>＋ New journal</button>
+      <button className="btn" onClick={add}><Icon name="plus" className="inline-icon" /> New journal</button>
     </section>
   );
 }
