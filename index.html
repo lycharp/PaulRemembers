@@ -1,6 +1,24 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // Runs before anything else loads. Signed out, the plain address shows the
+      // public welcome page. Skipped for the welcome page's "Sign in" button
+      // (?signin), the installed app (?app), any link with a #/... route
+      // (invites, shared entries, password reset) and sign-in replies (?code=).
+      (function () {
+        try {
+          var q = location.search, h = location.hash;
+          if (q === '?signin' || q === '?app') history.replaceState(null, '', location.pathname + h);
+          if (q || (h && h !== '#' && h !== '#/')) return;
+          var saved = Object.keys(localStorage).some(function (k) { return /^sb-.+-auth-token$/.test(k); });
+          var kept = localStorage.getItem('pr.keepSignedIn') !== '0' || sessionStorage.getItem('pr.sessionAlive');
+          if (!(saved && kept)) location.replace('welcome.html');
+        } catch (e) {
+          /* storage blocked: just open the app */
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#6d4bd8" />
@@ -10,11 +28,19 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Paul Remembers" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" media="print" onload="this.media='all'" />
+    <style>
+      /* Splash: shows the moment the page opens, until the app is ready. */
+      .splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+        background: #f6f4fa; color: #6d4bd8; font: 600 1.05rem system-ui, -apple-system, "Segoe UI", sans-serif; }
+      .splash img { width: 88px; height: 88px; border-radius: 20px; animation: splash-pulse 1.6s ease-in-out infinite; }
+      @keyframes splash-pulse { 50% { transform: scale(0.94); opacity: 0.8; } }
+      @media (prefers-color-scheme: dark) { .splash { background: #141218; color: #9b80f5; } }
+    </style>
     <title>Paul Remembers</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="splash" role="status"><img src="./icon.svg" alt="" /><span>Opening Paul Remembers…</span></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
