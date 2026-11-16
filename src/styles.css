@@ -203,6 +203,17 @@ input, textarea { font: inherit; color: inherit; }
 .prompt-card .link { color: #fff; font-weight: 400; }
 .prompt-suggest { background: var(--accent-soft); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 8px; }
 
+/* Writing or editing an entry: a soft purple area with a purple edge, so it
+   never looks like just reading one. */
+.entry-edit {
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 16px; padding: 16px 20px 20px;
+}
+.edit-badge {
+  margin-right: auto; padding: 4px 12px; border-radius: 999px; white-space: nowrap;
+  background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); font-weight: 600; font-size: 0.9rem;
+}
 .entry-edit .date-input {
   border: 0; background: transparent; color: var(--muted); font-weight: 600; margin-bottom: 12px; padding: 0;
 }
@@ -461,7 +472,8 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
   }
   .edit-bar .btn { flex: 1; justify-content: center; min-height: 44px; font-size: 1.05rem; }
   /* Room at the end of the entry so the bar doesn't cover the last lines. */
-  .entry-edit { padding-bottom: 70px; }
+  .entry-edit { padding: 12px 12px 16px; margin-bottom: 70px; }
+  .edit-badge { padding: 3px 8px; font-size: 0.82rem; }
   .entry-title, .title-input { font-size: 1.55rem; }
   .edit-tools .btn { flex: 1 1 auto; justify-content: center; }
   .place-field { flex-basis: 100%; }
