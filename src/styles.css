@@ -66,7 +66,15 @@ h1 { font-size: 1.7rem; }
 .sidebar nav a:hover { background: var(--surface-2); }
 .sidebar nav a.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .main { flex: 1; min-width: 0; padding: 28px 32px 80px; max-width: 980px; margin: 0 auto; }
-.fab { display: none; }
+/* The round purple + for a new entry, bottom right (on a phone it sits above the bottom bar). */
+.fab {
+  display: grid; place-items: center; position: fixed; right: 28px; bottom: 28px; width: 56px; height: 56px;
+  border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-text); font-size: 28px;
+  box-shadow: 0 6px 20px rgba(80, 50, 180, 0.35); cursor: pointer; z-index: 11; transform: translateZ(0);
+}
+.fab:hover { filter: brightness(1.08); }
+/* Not while writing an entry. */
+.app:has(.entry-edit) .fab { display: none; }
 
 @media (max-width: 760px) {
   /* Nothing may be wider than the phone: on iPhone a too-wide page lets it zoom
@@ -89,11 +97,7 @@ h1 { font-size: 1.7rem; }
   .sidebar .account-text { display: none !important; }
   .sidebar .account-short { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .main { width: 100%; padding: calc(14px + env(safe-area-inset-top)) 14px calc(110px + env(safe-area-inset-bottom)); }
-  .fab {
-    display: grid; place-items: center; position: fixed; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); width: 56px; height: 56px;
-    border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-text); font-size: 28px;
-    box-shadow: 0 6px 20px rgba(80, 50, 180, 0.35); cursor: pointer; z-index: 11; transform: translateZ(0);
-  }
+  .fab { right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); }
   /* iPhone zooms in on any text box smaller than 16px and stays zoomed; keep them at 16px. */
   input:not(.date-input), select, .journal-select, .journal-picker select, .place-input { font-size: 16px !important; }
   h1 { font-size: 1.45rem; }

@@ -122,7 +122,7 @@ export function App() {
         )}
       </aside>
       <main className="main">{page}</main>
-      <button className="fab" data-tour="new" onClick={() => go('/new')} aria-label="New entry">＋</button>
+      <button className="fab" data-tour="new" onClick={() => go('/new')} aria-label="New entry" title="New entry (Ctrl+N)">＋</button>
       <Tour autoStart={route === '/'} />
     </div>
   );
