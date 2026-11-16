@@ -226,6 +226,7 @@ export function AudioTranscript({ id, readOnly }: { id: string; readOnly?: boole
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   // For a journal shared with you read-only, the transcript is shown but not saved.
   const [unsaved, setUnsaved] = useState<string>();
   if (!media || media.kind !== 'audio') return null;
@@ -244,6 +245,11 @@ export function AudioTranscript({ id, readOnly }: { id: string; readOnly?: boole
       setBusy('');
     }
   };
+  // Saved as empty text (not removed) so other devices also clear it when they sync.
+  const remove = async () => {
+    setConfirmDelete(false);
+    await db.media.update(id, { transcript: '' });
+  };
   const copy = async () => {
     await navigator.clipboard.writeText(text ?? '');
     setCopied(true);
@@ -258,7 +264,15 @@ export function AudioTranscript({ id, readOnly }: { id: string; readOnly?: boole
             <strong className="grow">🎙️ Transcript</strong>
             <button className="btn small" onClick={copy}>{copied ? 'Copied ✓' : 'Copy text'}</button>
             <button className="btn small ghost" onClick={run} disabled={!!busy}>Redo</button>
+            {!readOnly && <button className="btn small ghost danger" onClick={() => setConfirmDelete(true)} disabled={!!busy}>Delete</button>}
           </div>
+          {confirmDelete && (
+            <div className="row transcript-confirm">
+              <span className="grow">Delete this transcript? The recording stays.</span>
+              <button className="btn small danger" onClick={remove}>Delete</button>
+              <button className="btn small" onClick={() => setConfirmDelete(false)}>Keep</button>
+            </div>
+          )}
           <p>{text}</p>
         </>
       ) : (
@@ -266,6 +280,62 @@ export function AudioTranscript({ id, readOnly }: { id: string; readOnly?: boole
       )}
       {busy && <p className="muted small">{busy}</p>}
       {error && <p className="error-text small">{error}</p>}
+    </div>
+  );
+}
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+/**
+ * On a journal card: "▶ Voice note · 0:42" that plays right there, plus the first
+ * line of the transcript if there is one. Clicks don't open the entry.
+ */
+export function VoiceNote({ id }: { id: string }) {
+  const media = useLiveQuery(() => db.media.get(id), [id]);
+  const url = useMediaUrl(id);
+  const ref = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [length, setLength] = useState(0);
+  const [at, setAt] = useState(0);
+  const fixing = useRef(false);
+  if (!media || !url) return <div className="voice-note loading" />;
+
+  // Chrome doesn't know a fresh recording's length until it skips to the end once.
+  const findLength = (a: HTMLAudioElement) => {
+    if (a.duration === Infinity) { fixing.current = true; a.currentTime = 1e9; }
+    else gotLength(a);
+  };
+  const gotLength = (a: HTMLAudioElement) => {
+    if (!Number.isFinite(a.duration) || a.duration <= 0) return;
+    setLength(a.duration);
+    if (fixing.current) { fixing.current = false; a.currentTime = 0; }
+  };
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const a = ref.current;
+    if (!a) return;
+    if (a.paused) void a.play().catch(() => setPlaying(false));
+    else a.pause();
+  };
+  const transcript = media.transcript?.replace(/\s+/g, ' ').trim();
+
+  return (
+    <div className="voice-note" onClick={(e) => e.stopPropagation()}>
+      <audio ref={ref} src={url} preload="metadata"
+        onLoadedMetadata={(e) => findLength(e.currentTarget)}
+        onDurationChange={(e) => gotLength(e.currentTarget)}
+        onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+        onEnded={(e) => { setPlaying(false); setAt(0); e.currentTarget.currentTime = 0; }}
+        onTimeUpdate={(e) => playing && setAt(e.currentTarget.currentTime)} />
+      <button type="button" className="voice-play" onClick={toggle} aria-label={playing ? 'Pause voice note' : 'Play voice note'}>
+        {playing ? '⏸' : '▶'}
+      </button>
+      <div className="voice-text">
+        <div className="voice-label">
+          Voice note{length > 0 && <span className="muted"> · {playing || at > 0 ? `${clock(at)} / ` : ''}{clock(length)}</span>}
+        </div>
+        {transcript && transcript !== '(No speech found in this recording.)' && <div className="voice-transcript">“{transcript}”</div>}
+      </div>
     </div>
   );
 }

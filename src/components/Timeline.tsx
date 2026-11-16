@@ -1,8 +1,9 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type Entry } from '../db';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, type Entry } from '../db';
 import { JournalDot, JournalSelect, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
-import { Gallery, MediaTile } from './Media';
+import { Gallery, MediaTile, VoiceNote } from './Media';
 import { PoquitoBadge } from './About';
 import { useCloud } from '../cloud/cloud';
 
@@ -27,19 +28,23 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
   const journals = useJournals();
   const [current] = useCurrentJournal();
   const journal = current === 'all' && journals && journals.length > 1 ? journals.find((j) => j.id === e.journalId) : undefined;
-  const shownMedia = e.mediaIds.slice(0, 3);
+  // Voice recordings get their own "▶ Voice note" bar instead of a tile.
+  const audioIds = useLiveQuery(async () => (await db.media.bulkGet(e.mediaIds)).filter((m) => m?.kind === 'audio').map((m) => m!.id), [e.mediaIds.join()]);
+  const visual = audioIds ? e.mediaIds.filter((id) => !audioIds.includes(id)) : [];
+  const shownMedia = visual.slice(0, 3);
   return (
     <article className="card entry-card" data-entry-id={e.id} tabIndex={0}
       onClick={() => { onOpen?.(); go(`/entry/${e.id}`); }}
       onKeyDown={(k) => { if (k.key === 'Enter') { onOpen?.(); go(`/entry/${e.id}`); } }}>
-      {e.mediaIds.length > 0 && (
+      {shownMedia.length > 0 && (
         <div className="card-media">
           <Gallery ids={shownMedia} singleRow maxHeight={420}>
             {(id, _i, tile) => <MediaTile key={id} id={id} compact {...tile} />}
           </Gallery>
-          {e.mediaIds.length > 3 && <span className="more">+{e.mediaIds.length - 3}</span>}
+          {visual.length > 3 && <span className="more">+{visual.length - 3}</span>}
         </div>
       )}
+      {audioIds?.map((id) => <VoiceNote key={id} id={id} />)}
       <div className="card-text">
         {e.prompt && <div className="card-prompt">{e.prompt}</div>}
         {e.title && <h3>{e.title}</h3>}
