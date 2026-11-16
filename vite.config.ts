@@ -6,12 +6,18 @@ import { execSync } from 'node:child_process';
 // to tell when a newer version has been published.
 const BUILD_ID = new Date().toISOString();
 
-// Version rule: "1.<number of the latest merged pull request>", read from the
-// newest "Merge pull request #N" commit. Falls back to 1.0 if git can't tell.
+// Version rule (Paul, 2026-11-16): PR #44 was Version 2.0, and every pull request
+// merged after it adds .1 (2.1, 2.2, … 2.10). Counted from the "Merge pull request #N"
+// commits on main, so it stays automatic. Before #44: "1.<latest merged PR number>".
 function appVersion(): string {
+  const git = (args: string) => execSync(`git log ${args}`, { encoding: 'utf8' }).trim();
   try {
-    const msg = execSync('git log -1 --merges --grep="^Merge pull request #" --format=%s', { encoding: 'utf8' });
-    const n = msg.match(/#(\d+)/)?.[1];
+    const v2 = git('-1 --merges --first-parent --grep="^Merge pull request #44 " --format=%H');
+    if (v2) {
+      const after = git(`--merges --first-parent --grep="^Merge pull request #" --format=%h ${v2}..HEAD`);
+      return `2.${after ? after.split('\n').length : 0}`;
+    }
+    const n = git('-1 --merges --grep="^Merge pull request #" --format=%s').match(/#(\d+)/)?.[1];
     if (n) return `1.${n}`;
   } catch { /* no git history available */ }
   return '1.0';

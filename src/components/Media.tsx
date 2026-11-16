@@ -226,6 +226,7 @@ export function AudioTranscript({ id, readOnly }: { id: string; readOnly?: boole
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   // For a journal shared with you read-only, the transcript is shown but not saved.
   const [unsaved, setUnsaved] = useState<string>();
   if (!media || media.kind !== 'audio') return null;
@@ -244,6 +245,11 @@ export function AudioTranscript({ id, readOnly }: { id: string; readOnly?: boole
       setBusy('');
     }
   };
+  // Saved as empty text (not removed) so other devices also clear it when they sync.
+  const remove = async () => {
+    setConfirmDelete(false);
+    await db.media.update(id, { transcript: '' });
+  };
   const copy = async () => {
     await navigator.clipboard.writeText(text ?? '');
     setCopied(true);
@@ -258,7 +264,15 @@ export function AudioTranscript({ id, readOnly }: { id: string; readOnly?: boole
             <strong className="grow">🎙️ Transcript</strong>
             <button className="btn small" onClick={copy}>{copied ? 'Copied ✓' : 'Copy text'}</button>
             <button className="btn small ghost" onClick={run} disabled={!!busy}>Redo</button>
+            {!readOnly && <button className="btn small ghost danger" onClick={() => setConfirmDelete(true)} disabled={!!busy}>Delete</button>}
           </div>
+          {confirmDelete && (
+            <div className="row transcript-confirm">
+              <span className="grow">Delete this transcript? The recording stays.</span>
+              <button className="btn small danger" onClick={remove}>Delete</button>
+              <button className="btn small" onClick={() => setConfirmDelete(false)}>Keep</button>
+            </div>
+          )}
           <p>{text}</p>
         </>
       ) : (

@@ -512,3 +512,4 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .restore-list li { padding: 6px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,.08)); }
 .restore-list .indent { margin: 4px 0 4px 30px; }
 .update-bar + .update-bar { top: calc(env(safe-area-inset-top) + 70px); }
+.transcript-confirm { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--err); flex-wrap: wrap; gap: 8px; }
