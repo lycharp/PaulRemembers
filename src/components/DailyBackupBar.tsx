@@ -3,12 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import { allowFolder, getDaily, nextSlot, runDailyIfDue, saveDailyByDownload, saveDailyToFolder, type Waiting } from '../autoBackup';
 import { useCloud } from '../cloud/cloud';
 import { getSetting } from '../db';
+import { BackupReminder } from './BackupReminder';
 import { isIPhoneOrIPad } from './IosSaveTip';
 
 /**
  * Runs the daily backup when it is due: when the app opens, when it comes back
  * to the front, and at the chosen time while it is open. Shows a bar only when
- * the person has to tap something.
+ * the person has to tap something. Otherwise it may show the weekly
+ * "time for a backup" reminder.
  */
 export function DailyBackupBar() {
   const cloud = useCloud();
@@ -50,7 +52,8 @@ export function DailyBackupBar() {
         <button className="link" onClick={() => setSaved(false)}>OK</button>
       </div>
     );
-  if (waiting.kind === 'none' || later || !cfg?.on) return null;
+  // Nothing to save right now: maybe suggest a backup (once a week).
+  if (waiting.kind === 'none' || later || !cfg?.on) return <BackupReminder />;
 
   const save = async () => {
     setBusy(true);
