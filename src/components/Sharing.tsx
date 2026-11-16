@@ -7,6 +7,7 @@ import { addInvite, addMember, createEntryShare, getEntryShare, isAdmin, listInv
 import type { LocalJournal } from '../cloud/sync';
 import { db, type Entry } from '../db';
 import { fmtDay, moodFor } from '../util';
+import { Icon } from './Icon';
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e));
 
@@ -35,7 +36,7 @@ export function SharedEntryPage({ token }: { token: string }) {
             {data.media.map((m) => (
               <div key={m.id} className={`tile tile-${m.kind}`}>
                 {m.kind === 'video' ? <video src={m.url} controls preload="metadata" />
-                  : m.kind === 'audio' ? <div className="tile-audio-inner"><span aria-hidden>🎙️</span><audio src={m.url} controls /></div>
+                  : m.kind === 'audio' ? <div className="tile-audio-inner"><Icon name="mic" className="audio-mark" /><audio src={m.url} controls /></div>
                   : <a href={m.url} target="_blank" rel="noreferrer"><img src={m.url} alt={m.caption ?? ''} /></a>}
                 {m.caption && <span className="tile-caption">{m.caption}</span>}
               </div>
