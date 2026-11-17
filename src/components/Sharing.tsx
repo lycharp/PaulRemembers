@@ -8,6 +8,7 @@ import type { LocalJournal } from '../cloud/sync';
 import { db, type Entry } from '../db';
 import { fmtDay, moodFor } from '../util';
 import { Icon } from './Icon';
+import { Linkified } from './Linkified';
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e));
 
@@ -43,8 +44,8 @@ export function SharedEntryPage({ token }: { token: string }) {
             ))}
           </div>
         )}
-        {e.title && <h1 className="entry-title">{e.title}</h1>}
-        <div className="entry-body">{e.body.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
+        {e.title && <h1 className="entry-title"><Linkified text={e.title} /></h1>}
+        <div className="entry-body">{e.body.split(/\n{2,}/).map((p, i) => <p key={i}><Linkified text={p} /></p>)}</div>
         <div className="entry-footer">
           {e.place && <span><Icon name="pin" className="inline-icon" /> {e.place.name}</span>}
           {mood && <span>{mood.emoji} {mood.label}</span>}

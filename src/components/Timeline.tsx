@@ -6,6 +6,7 @@ import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
 import { Gallery, MediaTile, VoiceNote } from './Media';
 import { PoquitoBadge } from './About';
 import { Icon } from './Icon';
+import { Linkified } from './Linkified';
 import { useCloud } from '../cloud/cloud';
 
 type Filter = 'all' | 'bookmarked' | 'media' | 'places';
@@ -25,7 +26,7 @@ export function forgetListPosition() {
 export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
   const bookmarked = useIsBookmarked()(e);
   const mood = moodFor(e.mood);
-  const snippet = e.body.replace(/\s+/g, ' ').slice(0, 220);
+  const snippet = e.body.replace(/\s+/g, ' ').trim();
   const journals = useJournals();
   const [current] = useCurrentJournal();
   const journal = current === 'all' && journals && journals.length > 1 ? journals.find((j) => j.id === e.journalId) : undefined;
@@ -48,8 +49,8 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
       {audioIds?.map((id) => <VoiceNote key={id} id={id} />)}
       <div className="card-text">
         {e.prompt && <div className="card-prompt">{e.prompt}</div>}
-        {e.title && <h3>{e.title}</h3>}
-        {snippet && <p>{snippet}{e.body.length > 220 ? '…' : ''}</p>}
+        {e.title && <h3><Linkified text={e.title} plain /></h3>}
+        {snippet && <p><Linkified text={snippet} plain limit={220} /></p>}
         <div className="card-meta">
           <span>{fmtShort(e.date)}</span>
           {e.place && <span>· <Icon name="pin" className="inline-icon" /> {e.place.name}</span>}
