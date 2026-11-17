@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { Linkified } from './Linkified';
 import { Contributors } from './People';
 import { useCloud } from '../cloud/cloud';
+import { SyncProgress } from './Account';
 
 type Filter = 'all' | 'bookmarked' | 'media' | 'places';
 
@@ -144,6 +145,7 @@ export function Timeline() {
         <div className="spinner" aria-hidden />
         <h2>Getting your journal…</h2>
         <p>Your entries are being copied down from your account. This can take a minute or two the first time, especially with lots of photos.</p>
+        <SyncProgress />
       </div>
     );
   }

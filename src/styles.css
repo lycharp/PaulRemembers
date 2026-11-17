@@ -619,3 +619,9 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .entry-view .entry-actions .btn.icon-tile { min-width: 44px; width: 44px; padding: 0; }
 .entry-view .entry-actions .btn.icon-tile .icon { width: 22px; height: 22px; }
 .sidebar nav a, .account-link { align-items: center; }
+
+/* Sync progress: a bar with a count */
+.sync-progress { width: 100%; max-width: 420px; margin: 12px auto 4px; text-align: center; }
+.sync-progress-bar { height: 8px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; margin-bottom: 6px; }
+.sync-progress-bar > div { height: 100%; background: var(--accent); border-radius: inherit; transition: width 0.3s ease; }
+.card .sync-progress { margin: 0 0 12px; max-width: none; text-align: left; }

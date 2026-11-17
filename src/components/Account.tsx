@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { SUPABASE_KEY, SUPABASE_URL } from '../cloud/config';
 import { appUrl, keepSignedIn, NOT_INVITED_SIGNUP, replaceOtherAccount, setKeepSignedIn, setRecovering, signOut, supabase, syncNow, useCloud } from '../cloud/cloud';
 import { go } from '../util';
+import { ProfileCard } from './People';
 
 /** #/account: sign in, create an account, reset a password, or see sync status. */
 export function Account() {
@@ -21,6 +22,7 @@ export function Account() {
     <div className="settings">
       <h1>Account</h1>
       <AccountCard />
+      <ProfileCard />
     </div>
   );
 }
@@ -51,9 +53,12 @@ export function AccountCard() {
           </div>
         </div>
       ) : (
-        <p className="muted small">
-          <SyncStatus />
-        </p>
+        <>
+          <p className="muted small">
+            <SyncStatus />
+          </p>
+          <SyncProgress />
+        </>
       )}
       <div className="row">
         <button className="btn" onClick={() => syncNow()} disabled={cloud.syncing || cloud.otherAccount}>Sync now</button>
@@ -74,9 +79,23 @@ export function AccountCard() {
   );
 }
 
+/** A bar that fills as photos and videos download (or changes upload), with a count. */
+export function SyncProgress() {
+  const { progress } = useCloud();
+  if (!progress) return null;
+  const { what, done, total } = progress;
+  return (
+    <div className="sync-progress" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
+      <div className="sync-progress-bar"><div style={{ width: `${Math.round((done / total) * 100)}%` }} /></div>
+      <div className="small muted">{what === 'download' ? 'Downloading photos and videos' : 'Uploading changes'}: {done} of {total}</div>
+    </div>
+  );
+}
+
 export function SyncStatus() {
   const c = useCloud();
   if (!c.user) return null;
+  if (c.syncing && c.progress) return <>{c.progress.what === 'download' ? 'Downloading' : 'Uploading'} {c.progress.done} of {c.progress.total}</>;
   if (c.syncing) return <>Syncing{c.pending ? ` · ${c.pending} left to upload` : '…'}</>;
   if (c.error) return <span className="error-text">Sync problem: {c.error}. It will try again.</span>;
   if (!navigator.onLine) return <>Offline · changes will upload when you are back online</>;

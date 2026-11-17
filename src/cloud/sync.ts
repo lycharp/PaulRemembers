@@ -124,7 +124,7 @@ async function done(item: OutboxItem, updatedAt?: number) {
   });
 }
 
-export async function push(sb: SupabaseClient, userId: string, onProgress?: (left: number) => void) {
+export async function push(sb: SupabaseClient, userId: string, onProgress?: (left: number, total: number) => void) {
   // A video too big to upload was set aside earlier; try it again (it can be made smaller now).
   const big = await db.media.filter((m) => m.kind === 'video' && needsShrink(m.blob)).primaryKeys();
   const waiting = new Set((await sdb.outbox.bulkGet(big.map((id) => `media:${id}`))).filter(Boolean).map((o) => o!.id));
@@ -139,7 +139,7 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
     return j?.role ?? (j?.ownerId && j.ownerId !== userId ? 'viewer' : 'owner');
   };
   let left = items.length;
-  const tick = () => onProgress?.(--left);
+  const tick = () => onProgress?.(--left, items.length);
   /** The server refused some changes; they stay queued and are retried next time. */
   const refused: string[] = [];
   /** Entries with a photo or video this device can no longer read (not uploaded). */
@@ -270,7 +270,20 @@ async function fetchAll<T>(build: (from: number) => PromiseLike<{ data: T[] | nu
 
 const chunks = <T,>(a: T[], n = 100) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
 
-export async function pull(sb: SupabaseClient, user: { id: string; email?: string }) {
+/** How far a sync has got, for the progress bar. */
+export type OnFiles = (done: number, total: number) => void;
+
+/** Run jobs a few at a time (browsers allow about 6 connections to one site; big videos also use memory). */
+async function inBatches<T>(items: T[], size: number, job: (item: T) => Promise<void>) {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) await job(items[next++]);
+  };
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, worker));
+}
+const DOWNLOADS_AT_ONCE = 4;
+
+export async function pull(sb: SupabaseClient, user: { id: string; email?: string }, onFiles?: OnFiles) {
   const cursor = await getState<string>('cursor');
   const since = cursor ? new Date(new Date(cursor).getTime() - OVERLAP_MS).toISOString() : null;
   let maxSynced = cursor ?? '1970-01-01T00:00:00Z';
@@ -320,17 +333,22 @@ export async function pull(sb: SupabaseClient, user: { id: string; email?: strin
     return true;
   };
 
-  // Download files (only new or changed ones).
+  // Download files (only new or changed ones), a few at a time.
   const blobs = new Map<string, Blob>();
-  for (const m of mrows) {
-    if (m.deleted || !m.path) continue;
+  const toDownload = mrows.filter((m) => {
+    if (m.deleted || !m.path) return false;
     const key = `media:${m.id}`;
-    if (localMedia.has(m.id) && (known.get(key) == null || !isNewer(key, m.updated_at))) continue;
-    if (haveFile.has(m.id)) continue;
-    const { data, error } = await sb.storage.from('media').download(m.path);
-    if (error || !data) continue; // try again next time
-    blobs.set(m.id, new Blob([data], { type: (m.data.type as string) || data.type }));
-  }
+    if (localMedia.has(m.id) && (known.get(key) == null || !isNewer(key, m.updated_at))) return false;
+    return !haveFile.has(m.id);
+  });
+  let downloaded = 0;
+  if (toDownload.length) onFiles?.(0, toDownload.length);
+  await inBatches(toDownload, DOWNLOADS_AT_ONCE, async (m) => {
+    const { data, error } = await sb.storage.from('media').download(m.path!);
+    // On an error, it is tried again next time.
+    if (!error && data) blobs.set(m.id, new Blob([data], { type: (m.data.type as string) || data.type }));
+    onFiles?.(++downloaded, toDownload.length);
+  });
 
   const applied: { key: string; updatedAt: number }[] = [];
   const localUpdated = new Map<string, number>();
@@ -419,8 +437,8 @@ async function removeJournal(id: string) {
  * Apple Journal export imported on two computers) and merging journals that
  * have the same name.
  */
-export async function linkDevice(sb: SupabaseClient, user: { id: string; email?: string }) {
-  await pull(sb, user);
+export async function linkDevice(sb: SupabaseClient, user: { id: string; email?: string }, onFiles?: OnFiles) {
+  await pull(sb, user, onFiles);
   const knownKeys = new Set(await sdb.known.toCollection().primaryKeys());
   const isRemote = (kind: Kind, id: string) => knownKeys.has(`${kind}:${id}`);
 
