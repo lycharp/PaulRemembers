@@ -138,7 +138,8 @@ export function App() {
       </aside>
       <main className="main">{page}</main>
       <button className="fab" data-tour="new" onClick={() => go('/new')} aria-label="New entry" title="New entry (Ctrl+N)"><Icon name="plus" /></button>
-      <Tour autoStart={route === '/'} />
+      {/* Wait for "Getting your journal…" to finish so the tour points at the real screen. */}
+      <Tour autoStart={route === '/' && !(cloud.user && !cloud.lastSync && !cloud.error)} />
     </div>
   );
 }
