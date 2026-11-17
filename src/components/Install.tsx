@@ -31,8 +31,8 @@ const GUIDES: Record<'windows' | 'mac' | 'iphone' | 'android', Guide> = {
     title: 'iPhone and iPad',
     steps: [
       <>Open the journal in <strong>Safari</strong>.</>,
-      <>Tap the <strong>Share</strong> button (the square with an arrow).</>,
-      <>Tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</>,
+      <>Press and hold the web address at the bottom, then tap <strong>Share</strong>. (On older iPhones, tap the <strong>Share</strong> button, the square with an arrow.)</>,
+      <>Scroll down if needed, tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</>,
     ],
     after: 'It opens from its icon on the Home Screen like any other app.',
   },
