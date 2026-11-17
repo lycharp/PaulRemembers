@@ -89,7 +89,7 @@ export function journalInvite(journalName: string, email: string, role: 'editor'
     linkTail: ' to join the Journal',
     email,
     maybeHasAccount: true,
-    outro: 'Once you’re signed in, the journal will be waiting for you!',
+    outro: 'Once you’re signed in, the journal will be waiting for you! You can also create your own personal journals, just for you.',
     from,
   });
 }
@@ -103,7 +103,7 @@ export function appInvite(email: string, from?: string): InviteEmail {
     linkTail: '',
     email,
     maybeHasAccount: false,
-    outro: 'Once you’re signed in, you can start your first entry right away!',
+    outro: 'Once you’re signed in, you can create your own personal journals and start your first entry right away!',
     from,
   });
 }
