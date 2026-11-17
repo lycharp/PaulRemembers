@@ -34,7 +34,8 @@ function versionFile(): Plugin {
   };
 }
 
-// BASE_PATH lets the GitHub Pages workflow serve the app from /<repo-name>/.
+// Relative base so the app works at any address (custom domain or /<repo-name>/).
+// BASE_PATH can still override it.
 export default defineConfig({
   base: process.env.BASE_PATH ?? './',
   plugins: [react(), versionFile()],
