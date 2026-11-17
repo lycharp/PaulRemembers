@@ -103,7 +103,7 @@ export function EntryPage({ id }: { id?: string }) {
         </Gallery>
       )}
       {e.mediaIds.map((m) => <AudioTranscript key={m} id={m} />)}
-      {e.title && <h1 className="entry-title">{e.title}</h1>}
+      {e.title && <h1 className="entry-title"><Linkified text={e.title} /></h1>}
       <div className="entry-body">
         {e.body.split(/\n{2,}/).map((p, i) => <p key={i}><Linkified text={p} /></p>)}
       </div>

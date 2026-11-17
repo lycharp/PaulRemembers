@@ -49,7 +49,7 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
       {audioIds?.map((id) => <VoiceNote key={id} id={id} />)}
       <div className="card-text">
         {e.prompt && <div className="card-prompt">{e.prompt}</div>}
-        {e.title && <h3>{e.title}</h3>}
+        {e.title && <h3><Linkified text={e.title} plain /></h3>}
         {snippet && <p><Linkified text={snippet} plain limit={220} /></p>}
         <div className="card-meta">
           <span>{fmtShort(e.date)}</span>
