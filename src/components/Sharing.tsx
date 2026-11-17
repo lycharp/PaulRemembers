@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { appUrl, useCloud } from '../cloud/cloud';
+import { useCloud } from '../cloud/cloud';
+import { appInvite, copyInvite, journalInvite, type InviteEmail } from '../inviteEmail';
 import { cloudConfigured } from '../cloud/config';
 import { nameOf, refreshPeople, usePeople, type Person } from '../cloud/people';
 import { PersonIcon } from './People';
@@ -140,27 +141,6 @@ export function JournalSharingCard() {
   );
 }
 
-/** The invite email's link: opens "Create an account" with their email filled in. */
-const joinUrl = (email: string) => `${appUrl()}#/join/${encodeURIComponent(email)}`;
-
-/** The app sends no email itself, so the owner sends this invite from their own email (or pastes it anywhere). */
-function inviteText(journalName: string, email: string, role: Member['role']) {
-  const subject = `I shared my journal "${journalName}" with you`;
-  const body = [
-    'Hi,',
-    '',
-    `I shared my journal "${journalName}" with you in Paul Remembers. You can ${role === 'editor' ? 'read it and add entries' : 'read it'}.`,
-    '',
-    `1. Open this link: ${joinUrl(email)}`,
-    `2. Create your account with this email address: ${email}`,
-    '   (If it is a Gmail address, you can select "Continue with Google" instead.)',
-    '   Already have an account? Select "Already have an account? Sign in".',
-    '3. Check your inbox (and spam folder) for a confirmation email, then sign in.',
-    '   The journal shows up for you once you are signed in.',
-  ].join('\n');
-  return { subject, body };
-}
-
 type Sender = 'gmail' | 'outlook' | 'yahoo' | 'app' | 'copy';
 const SENDERS: { id: Sender; label: string }[] = [
   { id: 'gmail', label: 'Gmail' },
@@ -174,70 +154,80 @@ const LAST_SENDER = 'pr.inviteSender';
 function senderLink(id: Sender, to: string, subject: string, body: string): string | null {
   const t = encodeURIComponent(to), s = encodeURIComponent(subject), b = encodeURIComponent(body);
   switch (id) {
-    case 'gmail': return `https://mail.google.com/mail/?view=cm&fs=1&to=${t}&su=${s}&body=${b}`;
-    case 'outlook': return `https://outlook.live.com/mail/0/deeplink/compose?to=${t}&subject=${s}&body=${b}`;
-    case 'yahoo': return `https://compose.mail.yahoo.com/?to=${t}&subject=${s}&body=${b}`;
-    case 'app': return `mailto:${t}?subject=${s}&body=${b}`;
+    case 'gmail': return `https://mail.google.com/mail/?view=cm&fs=1&to=${t}&su=${s}${body ? `&body=${b}` : ''}`;
+    case 'outlook': return `https://outlook.live.com/mail/0/deeplink/compose?to=${t}&subject=${s}${body ? `&body=${b}` : ''}`;
+    case 'yahoo': return `https://compose.mail.yahoo.com/?to=${t}&subject=${s}${body ? `&body=${b}` : ''}`;
+    case 'app': return `mailto:${t}?subject=${s}${body ? `&body=${b}` : ''}`;
     default: return null;
   }
 }
 
-/** Invite to the app itself (Settings → Invite someone), no journal shared. */
-function appInviteText(email: string) {
-  const subject = "You're invited to Paul Remembers";
-  const body = [
-    'Hi,',
-    '',
-    "I've invited you to Paul Remembers, my journal app. It's invite-only, so you can create an account with this email address: " + email,
-    '',
-    `1. Open this link: ${joinUrl(email)}`,
-    '2. Create your account with that same email address.',
-    '   (If it is a Gmail address, you can select "Continue with Google" instead.)',
-    '3. Check your inbox (and spam folder) for a confirmation email, then sign in.',
-  ].join('\n');
-  return { subject, body };
+/** The name invites are signed with: your name in Paul Remembers, else your Google name. */
+function useMyName() {
+  const { user } = useCloud();
+  const { byId } = usePeople();
+  return (user && byId.get(user.id)?.name) || user?.name;
 }
 
-function SendInvite({ to, text }: { to: string; text: () => { subject: string; body: string } }) {
+const isTouch = () => matchMedia('(pointer: coarse)').matches;
+
+function SendInvite({ to, mail }: { to: string; mail: () => InviteEmail }) {
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [done, setDone] = useState<Sender>();
+  const [link, setLink] = useState('');
   let last: string | null = null;
   try { last = localStorage.getItem(LAST_SENDER); } catch { /* private window */ }
   const ordered = [...SENDERS].sort((x, y) => (y.id === last ? 1 : 0) - (x.id === last ? 1 : 0));
+  const paste = isTouch() ? 'press and hold in the message, then select Paste' : 'click in the message and press Ctrl+V';
 
   const pick = async (id: Sender) => {
     try { localStorage.setItem(LAST_SENDER, id); } catch { /* ignore */ }
-    const { subject, body } = text();
-    const link = senderLink(id, to, subject, body);
-    if (link) {
-      if (id === 'app') location.href = link;
-      else window.open(link, '_blank', 'noopener');
-      setOpen(false);
+    const m = mail();
+    if (id === 'copy') {
+      if (await copyInvite(m, true)) setDone('copy');
+      else { window.prompt('Copy this invite:', m.text); setOpen(false); }
       return;
     }
-    try {
-      await navigator.clipboard.writeText(`${subject}\n\n${body}`);
-      setCopied(true);
-      setTimeout(() => { setCopied(false); setOpen(false); }, 1500);
-    } catch {
-      window.prompt('Copy this invite:', body);
-      setOpen(false);
-    }
+    // Compose links only take plain text, so the formatted invite (logo, button) goes on
+    // the clipboard to paste. If the clipboard is refused, the plain text fills the email instead.
+    // Copy first: browsers refuse the clipboard once the new tab has taken focus.
+    const copied = await copyInvite(m, false);
+    const link = senderLink(id, to, m.subject, copied ? '' : m.text)!;
+    setLink(link);
+    if (id === 'app') location.href = link;
+    else window.open(link, '_blank', 'noopener');
+    if (copied) setDone(id);
+    else setOpen(false);
   };
 
+  const close = () => { setOpen(false); setDone(undefined); };
   return (
     <>
       <button className="btn small ghost" onClick={() => setOpen(true)}>Send invite</button>
       {open && (
-        <Dialog title={`Send an invite to ${to}`} onClose={() => setOpen(false)}>
-          <p className="muted small">Pick where to send it from. A new email opens with everything filled in.</p>
-          <div className="invite-senders">
-            {ordered.map((o) => (
-              <button key={o.id} className={o.id === last ? 'btn' : 'btn ghost'} onClick={() => pick(o.id)}>
-                {o.id === 'copy' && copied ? 'Copied ✓ Paste it into a text or email' : o.label}
-              </button>
-            ))}
-          </div>
+        <Dialog title={`Send an invite to ${to}`} onClose={close}>
+          {done ? (
+            <>
+              {done === 'copy'
+                ? <p><strong>Copied ✓</strong> Now paste it into an email or text message.</p>
+                : <>
+                  <p><strong>One more step:</strong> the invite is copied, so in the new email, {paste}. The logo, the button and the link come with it.</p>
+                  <p className="muted small">No new email? <a href={link} target={done === 'app' ? undefined : '_blank'} rel="noopener">Open it here</a>.</p>
+                </>}
+              <div className="row" style={{ justifyContent: 'flex-end' }}>
+                <button className="btn primary" onClick={close}>Done</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="muted small">Pick where to send it from. A new email opens with their address and the subject filled in, and the invite is copied for you to paste in.</p>
+              <div className="invite-senders">
+                {ordered.map((o) => (
+                  <button key={o.id} className={o.id === last ? 'btn' : 'btn ghost'} onClick={() => pick(o.id)}>{o.label}</button>
+                ))}
+              </div>
+            </>
+          )}
         </Dialog>
       )}
     </>
@@ -257,6 +247,7 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const { byEmail } = usePeople();
+  const myName = useMyName();
   // Also refresh names and icons, and whether this journal now counts as shared.
   const reload = () => {
     void refreshPeople().catch(() => {});
@@ -292,7 +283,7 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
               <span className="grow">
                 <MemberPerson person={byEmail.get(m.email.toLowerCase())} />
                 {m.email} <span className="muted small">· {m.role === 'editor' ? 'can edit' : 'can read'}</span></span>
-              <SendInvite to={m.email} text={() => inviteText(journal.name, m.email, m.role)} />
+              <SendInvite to={m.email} mail={() => journalInvite(journal.name, m.email, m.role, myName)} />
               <button className="btn small ghost danger" onClick={() => removeMember(journal.id, m.email).then(reload)}>Remove</button>
             </li>
           ))}
@@ -334,6 +325,7 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
 
 /** Only Paul (the admin) sees this. Supabase refuses invites from anyone else. */
 export function InviteCard() {
+  const myName = useMyName();
   const cloud = useCloud();
   const [admin, setAdmin] = useState(false);
   const [invites, setInvites] = useState<Invite[]>();
@@ -384,7 +376,7 @@ export function InviteCard() {
           {invites.map((i) => (
             <li key={i.email} className="row">
               <span className="grow">{i.email} <span className="muted small">· {i.joined ? 'has an account' : 'not signed up yet'}</span></span>
-              {!i.joined && <SendInvite to={i.email} text={() => appInviteText(i.email)} />}
+              {!i.joined && <SendInvite to={i.email} mail={() => appInvite(i.email, myName)} />}
               {!i.joined && <button className="btn small ghost danger" onClick={() => remove(i.email)}>Remove</button>}
             </li>
           ))}

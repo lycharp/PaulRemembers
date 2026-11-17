@@ -13,7 +13,8 @@ const LINK_VERSION = 2;
 export interface CloudState {
   configured: boolean;
   ready: boolean;
-  user: { id: string; email?: string } | null;
+  /** `name` is the name on their Google account, if they signed in with Google. */
+  user: { id: string; email?: string; name?: string } | null;
   syncing: boolean;
   pending: number;
   lastSync?: number;
@@ -117,7 +118,9 @@ export async function syncNow(): Promise<void> {
 }
 
 async function onSession(session: Session | null) {
-  const user = session?.user ? { id: session.user.id, email: session.user.email } : null;
+  const meta = session?.user.user_metadata;
+  const metaName = typeof meta?.full_name === 'string' ? meta.full_name : typeof meta?.name === 'string' ? meta.name : undefined;
+  const user = session?.user ? { id: session.user.id, email: session.user.email, name: metaName?.trim() || undefined } : null;
   if (user?.id === state.user?.id) return;
   let otherAccount = false;
   if (user) {
