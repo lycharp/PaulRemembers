@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, setLeaveGuard, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
 import { AudioTranscript, EditTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
@@ -8,6 +8,7 @@ import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { PlaceInput } from './PlaceInput';
 import { EditBar } from './EditBar';
 import { Icon } from './Icon';
+import { Linkified } from './Linkified';
 import { makePoster } from '../poster';
 import { needsShrink, shrinkVideo } from '../shrink';
 import { Dialog, ShareEntryButton } from './Sharing';
@@ -452,43 +453,4 @@ function JournalPicker({ value, onChange }: { value: string; onChange: (id: stri
       </select>
     </label>
   );
-}
-
-// Web addresses in text: https://…, http://…, or www.…
-const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"]+/gi;
-
-/** The short site name for a link, e.g. "youtube.com" for https://www.youtube.com/watch?v=… */
-function siteName(href: string): string {
-  try {
-    return new URL(href).hostname.replace(/^www\./i, '');
-  } catch {
-    return '';
-  }
-}
-
-/** Shows text with any web addresses turned into short "site name" link pills that open in a new tab. */
-function Linkified({ text }: { text: string }) {
-  const parts: ReactNode[] = [];
-  let last = 0;
-  for (const m of text.matchAll(URL_RE)) {
-    // Leave trailing punctuation (a full stop, comma, closing bracket…) out of the link.
-    let url = m[0];
-    while (/[.,;:!?'")\]}]$/.test(url)) {
-      const ch = url.slice(-1);
-      const open = { ')': '(', ']': '[', '}': '{' }[ch];
-      if (open && url.split(open).length > url.split(ch).length - 1) break; // keep balanced brackets, e.g. Wikipedia links
-      url = url.slice(0, -1);
-    }
-    const start = m.index ?? 0;
-    if (start > last) parts.push(text.slice(last, start));
-    const href = /^https?:/i.test(url) ? url : `https://${url}`;
-    parts.push(
-      <a key={start} className="entry-link" href={href} target="_blank" rel="noopener noreferrer" title={href}>
-        <Icon name="link" className="inline-icon" /> {siteName(href) || url}
-      </a>,
-    );
-    last = start + url.length;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return <>{parts}</>;
 }
