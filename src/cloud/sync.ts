@@ -105,6 +105,11 @@ const isTooBig = (e: { message?: string; statusCode?: string; status?: number } 
 const isDenied = (e: { code?: string; message?: string; statusCode?: string } | null) =>
   !!e && (e.code === '42501' || e.statusCode === '403' || /row-level security|not authorized|unauthorized/i.test(e.message ?? ''));
 
+const isMissingColumn = (e: { code?: string; message?: string }) =>
+  e.code === '42703' || e.code === 'PGRST204' || /contributors/i.test(e.message ?? '');
+/** The online database doesn't have the Version 3 update yet (checked again each time the app opens). */
+let noContributors = false;
+
 function strip<T extends object>(o: T, keys: string[]) {
   const c = { ...o } as Record<string, unknown>;
   keys.forEach((k) => delete c[k]);
@@ -175,8 +180,20 @@ export async function push(sb: SupabaseClient, userId: string, onProgress?: (lef
       if (!e || roleOf(e.journalId) === 'viewer') {
         await done(item);
       } else {
-        const { error } = await sb.from('entries').upsert({ id: e.id, journal_id: e.journalId, data: e, updated_at: e.updatedAt, deleted: false });
-        if (refuse(error)) await done(item, e.updatedAt);
+        const { contributors, ...data } = e;
+        const row = { id: e.id, journal_id: e.journalId, data, updated_at: e.updatedAt, deleted: false };
+        // The server adds this person to the entry's contributors and sends the list back.
+        // Before the online database has the Version 3 update, send the entry as before.
+        let res = noContributors ? await sb.from('entries').upsert(row) : await sb.from('entries').upsert({ ...row, contributors: contributors ?? [] }).select('contributors');
+        if (res.error && isMissingColumn(res.error)) {
+          noContributors = true;
+          res = await sb.from('entries').upsert(row);
+        }
+        if (refuse(res.error)) {
+          const back = (res.data as { contributors?: string[] }[] | null)?.[0]?.contributors;
+          if (back && back.join() !== (contributors ?? []).join()) await withoutSync(async () => void (await db.entries.update(e.id, { contributors: back })));
+          await done(item, e.updatedAt);
+        }
       }
     } else {
       const m = await db.media.get(item.id);
@@ -234,7 +251,7 @@ interface Row {
   synced_at: string;
 }
 interface JournalRow extends Row { owner_id: string; owner_email: string | null }
-interface EntryRow extends Row { journal_id: string }
+interface EntryRow extends Row { journal_id: string; contributors?: string[] | null }
 interface MediaRow extends Row { entry_id: string; path: string | null }
 
 const PAGE = 500;
@@ -339,7 +356,11 @@ export async function pull(sb: SupabaseClient, user: { id: string; email?: strin
       seen(e);
       const key = `entry:${e.id}`;
       const local = localEntries.get(e.id);
-      if (!isNewer(key, e.updated_at, local?.updatedAt)) continue;
+      if (!isNewer(key, e.updated_at, local?.updatedAt)) {
+        // Same version, but the server's list of who wrote it may be new (first sync after the Version 3 update).
+        if (local && !e.deleted && e.contributors && e.contributors.join() !== (local.contributors ?? []).join()) await db.entries.update(e.id, { contributors: e.contributors });
+        continue;
+      }
       if (e.deleted) {
         if (local) {
           await db.media.where('entryId').equals(e.id).delete();
@@ -347,7 +368,7 @@ export async function pull(sb: SupabaseClient, user: { id: string; email?: strin
         }
       } else {
         const data = e.data as unknown as Entry;
-        await db.entries.put({ ...data, id: e.id, journalId: e.journal_id, mediaIds: data.mediaIds ?? [], updatedAt: e.updated_at });
+        await db.entries.put({ ...data, id: e.id, journalId: e.journal_id, mediaIds: data.mediaIds ?? [], contributors: e.contributors ?? data.contributors, updatedAt: e.updated_at });
       }
       applied.push({ key, updatedAt: e.updated_at });
     }

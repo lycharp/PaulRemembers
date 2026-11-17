@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { appUrl, useCloud } from '../cloud/cloud';
 import { cloudConfigured } from '../cloud/config';
+import { nameOf, refreshPeople, usePeople, type Person } from '../cloud/people';
+import { PersonIcon } from './People';
 import { addInvite, addMember, createEntryShare, getEntryShare, isAdmin, listInvites, listMembers, loadSharedEntry, removeInvite, removeMember, shareUrl, stopEntryShare, type Invite, type Member, type SharedMedia } from '../cloud/sharing';
 import type { LocalJournal } from '../cloud/sync';
 import { db, type Entry } from '../db';
@@ -242,13 +244,24 @@ function SendInvite({ to, text }: { to: string; text: () => { subject: string; b
   );
 }
 
+/** A member's icon and name, once they have signed in at least once. */
+function MemberPerson({ person }: { person?: Person }) {
+  if (!person) return null;
+  return <><span className="member-person"><PersonIcon id={person.id} person={person} /> {nameOf(person)} ·</span>{' '}</>;
+}
+
 function JournalMembers({ journal }: { journal: LocalJournal }) {
   const [members, setMembers] = useState<Member[]>();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Member['role']>('viewer');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
-  const reload = () => listMembers(journal.id).then(setMembers, () => setMembers([]));
+  const { byEmail } = usePeople();
+  // Also refresh names and icons, and whether this journal now counts as shared.
+  const reload = () => {
+    void refreshPeople().catch(() => {});
+    return listMembers(journal.id).then(setMembers, () => setMembers([]));
+  };
   useEffect(() => {
     reload();
   }, [journal.id]);
@@ -276,7 +289,9 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
         <ul className="plain">
           {members.map((m) => (
             <li key={m.email} className="row">
-              <span className="grow">{m.email} <span className="muted small">· {m.role === 'editor' ? 'can edit' : 'can read'}</span></span>
+              <span className="grow">
+                <MemberPerson person={byEmail.get(m.email.toLowerCase())} />
+                {m.email} <span className="muted small">· {m.role === 'editor' ? 'can edit' : 'can read'}</span></span>
               <SendInvite to={m.email} text={() => inviteText(journal.name, m.email, m.role)} />
               <button className="btn small ghost danger" onClick={() => removeMember(journal.id, m.email).then(reload)}>Remove</button>
             </li>

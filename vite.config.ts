@@ -12,6 +12,12 @@ const BUILD_ID = new Date().toISOString();
 function appVersion(): string {
   const git = (args: string) => execSync(`git log ${args}`, { encoding: 'utf8' }).trim();
   try {
+    // Version 3.0 is the merge that brought in "who wrote what" (the first one with src/cloud/people.ts).
+    const v3 = git('--merges --first-parent --grep="^Merge pull request #" --format=%H -- src/cloud/people.ts').split('\n').filter(Boolean).pop();
+    if (v3) {
+      const after = git(`--merges --first-parent --grep="^Merge pull request #" --format=%h ${v3}..HEAD`);
+      return `3.${after ? after.split('\n').length : 0}`;
+    }
     const v2 = git('-1 --merges --first-parent --grep="^Merge pull request #44 " --format=%H');
     if (v2) {
       const after = git(`--merges --first-parent --grep="^Merge pull request #" --format=%h ${v2}..HEAD`);

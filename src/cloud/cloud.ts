@@ -5,6 +5,7 @@ import { createClient, type Session, type SupabaseClient } from '@supabase/supab
 import { useSyncExternalStore } from 'react';
 import { db, getSetting, setSetting } from '../db';
 import { cloudConfigured, SUPABASE_KEY, SUPABASE_URL } from './config';
+import { refreshPeople } from './people';
 import { getState, linkDevice, pendingCount, pull, push, resetSync, sdb, setOnQueued, setState, trackChanges, withoutSync } from './sync';
 
 const LINK_VERSION = 2;
@@ -80,6 +81,8 @@ export async function syncNow(): Promise<void> {
       set({ pending: await pendingCount() });
       const { refused, unreadable, tooBig } = await push(sb, user.id, (left) => set({ pending: left }));
       await pull(sb, user);
+      // Names and icons of the people you share journals with (never stops a sync).
+      await refreshPeople(sb).catch((e) => console.warn('Could not load people', e));
       set({ lastSync: Date.now(), pending: await pendingCount() });
       if (refused.length) throw new Error(`the server refused ${refused.length} changes (${refused[0]})`);
       if (tooBig.length)

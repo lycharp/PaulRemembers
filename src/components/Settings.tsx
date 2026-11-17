@@ -10,6 +10,7 @@ import { EraseCard } from './EraseCard';
 import { InstallCard } from './Install';
 import { Icon } from './Icon';
 import { BackupCard } from './BackupCard';
+import { ProfileCard } from './People';
 
 export function Settings({ onLock }: { onLock: () => void }) {
   const [msg, setMsg] = useState('');
@@ -29,6 +30,7 @@ export function Settings({ onLock }: { onLock: () => void }) {
       <h1>Settings</h1>
 
       <AccountCard />
+      <ProfileCard />
       <Journals />
       <JournalSharingCard />
       <InviteCard />

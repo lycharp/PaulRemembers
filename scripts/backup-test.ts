@@ -20,11 +20,12 @@ function query(table: string) {
     eq: (c: string, v: any) => (filters.push((r) => r[c] === v), b),
     in: (c: string, v: any[]) => (filters.push((r) => v.includes(r[c])), b),
     update: (patch: Row) => ((op = patch), b),
-    upsert: async (row: Row) => {
+    upsert: (row: Row) => {
       const ex = tables[table].find((r) => r.id === row.id);
       if (ex) Object.assign(ex, structuredClone(row), { synced_at: stamp() });
       else tables[table].push({ ...(table === 'journals' ? { owner_id: ME.id } : {}), deleted: false, ...structuredClone(row), synced_at: stamp() });
-      return { error: null };
+      const r = Promise.resolve({ data: null, error: null });
+      return Object.assign(r, { select: () => Promise.resolve({ data: [structuredClone(ex ?? tables[table].at(-1))], error: null }) });
     },
     then: (res: any, rej: any) => {
       const rows = tables[table].filter((r) => filters.every((f) => f(r)));

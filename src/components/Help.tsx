@@ -41,6 +41,10 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
     a: <>To share one entry, open it and click the <strong>Share</strong> button (the box with an arrow) to get a private link. To share a whole journal, go to <strong>Settings → Share a journal</strong> and type the other person's email. The app doesn't email them, so click <strong>Send invite</strong> next to their name and pick Gmail, Outlook.com, Yahoo Mail, your email app, or Copy invite (to paste into a text or any other email). They sign in with that same email address and the journal shows up. You need to be signed in for both.</>,
   },
   {
+    q: 'What are the little icons on entries?',
+    a: <>In a shared journal, each entry shows the icon of everyone who wrote or changed it, in the order they joined in: whoever wrote it first, then each new person who edited it. Hover over an icon (or tap it on a phone) to see the name. Pick your own name and icon in <strong>Settings → Your name and icon</strong>. Your private journals don't show icons.</>,
+  },
+  {
     q: 'How do I keep a backup?',
     a: <>Go to <strong>Settings → Backup</strong> and click <strong>Download backup</strong>. In Edge or Chrome a <strong>Save as</strong> window lets you pick the folder (it opens in the one you used last). Keep the file somewhere safe, like OneDrive. The file name shows which account it's from. Journals other people shared with you aren't included: they stay safe in their owner's account. On iPhone or iPad, the phone then shows the file instead of saving it: ignore any "Open in…" app it suggests, tap <strong>More…</strong>, then <strong>Save to Files</strong>, and pick a folder such as iCloud Drive. <strong>Restore from backup</strong> brings it back: you select which journals to restore, and (if you're signed in) who to share them with again. Entries that are already in the app are left as they are. We suggest a backup at least once a week: if a device goes 7 days without one, a bar reminds you (<strong>Later</strong> hides it for a day).</>,
   },
