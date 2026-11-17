@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { UpdateBar } from './components/UpdateBar';
 import { DailyBackupBar } from './components/DailyBackupBar';
-import { IconReminder } from './components/People';
 import { startCloud } from './cloud/cloud';
 import './styles.css';
 
@@ -14,7 +13,6 @@ createRoot(document.getElementById('root')!).render(
     <App />
     <UpdateBar />
     <DailyBackupBar />
-    <IconReminder />
   </StrictMode>
 );
 

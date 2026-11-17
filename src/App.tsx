@@ -13,6 +13,7 @@ import { Icon, type IconName } from './components/Icon';
 import { ImportPage } from './components/ImportPage';
 import { Insights } from './components/Insights';
 import { Settings } from './components/Settings';
+import { ProfileCard, useNeedsProfile } from './components/People';
 import { forgetListPosition, Timeline } from './components/Timeline';
 import { go, sha256, useRoute } from './util';
 
@@ -47,6 +48,7 @@ export function App() {
   const route = useRoute();
   const [locked, setLocked] = useState<boolean | null>(null);
   const cloud = useCloud();
+  const needsProfile = useNeedsProfile();
 
   // Only coming straight back from an entry returns the list to that entry.
   useEffect(() => {
@@ -91,6 +93,15 @@ export function App() {
   if (joinEmail) {
     go('/');
     return null;
+  }
+  // Everyone picks a name and an icon before using the app.
+  if (cloud.user && needsProfile) {
+    return (
+      <div className="welcome">
+        <ProfileCard required />
+        <PoquitoBadge />
+      </div>
+    );
   }
 
   const entryId = /^\/entry\/(.+)$/.exec(route)?.[1];

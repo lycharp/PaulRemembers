@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getSetting, JOURNAL_COLORS, setSetting, type Entry, type Journal } from '../db';
-import { go, useRoute } from '../util';
-import { useCloud } from '../cloud/cloud';
+import { JOURNAL_COLORS, type Entry, type Journal } from '../db';
+import { signOut, useCloud } from '../cloud/cloud';
 import { defaultIcon, nameOf, saveProfile, usePeople, type Person } from '../cloud/people';
 
 /** One person's icon: their emoji, or a coloured circle with their initial. */
@@ -52,8 +50,25 @@ export function Contributors({ entry, journal, tappable }: { entry: Entry; journ
 
 const EMOJI = ['😀', '😎', '🤓', '🥳', '🤠', '👻', '🤖', '👽', '🐻', '🐶', '🐱', '🦊', '🐼', '🐸', '🦉', '🐢', '🦄', '🐝', '🌵', '🌻', '🌈', '⭐', '🔥', '🍀', '🎸', '⚽', '☕', '🍕', '🚀', '❤️'];
 
-/** Settings: the name and icon other people see on entries you write in shared journals. */
-export function ProfileCard() {
+/**
+ * Everyone must pick a name and an icon. True once the people list has loaded
+ * (so you are in it) and yours is missing either one. If the online database
+ * isn't updated yet, or this device has never loaded the list, it stays false
+ * so nobody is locked out.
+ */
+export function useNeedsProfile() {
+  const { user, otherAccount } = useCloud();
+  const { byId } = usePeople();
+  const me = user ? byId.get(user.id) : undefined;
+  return !!me && !otherAccount && (!me.name || !me.icon);
+}
+
+/**
+ * Settings and Account: the name and icon other people see on entries you write
+ * in shared journals. With `required`, it's the welcome screen everyone fills in
+ * before using the app: both a name and an icon must be chosen.
+ */
+export function ProfileCard({ required }: { required?: boolean }) {
   const { user } = useCloud();
   const { byId } = usePeople();
   const me = user ? byId.get(user.id) : undefined;
@@ -64,8 +79,9 @@ export function ProfileCard() {
   const [busy, setBusy] = useState(false);
   if (!user) return null;
   const shownName = name ?? me?.name ?? '';
-  const shownIcon = icon ?? me?.icon ?? defaultIcon(user.id);
-  const preview: Person = { id: user.id, email: user.email, name: shownName || undefined, icon: shownIcon };
+  const shownIcon = icon ?? me?.icon ?? (required ? '' : defaultIcon(user.id));
+  const missing = !shownName.trim() ? 'Type your name' : !shownIcon ? 'Select an icon' : '';
+  const preview: Person = { id: user.id, email: user.email, name: shownName || undefined, icon: shownIcon || defaultIcon(user.id) };
   const pick = (i: string) => {
     setIcon(i);
     setMsg('');
@@ -75,7 +91,7 @@ export function ProfileCard() {
     setBusy(true);
     setMsg('');
     try {
-      await saveProfile(shownName, shownIcon);
+      await saveProfile(shownName, shownIcon || defaultIcon(user.id));
       setName(undefined);
       setIcon(undefined);
       setMsg('Saved. People you share journals with will see it after their next sync.');
@@ -87,11 +103,20 @@ export function ProfileCard() {
   };
 
   return (
-    <section className="card pad">
-      <h3>Your name and icon</h3>
-      <p className="muted">In shared journals, each entry shows the icons of everyone who wrote or changed it, in order. Pick how you appear.</p>
+    <section className={`card pad ${required ? 'profile-required' : ''}`}>
+      {required ? (
+        <>
+          <h2>Welcome! Pick your name and icon</h2>
+          <p className="muted">In shared journals, each entry shows the icons of everyone who wrote or changed it, so people know who wrote what. Type your name, select an icon, then press Save. You can change them any time in Settings.</p>
+        </>
+      ) : (
+        <>
+          <h3>Your name and icon</h3>
+          <p className="muted">In shared journals, each entry shows the icons of everyone who wrote or changed it, in order. Pick how you appear.</p>
+        </>
+      )}
       <div className="profile-preview">
-        <PersonIcon id={user.id} person={preview} size="big" />
+        {required && !shownIcon ? <span className="person-icon big no-icon" aria-label="No icon yet" role="img">?</span> : <PersonIcon id={user.id} person={preview} size="big" />}
         <input className="text-input grow" placeholder={user.email?.split('@')[0] ?? 'Your name'} maxLength={40} value={shownName}
           onChange={(e) => { setName(e.target.value); setMsg(''); }} aria-label="Your name" />
       </div>
@@ -115,36 +140,11 @@ export function ProfileCard() {
             const first = [...new Intl.Segmenter().segment(e.target.value.trim())][0]?.segment;
             if (first) pick(first);
           }} aria-label="Type any emoji" />
-        <button className="btn primary" onClick={save} disabled={busy}>Save</button>
+        <button className="btn primary" onClick={save} disabled={busy || (required && !!missing)}>Save</button>
+        {required && missing && <span className="muted small">{missing}</span>}
       </div>
       {msg && <p className="small">{msg}</p>}
+      {required && <p className="small"><button className="link" onClick={() => void signOut(true)}>Sign out</button></p>}
     </section>
-  );
-}
-
-const WEEK = 7 * 24 * 60 * 60 * 1000;
-
-/**
- * A bar for someone in a shared journal who hasn't picked a name or icon yet.
- * "Pick now" opens the Account page; "Later" hides it for a week.
- */
-export function IconReminder() {
-  const cloud = useCloud();
-  const route = useRoute();
-  const { byId, isShared } = usePeople();
-  const info = useLiveQuery(async () => ({
-    later: (await getSetting<number>('iconReminderLater')) ?? 0,
-    journals: await db.journals.toArray(),
-  }), []);
-  if (!cloud.user || !info || route === '/account' || Date.now() < info.later) return null;
-  const me = byId.get(cloud.user.id);
-  // Not until the people list has loaded (me is in it), and only once a journal is shared.
-  if (!me || me.icon || me.name || !info.journals.some((j) => isShared(j))) return null;
-  return (
-    <div className="update-bar" role="status">
-      <span className="wrap">Pick your name and icon so others know who wrote what.</span>
-      <button className="btn primary" onClick={() => go('/account')}>Pick now</button>
-      <button className="link" onClick={() => setSetting('iconReminderLater', Date.now() + WEEK)}>Later</button>
-    </div>
   );
 }
