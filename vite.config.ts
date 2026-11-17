@@ -7,7 +7,6 @@ import { execSync } from 'node:child_process';
 const BUILD_ID = new Date().toISOString();
 // Version rule (Paul): Version 3.0 is the "who wrote what" pull request (2026-11-17),
 // and every pull request merged after it adds .1 (3.1, 3.2 …). Version 2: PR #44 was 2.0, and every pull request
-// Version rule (Paul, 2026-11-16): PR #44 was Version 2.0, and every pull request
 // merged after it adds .1 (2.1, 2.2, … 2.10). Counted from the "Merge pull request #N"
 // commits on main, so it stays automatic. Before #44: "1.<latest merged PR number>".
 function appVersion(): string {
