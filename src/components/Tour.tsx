@@ -18,7 +18,7 @@ const openedFromHomeScreen = () =>
 
 const STEPS: Step[] = [
   { title: 'Welcome to Paul Remembers 👋', text: 'Here is a quick look around. It takes about a minute. Use Next and Back, or press Esc to stop any time.' },
-  { title: 'Put it on your Home Screen 📱', text: 'So it opens like any other app: open the journal in Safari, tap the Share button (the square with an arrow), then tap Add to Home Screen, then Add. After that, open it from its icon on your Home Screen.', only: () => isIPhoneOrIPad() && !openedFromHomeScreen() },
+  { title: 'Put it on your Home Screen 📱', text: 'So it opens like any other app: open the journal in Safari, press and hold the web address at the bottom, then tap Share. (On older iPhones, tap the Share button, the square with an arrow.) Scroll down if needed, tap Add to Home Screen, then Add. After that, open it from its icon on your Home Screen.', only: () => isIPhoneOrIPad() && !openedFromHomeScreen() },
   { target: '[data-tour="new"]', title: 'Write something', text: 'Start a new entry here. You can add a title, your words, photos, videos, a voice recording, a place and a mood. On a keyboard, Ctrl+N does the same.' },
   { target: '[data-tour="nav-/"]', title: 'Your journal', text: 'All your entries, newest first. Use the search box and filters at the top to find old memories.' },
   { target: '[data-tour="nav-/calendar"]', title: 'Calendar', text: 'See which days you wrote on, and tap a day to read it.' },
