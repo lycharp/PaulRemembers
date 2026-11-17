@@ -28,9 +28,9 @@ more if you want "Sign in with Google".
    *Success. No rows returned*. (If it shows a warning about "destructive
    operations", click **Run this query** — it only replaces its own rules.)
 7. In the left sidebar click **Authentication**, then **URL Configuration**:
-   - **Site URL:** `https://lycharp.github.io/PaulRemembers/` → **Save**
+   - **Site URL:** `https://paulremembers.poquitoware.com/` → **Save**
    - Under **Redirect URLs** click **Add URL**, enter
-     `https://lycharp.github.io/PaulRemembers/**` → **Save URLs**.
+     `https://paulremembers.poquitoware.com/**` → **Save URLs**.
 8. In the left sidebar click **Project Settings** (gear icon) → **Data API**
    (or **API**). Copy the **Project URL** (looks like
    `https://abcdxyz.supabase.co`). Then go to **API Keys** and copy the
@@ -58,7 +58,7 @@ That is enough for email + password sign-in.
    (otherwise only "test users" can sign in).
 5. Click **Clients** in the left menu → **Create client**:
    - **Application type:** *Web application*, **Name:** `Journal`
-   - **Authorized JavaScript origins** → **Add URI** → `https://lycharp.github.io`
+   - **Authorized JavaScript origins** → **Add URI** → `https://paulremembers.poquitoware.com`
    - **Authorized redirect URIs** → **Add URI** → paste the **Callback URL**
      from Supabase (in Supabase: **Authentication** → **Sign In / Providers**
      → **Google**; it looks like `https://abcdxyz.supabase.co/auth/v1/callback`).
