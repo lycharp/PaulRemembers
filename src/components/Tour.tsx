@@ -1,16 +1,24 @@
 import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import { getSetting, setSetting } from '../db';
 import { go } from '../util';
+import { isIPhoneOrIPad } from './IosSaveTip';
 
 interface Step {
   /** CSS selector of what to point at; the first visible match is used. None = a card in the middle. */
   target?: string;
   title: string;
   text: string;
+  /** Only show the step when this says yes. */
+  only?: () => boolean;
 }
+
+/** True when the app was opened from its Home Screen icon (not in a Safari tab). */
+const openedFromHomeScreen = () =>
+  window.matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
 
 const STEPS: Step[] = [
   { title: 'Welcome to Paul Remembers 👋', text: 'Here is a quick look around. It takes about a minute. Use Next and Back, or press Esc to stop any time.' },
+  { title: 'Put it on your Home Screen 📱', text: 'So it opens like any other app: open the journal in Safari, tap the Share button (the square with an arrow), then tap Add to Home Screen, then Add. After that, open it from its icon on your Home Screen.', only: () => isIPhoneOrIPad() && !openedFromHomeScreen() },
   { target: '[data-tour="new"]', title: 'Write something', text: 'Start a new entry here. You can add a title, your words, photos, videos, a voice recording, a place and a mood. On a keyboard, Ctrl+N does the same.' },
   { target: '[data-tour="nav-/"]', title: 'Your journal', text: 'All your entries, newest first. Use the search box and filters at the top to find old memories.' },
   { target: '[data-tour="nav-/calendar"]', title: 'Calendar', text: 'See which days you wrote on, and tap a day to read it.' },
@@ -60,7 +68,7 @@ export function Tour({ autoStart }: { autoStart: boolean }) {
 
 function TourSteps({ onEnd }: { onEnd: () => void }) {
   // Skip steps whose button is hidden on this screen size (e.g. journals on a phone).
-  const [steps] = useState(() => STEPS.filter((s) => !s.target || visible(s.target)));
+  const [steps] = useState(() => STEPS.filter((s) => (!s.only || s.only()) && (!s.target || visible(s.target))));
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const step = steps[i];
