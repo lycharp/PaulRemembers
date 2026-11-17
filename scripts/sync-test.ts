@@ -15,6 +15,8 @@ let clock = 0;
 const stamp = () => new Date(Date.UTC(2026, 0, 1) + ++clock * 1000).toISOString();
 const ME = { id: 'u1', email: 'paul@x.com' };
 let refuseNext = false;
+let contributorsColumn = true;
+let asUser = ME.id;
 
 function query(table: string) {
   const filters: ((r: Row) => boolean)[] = [];
@@ -42,13 +44,28 @@ function query(table: string) {
     upsert: (row: Row) => {
       if (refuseNext) {
         refuseNext = false;
-        return Promise.resolve({ data: null, error: { code: '42501', message: 'new row violates row-level security policy for table "' + table + '"' } });
+        const r = Promise.resolve({ data: null, error: { code: '42501', message: 'new row violates row-level security policy for table "' + table + '"' } });
+        return Object.assign(r, { select: () => r });
+      }
+      if (table === 'entries' && 'contributors' in row && !contributorsColumn) {
+        const r = Promise.resolve({ data: null, error: { code: 'PGRST204', message: "Could not find the 'contributors' column of 'entries' in the schema cache" } });
+        return Object.assign(r, { select: () => r });
       }
       const ex = tables[table].find((r) => r.id === row.id);
       const owner = table === 'journals' ? { owner_id: ME.id, owner_email: ME.email } : {};
-      if (ex) Object.assign(ex, structuredClone(row), { synced_at: stamp() });
-      else tables[table].push({ ...owner, ...structuredClone(row), synced_at: stamp() });
-      return Promise.resolve({ data: null, error: null });
+      // Like the server's "contributors" trigger: the list is kept by the server, and whoever changes the text joins it.
+      const copy = structuredClone(row);
+      if (table === 'entries' && contributorsColumn) {
+        const strip = (d: Row = {}) => JSON.stringify({ ...d, bookmarked: undefined, updatedAt: undefined });
+        const list: string[] = ex ? [...(ex.contributors ?? [])] : [...(copy.contributors ?? [])];
+        if ((!ex || strip(ex.data) !== strip(copy.data)) && !list.includes(asUser)) list.push(asUser);
+        copy.contributors = list;
+      }
+      if (ex) Object.assign(ex, copy, { synced_at: stamp() });
+      else tables[table].push({ ...owner, ...copy, synced_at: stamp() });
+      const saved = ex ?? tables[table][tables[table].length - 1];
+      const r = Promise.resolve({ data: null, error: null });
+      return Object.assign(r, { select: () => Promise.resolve({ data: [structuredClone(saved)], error: null }) });
     },
     then: (res: any, rej: any) => Promise.resolve(run()).then(res, rej),
   };
@@ -192,5 +209,33 @@ const res = await sync.push(sb, ME.id);
 assert.deepEqual(res.unreadable, ['Phone photo']);
 assert.ok(tables.entries.find((r) => r.id === 'p1'), 'the entry itself still uploads');
 assert.equal(files.has('p1/bad'), false);
+assert.equal(await sync.pendingCount(), 0);
+// Who wrote what: the server keeps the list, and it comes back to this device.
+assert.deepEqual((await db.entries.get('p1'))!.contributors, ['u1'], 'writer is the first contributor');
+const fe = tables.entries.find((r) => r.id === 'p1')!;
+asUser = 'u2'; // a friend edits it on their device
+Object.assign(fe, { data: { ...fe.data, body: 'added by friend' }, contributors: ['u1', 'u2'], updated_at: 2000, synced_at: stamp() });
+asUser = ME.id;
+await sync.pull(sb, ME);
+assert.deepEqual((await db.entries.get('p1'))!.contributors, ['u1', 'u2']);
+// Bookmarking isn't writing: nobody new joins, nobody is repeated.
+await db.entries.update('p1', { bookmarked: true, updatedAt: 2001 });
+await db.entries.update('p1', { body: 'Paul again', updatedAt: 2002 });
+await settle();
+await sync.push(sb, ME.id);
+assert.deepEqual(fe.contributors, ['u1', 'u2']);
+assert.ok(!('contributors' in fe.data), 'the list is not kept inside the entry text');
+// Entries already on this device get the list on the first sync after the server update (same version).
+await sync.withoutSync(async () => void (await db.entries.update('p1', { contributors: undefined })));
+fe.synced_at = stamp();
+await sync.pull(sb, ME);
+assert.deepEqual((await db.entries.get('p1'))!.contributors, ['u1', 'u2']);
+// Before the online database has the Version 3 update, entries still upload.
+contributorsColumn = false;
+await db.entries.put({ id: 'v2', journalId: 'jA', date: 990, title: 'Old server', body: '', bookmarked: false, mediaIds: [], createdAt: 1, updatedAt: 1 });
+await settle();
+const old = await sync.push(sb, ME.id);
+assert.equal(old.refused.length, 0);
+assert.ok(tables.entries.find((r) => r.id === 'v2'));
 assert.equal(await sync.pendingCount(), 0);
 console.log('sync test passed');

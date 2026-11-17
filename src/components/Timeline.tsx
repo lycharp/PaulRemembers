@@ -7,6 +7,7 @@ import { Gallery, MediaTile, VoiceNote } from './Media';
 import { PoquitoBadge } from './About';
 import { Icon } from './Icon';
 import { Linkified } from './Linkified';
+import { Contributors } from './People';
 import { useCloud } from '../cloud/cloud';
 
 type Filter = 'all' | 'bookmarked' | 'media' | 'places';
@@ -29,7 +30,8 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
   const snippet = e.body.replace(/\s+/g, ' ').trim();
   const journals = useJournals();
   const [current] = useCurrentJournal();
-  const journal = current === 'all' && journals && journals.length > 1 ? journals.find((j) => j.id === e.journalId) : undefined;
+  const entryJournal = journals?.find((j) => j.id === e.journalId);
+  const journal = current === 'all' && journals && journals.length > 1 ? entryJournal : undefined;
   // Voice recordings get their own "▶ Voice note" bar instead of a tile.
   const audioIds = useLiveQuery(async () => (await db.media.bulkGet(e.mediaIds)).filter((m) => m?.kind === 'audio').map((m) => m!.id), [e.mediaIds.join()]);
   const visual = audioIds ? e.mediaIds.filter((id) => !audioIds.includes(id)) : [];
@@ -57,6 +59,7 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
           {mood && <span title={mood.label}>· {mood.emoji}</span>}
           {journal && <span className="card-journal"><JournalDot color={journal.color} /> {journal.name}</span>}
           {bookmarked && <span className="bookmark-on" title="Bookmarked"><Icon name="bookmarked" className="inline-icon" /></span>}
+          <Contributors entry={e} journal={entryJournal} />
         </div>
       </div>
     </article>

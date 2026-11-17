@@ -263,3 +263,68 @@ begin
   return 'Done: ' || admin_email || ' can now invite people.';
 end $$;
 revoke execute on function public.make_admin(text) from public, anon, authenticated;
+
+-- ─── Who wrote what (Version 3) ────────────────────────────────────────────
+
+-- Everyone who wrote or changed an entry, in the order they joined in: the
+-- person who wrote it first, then each new person who edits it. The server
+-- keeps this list, so nobody's device can leave someone out.
+alter table public.entries add column if not exists contributors uuid[] not null default '{}';
+update public.entries set contributors = array[author_id] where contributors = '{}';
+
+create or replace function public.add_contributor() returns trigger
+language plpgsql as $$
+declare
+  me uuid := coalesce(auth.uid(), new.author_id);
+  changed boolean := true;
+begin
+  if tg_op = 'UPDATE' then
+    new.contributors := old.contributors;
+    -- Only a real change counts: not a bookmark, and not the same entry sent again.
+    changed := (old.data - 'bookmarked' - 'updatedAt' - 'contributors')
+               is distinct from (new.data - 'bookmarked' - 'updatedAt' - 'contributors');
+  end if;
+  new.contributors := coalesce(new.contributors, '{}');
+  if not new.deleted and changed and not (me = any(new.contributors)) then
+    new.contributors := new.contributors || me;
+  end if;
+  return new;
+end $$;
+drop trigger if exists contributors on public.entries;
+create trigger contributors before insert or update on public.entries
+  for each row execute function public.add_contributor();
+
+-- Each person's name and icon (an emoji, or a coloured circle with their initial).
+create table if not exists public.profiles (
+  user_id    uuid primary key default auth.uid() references auth.users on delete cascade,
+  name       text,
+  icon       text,
+  updated_at timestamptz not null default now()
+);
+alter table public.profiles enable row level security;
+drop policy if exists "own profile" on public.profiles;
+create policy "own profile" on public.profiles for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+grant select, insert, update on public.profiles to authenticated;
+
+-- The people the signed-in person shares journals with (and themselves):
+-- journal owners, the people a journal is shared with, and anyone who wrote
+-- in an entry they can read.
+create or replace function public.list_people()
+returns table (user_id uuid, email text, name text, icon text)
+language sql stable security definer set search_path = public, auth as $$
+  with mine as (
+    select id, owner_id from journals where not deleted and journal_role(id) is not null
+  ), ids as (
+    select auth.uid() as uid
+    union select owner_id from mine
+    union select u.id from journal_members m join mine on mine.id = m.journal_id
+                         join auth.users u on lower(u.email) = lower(m.email)
+    union select unnest(e.contributors) from entries e join mine on mine.id = e.journal_id
+  )
+  select u.id, u.email::text, p.name, p.icon
+  from ids join auth.users u on u.id = ids.uid
+  left join profiles p on p.user_id = u.id
+  where auth.uid() is not null
+$$;
+grant execute on function public.list_people() to authenticated;

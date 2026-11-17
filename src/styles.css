@@ -167,6 +167,24 @@ input, textarea { font: inherit; color: inherit; }
 /* Cancel and Done floating above the keyboard while writing (phones only, see EditBar). */
 .edit-bar { display: none; }
 .entry-date { color: var(--muted); font-weight: 600; margin-bottom: 12px; }
+.entry-date-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* Who wrote what, in shared journals */
+.contributors { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.card-meta .contributors { gap: 3px; }
+.person-icon { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; flex: none; line-height: 1; user-select: none; }
+.person-icon.emoji { font-size: 17px; background: var(--accent-soft); }
+.person-icon.letter { color: #fff; font-size: 12px; font-weight: 700; }
+.person-icon.big { width: 44px; height: 44px; }
+.person-icon.big.emoji { font-size: 28px; }
+.person-icon.big.letter { font-size: 20px; }
+.person-btn { background: none; border: 0; padding: 0; cursor: pointer; border-radius: 50%; }
+.contributor-name { font-size: 0.85rem; color: var(--muted); margin-left: 4px; }
+.icon-choices { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.icon-choice { background: none; border: 2px solid transparent; border-radius: 50%; padding: 2px; cursor: pointer; }
+.icon-choice.on { border-color: var(--accent); }
+.profile-preview { display: flex; align-items: center; gap: 12px; margin: 8px 0 12px; }
+.member-person { display: inline-flex; align-items: center; gap: 6px; }
 .entry-title { font-size: 1.9rem; margin: 18px 0 10px; }
 .entry-body p { margin: 0 0 1em; white-space: pre-wrap; font-size: 1.08rem; line-height: 1.7; }
 .entry-link { display: inline-block; padding: 0 .5em; border-radius: 999px; background: color-mix(in srgb, currentColor 8%, transparent); text-decoration: none; white-space: nowrap; line-height: 1.6; }

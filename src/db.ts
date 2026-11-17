@@ -39,6 +39,11 @@ export interface Entry {
   mediaIds: string[];
   /** Set for imported entries so a re-import does not create duplicates. */
   sourceKey?: string;
+  /**
+   * Account ids of everyone who wrote or changed it, in the order they joined
+   * in (kept by the online database; shown in shared journals).
+   */
+  contributors?: string[];
   createdAt: number;
   updatedAt: number;
 }

@@ -12,6 +12,8 @@ import { Linkified } from './Linkified';
 import { makePoster } from '../poster';
 import { needsShrink, shrinkVideo } from '../shrink';
 import { Dialog, ShareEntryButton } from './Sharing';
+import { Contributors } from './People';
+import { cloudUser } from '../cloud/cloud';
 
 async function fileToMedia(file: File, entryId: string, onShrink?: (fraction: number) => void): Promise<Media> {
   // Copy the bytes now. Safari (iPhone/iPad) stores a picked file as a link to
@@ -95,7 +97,10 @@ export function EntryPage({ id }: { id?: string }) {
           {readOnly === false && <button className="btn primary icon-tile" onClick={() => setDraft({ ...e })} title="Edit" aria-label="Edit"><Icon name="pen" /></button>}
         </div>
       </div>
-      <div className="entry-date">{fmtDay(e.date)}</div>
+      <div className="entry-date-row">
+        <div className="entry-date">{fmtDay(e.date)}</div>
+        <Contributors entry={e} journal={journal} tappable />
+      </div>
       {e.prompt && <div className="prompt-card">{e.prompt}</div>}
       {e.mediaIds.length > 0 && (
         <Gallery ids={e.mediaIds} className="media-gallery">
@@ -279,7 +284,10 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
 
   const save = async (to?: string) => {
     if (isNew && empty) return leave(to ?? '/');
-    const entry = { ...draft, updatedAt: Date.now() };
+    // Your icon joins the entry's row right away; the online database confirms it on the next sync.
+    const me = cloudUser()?.id;
+    const contributors = me && !(draft.contributors ?? []).includes(me) ? [...(draft.contributors ?? []), me] : draft.contributors;
+    const entry = { ...draft, contributors, updatedAt: Date.now() };
     await db.transaction('rw', db.entries, db.media, async () => {
       const kept = (id: string) => entry.mediaIds.includes(id);
       await db.media.bulkPut(pendingMedia.filter((m) => kept(m.id)).map((m) => (m.id in transcripts ? { ...m, transcript: transcripts[m.id] } : m)));
