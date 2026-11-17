@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { JOURNAL_COLORS, type Entry, type Journal } from '../db';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, getSetting, JOURNAL_COLORS, setSetting, type Entry, type Journal } from '../db';
+import { go, useRoute } from '../util';
 import { useCloud } from '../cloud/cloud';
 import { defaultIcon, nameOf, saveProfile, usePeople, type Person } from '../cloud/people';
 
@@ -117,5 +119,32 @@ export function ProfileCard() {
       </div>
       {msg && <p className="small">{msg}</p>}
     </section>
+  );
+}
+
+const WEEK = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * A bar for someone in a shared journal who hasn't picked a name or icon yet.
+ * "Pick now" opens the Account page; "Later" hides it for a week.
+ */
+export function IconReminder() {
+  const cloud = useCloud();
+  const route = useRoute();
+  const { byId, isShared } = usePeople();
+  const info = useLiveQuery(async () => ({
+    later: (await getSetting<number>('iconReminderLater')) ?? 0,
+    journals: await db.journals.toArray(),
+  }), []);
+  if (!cloud.user || !info || route === '/account' || Date.now() < info.later) return null;
+  const me = byId.get(cloud.user.id);
+  // Not until the people list has loaded (me is in it), and only once a journal is shared.
+  if (!me || me.icon || me.name || !info.journals.some((j) => isShared(j))) return null;
+  return (
+    <div className="update-bar" role="status">
+      <span className="wrap">Pick your name and icon so others know who wrote what.</span>
+      <button className="btn primary" onClick={() => go('/account')}>Pick now</button>
+      <button className="link" onClick={() => setSetting('iconReminderLater', Date.now() + WEEK)}>Later</button>
+    </div>
   );
 }
