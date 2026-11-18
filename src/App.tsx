@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createJournal, getSetting } from './db';
-import { JournalDot, useCurrentJournal, useJournals } from './journals';
+import { JournalMark, useCurrentJournal, useJournalLabel, useJournals } from './journals';
 import { Account, SignIn, SyncStatus } from './components/Account';
 import { APP_NAME, PoquitoBadge } from './components/About';
 import { Help } from './components/Help';
@@ -162,6 +162,7 @@ export function App() {
 
 function JournalList() {
   const journals = useJournals();
+  const label = useJournalLabel();
   const [current, setCurrent] = useCurrentJournal();
   const pick = (c: string) => {
     setCurrent(c);
@@ -183,7 +184,7 @@ function JournalList() {
       )}
       {journals.map((j) => (
         <button key={j.id} className={current === j.id || (journals.length === 1 && current === 'all') ? 'on' : ''} onClick={() => pick(j.id)}>
-          <JournalDot color={j.color} /> {j.name}
+          <JournalMark journal={j} /> {label(j)}
         </button>
       ))}
       <button className="journal-add" onClick={add}><Icon name="plus" className="inline-icon" /> New journal</button>

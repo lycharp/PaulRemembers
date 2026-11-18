@@ -1,6 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { rememberJournalOnline } from './cloud/cloud';
-import { db, getSetting, isWritableJournal, listJournals, setSetting, type Entry, type Journal } from './db';
+import { db, getSetting, isOwnJournal, isWritableJournal, listJournals, setSetting, type Entry, type Journal } from './db';
+import { nameOf, usePeople, type Person } from './cloud/people';
+import { PersonIcon } from './components/People';
 
 /** 'all' shows every journal; otherwise a journal id. Remembered on this device. */
 export type JournalChoice = 'all' | string;
@@ -57,15 +59,43 @@ export function JournalDot({ color }: { color?: string }) {
   return <span className="journal-dot" style={{ background: color ?? 'var(--accent)' }} aria-hidden />;
 }
 
+/** Whose journal it is, for journals shared with you (undefined for your own). */
+function ownerOf(j: Journal | undefined, byId: Map<string, Person>): Person | undefined {
+  if (!j || isOwnJournal(j)) return undefined;
+  return (j.ownerId && byId.get(j.ownerId)) || { id: j.ownerId ?? j.id, email: j.ownerEmail };
+}
+
+/**
+ * A journal's name as everyone sees it: your own journals by name, journals
+ * shared with you with the owner's name in front ("Paul P · My Journal"),
+ * so two journals called "My Journal" can be told apart.
+ */
+export function useJournalLabel(): (j?: Journal) => string {
+  const { byId } = usePeople();
+  return (j) => {
+    if (!j) return '';
+    const owner = ownerOf(j, byId);
+    return owner ? `${nameOf(owner)} · ${j.name}` : j.name;
+  };
+}
+
+/** The journal's coloured dot, or the owner's icon for a journal shared with you. */
+export function JournalMark({ journal }: { journal?: Journal }) {
+  const { byId } = usePeople();
+  const owner = ownerOf(journal, byId);
+  return owner ? <PersonIcon id={owner.id} person={owner} /> : <JournalDot color={journal?.color} />;
+}
+
 /** Compact dropdown used at the top of pages on small screens. */
 export function JournalSelect({ className = '' }: { className?: string }) {
   const journals = useJournals();
   const [current, setCurrent] = useCurrentJournal();
+  const label = useJournalLabel();
   if (!journals || journals.length < 2) return null;
   return (
     <select className={`journal-select ${className}`} value={current} onChange={(e) => setCurrent(e.target.value)} aria-label="Journal">
       <option value="all">All journals</option>
-      {journals.map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
+      {journals.map((j) => <option key={j.id} value={j.id}>{label(j)}</option>)}
     </select>
   );
 }

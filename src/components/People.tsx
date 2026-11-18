@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { JOURNAL_COLORS, type Entry, type Journal } from '../db';
 import { signOut, useCloud } from '../cloud/cloud';
+import { go } from '../util';
 import { defaultIcon, nameOf, saveProfile, usePeople, type Person } from '../cloud/people';
 
 /** One person's icon: their emoji, or a coloured circle with their initial. */
@@ -95,6 +96,8 @@ export function ProfileCard({ required }: { required?: boolean }) {
       setName(undefined);
       setIcon(undefined);
       setMsg('Saved. People you share journals with will see it after their next sync.');
+      // The welcome screen is done: start on the Journal.
+      if (required) go('/');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
     } finally {

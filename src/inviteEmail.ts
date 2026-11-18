@@ -29,6 +29,18 @@ interface Parts {
   from?: string;
 }
 
+const FONT = 'font-family:Segoe UI,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#2b2233';
+const PURPLE = '#6d4bd8';
+
+/** The PoquitoWare logo and "Paul Remembers" at the top of every invite. */
+const header = () => `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 18px"><tr>
+<td style="padding-right:12px;vertical-align:middle"><img src="${esc(appUrl())}poquitoware-logo.png" width="56" height="56" alt="PoquitoWare" style="display:block;border:0"></td>
+<td style="vertical-align:middle;${FONT}"><div style="font-size:22px;font-weight:700;color:${PURPLE}">Paul Remembers</div><div style="font-size:13px;color:#7a7085">A private journal app by PoquitoWare</div></td>
+</tr></table>`;
+
+const button = (url: string) =>
+  `<a href="${esc(url)}" style="display:inline-block;background:${PURPLE};color:#ffffff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:999px">Open Paul Remembers</a>`;
+
 function build(p: Parts): InviteEmail {
   const url = joinUrl(p.email);
   const google = 'If you’re using a Gmail address, feel free to choose “Continue with Google.”';
@@ -54,17 +66,14 @@ function build(p: Parts): InviteEmail {
     ...(p.from ? ['', p.from] : []),
   ].join('\n');
 
-  const font = "font-family:Segoe UI,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#2b2233";
-  const purple = '#6d4bd8';
+  const font = FONT;
+  const purple = PURPLE;
   const link = `<a href="${esc(url)}" style="color:${purple};font-weight:600">Paul Remembers</a>`;
   const html = `<div style="${font};max-width:560px">
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 18px"><tr>
-<td style="padding-right:12px;vertical-align:middle"><img src="${esc(appUrl())}poquitoware-logo.png" width="56" height="56" alt="PoquitoWare" style="display:block;border:0"></td>
-<td style="vertical-align:middle;${font}"><div style="font-size:22px;font-weight:700;color:${purple}">Paul Remembers</div><div style="font-size:13px;color:#7a7085">A private journal app by PoquitoWare</div></td>
-</tr></table>
+${header()}
 <p style="margin:0 0 12px">Hi!</p>
 <p style="margin:0 0 16px">${esc(p.intro)}</p>
-<p style="margin:0 0 20px"><a href="${esc(url)}" style="display:inline-block;background:${purple};color:#ffffff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:999px">Open Paul Remembers</a></p>
+<p style="margin:0 0 20px">${button(url)}</p>
 <p style="margin:0 0 8px"><strong>Here’s how to get started:</strong></p>
 <ol style="margin:0 0 16px;padding-left:24px">
 <li style="margin-bottom:10px">${esc(p.linkLead)}${link}${esc(p.linkTail)}.</li>
@@ -78,13 +87,27 @@ ${p.from ? `<p style="margin:0">${esc(p.from)}</p>` : ''}
   return { subject: p.subject, text, html };
 }
 
-/** "<name> is sharing a Journal in Paul Remembers". */
-export function journalInvite(journalName: string, email: string, role: 'editor' | 'viewer', from?: string): InviteEmail {
+/**
+ * "<name> is sharing a Journal in Paul Remembers". `journal` is the name as they
+ * will see it ("Paul P · My Journal"). Someone who already has an account just
+ * signs in; someone new gets the create-an-account steps.
+ */
+export function journalInvite(journal: string, email: string, role: 'editor' | 'viewer', from: string | undefined, hasAccount: boolean): InviteEmail {
+  const intro = role === 'editor'
+    ? `I shared my journal, “${journal},” with you on Paul Remembers! I’d love for you to check it out and add your own entries anytime.`
+    : `I shared my journal, “${journal},” with you on Paul Remembers! I’d love for you to check it out and read along anytime.`;
+  const subject = `${from || 'A friend'} is sharing a Journal in Paul Remembers`;
+  if (hasAccount) {
+    return signInOnly({
+      subject,
+      intro,
+      how: `Just sign in the way you usually do, and you’ll find “${journal}” in your list of journals (on iPhone, select it from the journal menu at the top of the Journal page).`,
+      from,
+    });
+  }
   return build({
-    subject: `${from || 'A friend'} is sharing a Journal in Paul Remembers`,
-    intro: role === 'editor'
-      ? `I shared my journal, “${journalName},” with you on Paul Remembers! I’d love for you to check it out and add your own entries anytime.`
-      : `I shared my journal, “${journalName},” with you on Paul Remembers! I’d love for you to check it out and read along anytime.`,
+    subject,
+    intro,
     linkLead: 'Click this link to ',
     linkTail: ' to join the Journal',
     email,
@@ -92,6 +115,21 @@ export function journalInvite(journalName: string, email: string, role: 'editor'
     outro: 'Once you’re signed in, the journal will be waiting for you! You can also create your own personal journals, just for you.',
     from,
   });
+}
+
+/** For someone who already has an account: no account steps, the button just opens the app. */
+function signInOnly(p: { subject: string; intro: string; how: string; from?: string }): InviteEmail {
+  const url = appUrl();
+  const text = ['Hi!', '', p.intro, '', `Open Paul Remembers: ${url}`, '', p.how, ...(p.from ? ['', p.from] : [])].join('\n');
+  const html = `<div style="${FONT};max-width:560px">
+${header()}
+<p style="margin:0 0 12px">Hi!</p>
+<p style="margin:0 0 16px">${esc(p.intro)}</p>
+<p style="margin:0 0 20px">${button(url)}</p>
+<p style="margin:0 0 16px">${esc(p.how)}</p>
+${p.from ? `<p style="margin:0">${esc(p.from)}</p>` : ''}
+</div>`;
+  return { subject: p.subject, text, html };
 }
 
 /** Invite to the app itself (Settings → Invite someone), no journal shared. */

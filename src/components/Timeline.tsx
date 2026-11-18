@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Entry } from '../db';
-import { JournalDot, JournalSelect, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
+import { JournalMark, JournalSelect, useJournalLabel, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
 import { Gallery, MediaTile, VoiceNote } from './Media';
 import { PoquitoBadge } from './About';
@@ -30,6 +30,7 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
   const mood = moodFor(e.mood);
   const snippet = e.body.replace(/\s+/g, ' ').trim();
   const journals = useJournals();
+  const label = useJournalLabel();
   const [current] = useCurrentJournal();
   const entryJournal = journals?.find((j) => j.id === e.journalId);
   const journal = current === 'all' && journals && journals.length > 1 ? entryJournal : undefined;
@@ -58,7 +59,7 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
           <span>{fmtShort(e.date)}</span>
           {e.place && <span>· <Icon name="pin" className="inline-icon" /> {e.place.name}</span>}
           {mood && <span title={mood.label}>· {mood.emoji}</span>}
-          {journal && <span className="card-journal"><JournalDot color={journal.color} /> {journal.name}</span>}
+          {journal && <span className="card-journal"><JournalMark journal={journal} /> {label(journal)}</span>}
           {bookmarked && <span className="bookmark-on" title="Bookmarked"><Icon name="bookmarked" className="inline-icon" /></span>}
           <Contributors entry={e} journal={entryJournal} />
         </div>

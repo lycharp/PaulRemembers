@@ -253,6 +253,8 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
   const { byEmail } = usePeople();
   const { admin } = useAdmin();
   const myName = useMyName();
+  const { user } = useCloud();
+  const ownerName = user?.email?.split('@')[0] ?? 'Me';
   // Also refresh names and icons, and whether this journal now counts as shared.
   const reload = () => {
     void refreshPeople().catch(() => {});
@@ -317,7 +319,7 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
               <span className="grow">
                 <MemberPerson person={byEmail.get(m.email.toLowerCase())} />
                 {m.email} <span className="muted small">· {m.role === 'editor' ? 'can edit' : 'can read'}</span></span>
-              <SendInvite to={m.email} mail={() => journalInvite(journal.name, m.email, m.role, myName)} />
+              <SendInvite to={m.email} mail={() => journalInvite(`${myName || ownerName} · ${journal.name}`, m.email, m.role, myName, byEmail.has(m.email.toLowerCase()))} />
               <button className="btn small ghost danger" onClick={() => removeMember(journal.id, m.email).then(reload)}>Remove</button>
             </li>
           ))}

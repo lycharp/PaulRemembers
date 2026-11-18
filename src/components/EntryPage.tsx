@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, setLeaveGuard, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
 import { AudioTranscript, EditTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
-import { JournalDot, toggleSharedBookmark, useCurrentJournal, useIsBookmarked, useJournals, useWritableJournals } from '../journals';
+import { JournalMark, toggleSharedBookmark, useJournalLabel, useCurrentJournal, useIsBookmarked, useJournals, useWritableJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { PlaceInput } from './PlaceInput';
 import { EditBar } from './EditBar';
@@ -64,6 +64,7 @@ export function EntryPage({ id }: { id?: string }) {
 
   const [current, , currentLoaded] = useCurrentJournal();
   const journals = useJournals();
+  const label = useJournalLabel();
   const isBookmarked = useIsBookmarked();
   useEffect(() => {
     if (id || !currentLoaded) return;
@@ -122,7 +123,7 @@ export function EntryPage({ id }: { id?: string }) {
           </span>
         )}
         {mood && <span>{mood.emoji} {mood.label}</span>}
-        {journal && journals && journals.length > 1 && <span><JournalDot color={journal.color} /> {journal.name}</span>}
+        {journal && journals && journals.length > 1 && <span className="member-person"><JournalMark journal={journal} /> {label(journal)}</span>}
         <span>{wordCount(e.body)} words</span>
         {e.sourceKey && <span>Imported from Apple Journal</span>}
       </div>
@@ -451,13 +452,14 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
 
 function JournalPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const journals = useWritableJournals();
+  const label = useJournalLabel();
   if (!journals || journals.length < 2) return null;
   const j = journals.find((x) => x.id === value);
   return (
     <label className="journal-picker">
-      <JournalDot color={j?.color} />
+      <JournalMark journal={j} />
       <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Journal">
-        {journals.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+        {journals.map((x) => <option key={x.id} value={x.id}>{label(x)}</option>)}
       </select>
     </label>
   );
