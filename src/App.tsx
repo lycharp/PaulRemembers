@@ -13,6 +13,8 @@ import { Icon, type IconName } from './components/Icon';
 import { ImportPage } from './components/ImportPage';
 import { Insights } from './components/Insights';
 import { Settings } from './components/Settings';
+import { AdminPage } from './components/Admin';
+import { useAdmin } from './cloud/admin';
 import { ProfileCard, useNeedsProfile } from './components/People';
 import { forgetListPosition, Timeline } from './components/Timeline';
 import { go, sha256, useRoute } from './util';
@@ -24,6 +26,7 @@ const NAV = [
   { path: '/import', label: 'Import', icon: 'import' },
   { path: '/settings', label: 'Settings', icon: 'settings' },
   { path: '/help', label: 'Help', icon: 'help' },
+  { path: '/admin', label: 'Admin', icon: 'shield' },
 ] satisfies { path: string; label: string; icon: IconName }[];
 
 const safeDecode = (s: string) => {
@@ -49,6 +52,7 @@ export function App() {
   const [locked, setLocked] = useState<boolean | null>(null);
   const cloud = useCloud();
   const needsProfile = useNeedsProfile();
+  const { admin, waiting } = useAdmin();
 
   // Only coming straight back from an entry returns the list to that entry.
   useEffect(() => {
@@ -113,6 +117,7 @@ export function App() {
   else if (route === '/import') page = <ImportPage />;
   else if (route === '/account') page = <Account />;
   else if (route === '/help') page = <Help />;
+  else if (route === '/admin') page = <AdminPage />;
   else if (route === '/settings') page = <Settings onLock={() => setLocked(true)} />;
   else page = <Timeline />;
 
@@ -125,10 +130,10 @@ export function App() {
           <Icon name="plus" className="inline-icon" /> New entry
         </button>
         <nav>
-          {NAV.map((n) => (
-            <a key={n.path} href={`#${n.path}`} data-tour={`nav-${n.path}`} className={active === n.path ? 'on' : ''}
+          {NAV.filter((n) => n.path !== '/admin' || admin).map((n) => (
+            <a key={n.path} href={`#${n.path}`} data-tour={`nav-${n.path}`} className={`${active === n.path ? 'on' : ''} ${n.path === '/admin' ? 'nav-admin' : ''}`}
               onClick={n.path === '/' ? forgetListPosition : undefined}>
-              <span className="nav-icon"><Icon name={n.icon} /></span> {n.label}
+              <span className="nav-icon"><Icon name={n.icon} />{waiting > 0 && (n.path === '/admin' || n.path === '/settings') && <span className={`count-dot ${n.path === '/settings' ? 'phone-only' : ''}`}>{waiting}</span>}</span> {n.label}
             </a>
           ))}
         </nav>

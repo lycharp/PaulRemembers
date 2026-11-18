@@ -5,7 +5,8 @@ import { JournalDot, useJournals } from '../journals';
 import { sha256 } from '../util';
 import { AccountCard } from './Account';
 import { PoquitoBadge } from './About';
-import { InviteCard, JournalSharingCard } from './Sharing';
+import { JournalSharingCard } from './Sharing';
+import { useAdmin } from '../cloud/admin';
 import { EraseCard } from './EraseCard';
 import { InstallCard } from './Install';
 import { Icon } from './Icon';
@@ -29,11 +30,11 @@ export function Settings({ onLock }: { onLock: () => void }) {
     <div className="settings">
       <h1>Settings</h1>
 
+      <AdminLinkCard />
       <AccountCard />
       <ProfileCard />
       <Journals />
       <JournalSharingCard />
-      <InviteCard />
 
       <BackupCard />
 
@@ -112,5 +113,20 @@ function Journals() {
       </ul>
       <button className="btn" onClick={add}><Icon name="plus" className="inline-icon" /> New journal</button>
     </section>
+  );
+}
+
+/** Admins only: the way to the Admin page (on phones it isn't in the bottom bar). */
+function AdminLinkCard() {
+  const { admin, waiting } = useAdmin();
+  if (!admin) return null;
+  return (
+    <a className="card pad admin-link" href="#/admin">
+      <span className="grow">
+        <h3 style={{ margin: 0 }}>Admin {waiting > 0 && <span className="count-dot">{waiting}</span>}</h3>
+        <span className="muted small">People, invites, sharing and usage. Only admins see this.</span>
+      </span>
+      <span aria-hidden>›</span>
+    </a>
   );
 }

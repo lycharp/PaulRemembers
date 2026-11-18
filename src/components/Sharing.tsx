@@ -2,18 +2,19 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useCloud } from '../cloud/cloud';
-import { appInvite, copyInvite, journalInvite, type InviteEmail } from '../inviteEmail';
+import { copyInvite, journalInvite, type InviteEmail } from '../inviteEmail';
 import { cloudConfigured } from '../cloud/config';
 import { nameOf, refreshPeople, usePeople, type Person } from '../cloud/people';
 import { PersonIcon } from './People';
-import { addInvite, addMember, createEntryShare, getEntryShare, isAdmin, listInvites, listMembers, loadSharedEntry, removeInvite, removeMember, shareUrl, stopEntryShare, type Invite, type Member, type SharedMedia } from '../cloud/sharing';
+import { addMember, createEntryShare, getEntryShare, listMembers, loadSharedEntry, NOT_INVITED, removeMember, shareUrl, stopEntryShare, type Member, type SharedMedia } from '../cloud/sharing';
+import { myRequests, removeRequest, requestInvite, useAdmin, type InviteRequest } from '../cloud/admin';
 import type { LocalJournal } from '../cloud/sync';
 import { db, type Entry } from '../db';
 import { fmtDay, moodFor } from '../util';
 import { Icon } from './Icon';
 import { Linkified } from './Linkified';
 
-const errText = (e: unknown) => (e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e));
+export const errText = (e: unknown) => (e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e));
 
 // ─── #/s/<token>: someone opened a shared link ─────────────────────────────
 
@@ -127,7 +128,8 @@ export function JournalSharingCard() {
   return (
     <section className="card pad">
       <h3>Share a journal</h3>
-      <p className="muted">Add people by email. The app doesn't send them anything, so click <strong>Send invite</strong> next to their name to send them a note from Gmail, Outlook, Yahoo, your email app, or copy it to paste anywhere. They sign in (or create an account) with that same email address, and the journal shows up for them. Paul Remembers is invite-only: you can share with people who already have an account, or whom Paul has invited. Viewers can read it; editors can also add and change entries.</p>
+      <p className="muted">You can share with people who already use Paul Remembers. To add someone new, ask Paul to invite them. Viewers can read a journal; editors can also add and change entries.</p>
+      <p className="muted small">The app doesn't send anyone an email by itself, so press <strong>Send invite</strong> next to a name to send them a note from Gmail, Outlook, Yahoo or your email app, or copy it to paste anywhere. They sign in with that same email address, and the journal shows up for them.</p>
       {mine.map((j) => <JournalMembers key={j.id} journal={j} />)}
       {shared.length > 0 && (
         <>
@@ -163,7 +165,7 @@ function senderLink(id: Sender, to: string, subject: string, body: string): stri
 }
 
 /** The name invites are signed with: your name in Paul Remembers, else your Google name. */
-function useMyName() {
+export function useMyName() {
   const { user } = useCloud();
   const { byId } = usePeople();
   return (user && byId.get(user.id)?.name) || user?.name;
@@ -171,7 +173,7 @@ function useMyName() {
 
 const isTouch = () => matchMedia('(pointer: coarse)').matches;
 
-function SendInvite({ to, mail }: { to: string; mail: () => InviteEmail }) {
+export function SendInvite({ to, mail }: { to: string; mail: () => InviteEmail }) {
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState<Sender>();
   const [link, setLink] = useState('');
@@ -246,11 +248,15 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
   const [role, setRole] = useState<Member['role']>('viewer');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [requests, setRequests] = useState<InviteRequest[]>([]);
+  const [outsider, setOutsider] = useState<{ email: string; role: Member['role'] }>();
   const { byEmail } = usePeople();
+  const { admin } = useAdmin();
   const myName = useMyName();
   // Also refresh names and icons, and whether this journal now counts as shared.
   const reload = () => {
     void refreshPeople().catch(() => {});
+    void myRequests(journal.id).then(setRequests);
     return listMembers(journal.id).then(setMembers, () => setMembers([]));
   };
   useEffect(() => {
@@ -261,10 +267,29 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
     e.preventDefault();
     setBusy(true);
     setMsg('');
+    setOutsider(undefined);
     try {
       await addMember(journal.id, email, role);
       setMsg(`Shared with ${email}. The app doesn't send an email by itself, so click "Send invite" next to their name and pick Gmail, Outlook, Yahoo, your email app, or Copy.`);
       setEmail('');
+      await reload();
+    } catch (err) {
+      // Not in the app yet: offer to ask Paul (admins never get here, sharing invites them).
+      if (!admin && errText(err) === NOT_INVITED) setOutsider({ email: email.trim().toLowerCase(), role });
+      else setMsg(errText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const ask = async () => {
+    if (!outsider) return;
+    setBusy(true);
+    try {
+      await requestInvite(journal.id, outsider.email, outsider.role);
+      setOutsider(undefined);
+      setEmail('');
+      setMsg(`Asked Paul to invite ${outsider.email}. Once he approves, this journal is shared with them, and you can press "Send invite" next to their name.`);
       await reload();
     } catch (err) {
       setMsg(errText(err));
@@ -272,6 +297,15 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
       setBusy(false);
     }
   };
+  const clear = async (r: InviteRequest) => {
+    try {
+      await removeRequest(journal.id, r.email);
+      await reload();
+    } catch (err) {
+      setMsg(errText(err));
+    }
+  };
+  const asked = requests.filter((r) => !members?.some((m) => m.email === r.email));
 
   return (
     <div className="journal-members">
@@ -288,7 +322,22 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
             </li>
           ))}
         </ul>
-      ) : members && <p className="muted small">Only you.</p>}
+      ) : members && !asked.length && <p className="muted small">Only you.</p>}
+      {asked.length > 0 && (
+        <ul className="plain">
+          {asked.map((r) => (
+            <li key={r.email} className="row">
+              <span className="grow">
+                {r.email} <span className="muted small">· {r.role === 'editor' ? 'can edit' : 'can read'}</span>{' '}
+                {r.status === 'waiting' ? <span className="pill wait">Waiting for Paul</span> : <span className="pill no">Declined</span>}
+              </span>
+              {r.status === 'waiting'
+                ? <button className="btn small ghost danger" onClick={() => clear(r)}>Cancel request</button>
+                : <button className="btn small ghost" onClick={() => clear(r)}>OK</button>}
+            </li>
+          ))}
+        </ul>
+      )}
       <form className="row" onSubmit={add}>
         <input className="text-input grow" type="email" required placeholder="Their email address" value={email} onChange={(e) => setEmail(e.target.value)} />
         <select className="text-input" value={role} onChange={(e) => setRole(e.target.value as Member['role'])}>
@@ -297,6 +346,16 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
         </select>
         <button className="btn" disabled={busy}>Share</button>
       </form>
+      {outsider && (
+        <div className="notice warn">
+          <strong>{outsider.email} isn't in Paul Remembers yet.</strong>
+          <p className="small">Paul has to invite them first. Ask him, and once he approves, they're invited and this journal is shared with them automatically.</p>
+          <div className="row">
+            <button className="btn primary small" disabled={busy} onClick={ask}>Ask Paul to invite them</button>
+            <button className="btn small ghost" onClick={() => setOutsider(undefined)}>Never mind</button>
+          </div>
+        </div>
+      )}
       {msg && <p className="small">{msg}</p>}
     </div>
   );
@@ -318,75 +377,5 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
       </div>
     </div>,
     document.body,
-  );
-}
-
-// ─── Invite someone (Settings, only for the admin) ─────────────────────────
-
-/** Only Paul (the admin) sees this. Supabase refuses invites from anyone else. */
-export function InviteCard() {
-  const myName = useMyName();
-  const cloud = useCloud();
-  const [admin, setAdmin] = useState(false);
-  const [invites, setInvites] = useState<Invite[]>();
-  const [email, setEmail] = useState('');
-  const [msg, setMsg] = useState('');
-  const [busy, setBusy] = useState(false);
-  const reload = () => listInvites().then(setInvites, () => setInvites([]));
-  useEffect(() => {
-    setAdmin(false);
-    if (!cloud.user) return;
-    isAdmin().then((yes) => {
-      setAdmin(yes);
-      if (yes) reload();
-    });
-  }, [cloud.user?.id]);
-  if (!cloud.user || !admin) return null;
-
-  const add = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setMsg('');
-    try {
-      await addInvite(email);
-      setMsg(`${email} can now create an account. The app doesn't send an email by itself, so click "Send invite" next to their name.`);
-      setEmail('');
-      await reload();
-    } catch (err) {
-      setMsg(errText(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const remove = async (who: string) => {
-    try {
-      await removeInvite(who);
-      await reload();
-    } catch (err) {
-      setMsg(errText(err));
-    }
-  };
-
-  return (
-    <section className="card pad">
-      <h3>Invite someone</h3>
-      <p className="muted">Paul Remembers is invite-only. Only people on this list can create an account. Anyone you share a journal with is added here for you. Only you can see this.</p>
-      {invites?.length ? (
-        <ul className="plain">
-          {invites.map((i) => (
-            <li key={i.email} className="row">
-              <span className="grow">{i.email} <span className="muted small">· {i.joined ? 'has an account' : 'not signed up yet'}</span></span>
-              {!i.joined && <SendInvite to={i.email} mail={() => appInvite(i.email, myName)} />}
-              {!i.joined && <button className="btn small ghost danger" onClick={() => remove(i.email)}>Remove</button>}
-            </li>
-          ))}
-        </ul>
-      ) : invites && <p className="muted small">Nobody invited yet.</p>}
-      <form className="row" onSubmit={add}>
-        <input className="text-input grow" type="email" required placeholder="Their email address" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <button className="btn" disabled={busy}>Add</button>
-      </form>
-      {msg && <p className="small">{msg}</p>}
-    </section>
   );
 }

@@ -222,7 +222,7 @@ export function startCloud() {
 }
 
 /** Supabase refused a new account: the email isn't on Paul's invite list. */
-export const NOT_INVITED_SIGNUP = "Sorry, Paul Remembers is invite-only, and that email address hasn't been invited. Ask Paul to invite you, then try again. If you already have an account, sign in with the email you used before.";
+export const NOT_INVITED_SIGNUP = "Sorry, Paul Remembers is invite-only, and that email address hasn't been invited. To request an invite, email PoquitoWare@gmail.com, then try again once you're invited. If you already have an account, sign in with the email you used before.";
 
 // ─── Account actions ────────────────────────────────────────────────────────
 

@@ -328,3 +328,190 @@ language sql stable security definer set search_path = public, auth as $$
   where auth.uid() is not null
 $$;
 grant execute on function public.list_people() to authenticated;
+
+-- ─── Admin page and invite requests ──────────────────────────
+-- Admins see who uses the app, who shares what, and how much is stored.
+-- Counts and dates only: nothing here reads what anyone wrote.
+
+-- Someone asks the admin to invite a person they want to share a journal with.
+create table if not exists public.invite_requests (
+  journal_id   text not null references public.journals on delete cascade,
+  email        text not null check (email = lower(email)),
+  role         text not null default 'viewer' check (role in ('viewer', 'editor')),
+  requested_by uuid not null default auth.uid() references auth.users on delete cascade,
+  status       text not null default 'waiting' check (status in ('waiting', 'declined')),
+  created_at   timestamptz not null default now(),
+  decided_at   timestamptz,
+  primary key (journal_id, email)
+);
+alter table public.invite_requests enable row level security;
+-- The person who asked sees (and can cancel or clear) their own requests; admins see all.
+drop policy if exists "asker or admin reads" on public.invite_requests;
+drop policy if exists "asker or admin removes" on public.invite_requests;
+create policy "asker or admin reads" on public.invite_requests for select to authenticated
+  using (requested_by = auth.uid() or is_admin());
+create policy "asker or admin removes" on public.invite_requests for delete to authenticated
+  using (requested_by = auth.uid() or is_admin());
+grant select, delete on public.invite_requests to authenticated;
+
+-- Ask the admin to invite this person and share one of your journals with them.
+create or replace function public.request_invite(j text, e text, r text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if journal_role(j) is distinct from 'owner' then
+    raise exception 'Only the journal''s owner can share it.';
+  end if;
+  insert into invite_requests (journal_id, email, role, requested_by)
+  values (j, lower(trim(e)), r, auth.uid())
+  on conflict (journal_id, email) do update
+    set role = excluded.role, requested_by = excluded.requested_by,
+        status = 'waiting', created_at = now(), decided_at = null;
+end $$;
+grant execute on function public.request_invite(text, text, text) to authenticated;
+
+create or replace function public.require_admin() returns void
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not is_admin() then raise exception 'Only admins can do this.'; end if;
+end $$;
+
+-- Approve: invite them and share the journal, in one step.
+create or replace function public.approve_request(j text, e text) returns void
+language plpgsql security definer set search_path = public as $$
+declare req invite_requests;
+begin
+  perform require_admin();
+  select * into req from invite_requests where journal_id = j and email = lower(e);
+  if req is null then raise exception 'That request is gone. Someone may have cancelled it.'; end if;
+  insert into invites (email) values (req.email) on conflict do nothing;
+  insert into journal_members (journal_id, email, role) values (req.journal_id, req.email, req.role)
+    on conflict (journal_id, email) do update set role = excluded.role;
+  delete from invite_requests where journal_id = j and email = req.email;
+end $$;
+grant execute on function public.approve_request(text, text) to authenticated;
+
+-- Decline: the person who asked sees "Declined" until they clear it.
+create or replace function public.decline_request(j text, e text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  perform require_admin();
+  update invite_requests set status = 'declined', decided_at = now()
+  where journal_id = j and email = lower(e);
+end $$;
+grant execute on function public.decline_request(text, text) to authenticated;
+
+-- Requests for the Admin page, with the journal's name and who asked.
+create or replace function public.admin_requests()
+returns table (journal_id text, journal_name text, journal_color text, email text, role text,
+               requested_by uuid, status text, created_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select r.journal_id, j.data ->> 'name', j.data ->> 'color', r.email, r.role, r.requested_by, r.status, r.created_at
+  from invite_requests r join journals j on j.id = r.journal_id
+  where is_admin() and not j.deleted
+  order by r.created_at
+$$;
+grant execute on function public.admin_requests() to authenticated;
+
+-- Everyone with an account, plus invites nobody has used yet.
+create or replace function public.admin_people()
+returns table (user_id uuid, email text, name text, icon text, joined_at timestamptz,
+               last_active timestamptz, admin boolean, blocked boolean, invited_at timestamptz)
+language sql stable security definer set search_path = public, auth as $$
+  select u.id, u.email::text, p.name, p.icon, u.created_at,
+         greatest(u.last_sign_in_at, (select max(s.updated_at) from auth.sessions s where s.user_id = u.id)),
+         exists (select 1 from app_admins a where a.user_id = u.id),
+         coalesce(u.banned_until > now(), false),
+         (select i.added_at from invites i where i.email = lower(u.email))
+  from auth.users u left join profiles p on p.user_id = u.id
+  where is_admin()
+  union all
+  select null, i.email, null, null, null, null, false, false, i.added_at
+  from invites i
+  where is_admin() and not exists (select 1 from auth.users u where lower(u.email) = i.email)
+$$;
+grant execute on function public.admin_people() to authenticated;
+
+-- Make someone an admin, or stop them being one (never yourself).
+create or replace function public.admin_set_admin(uid uuid, make boolean) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  perform require_admin();
+  if uid = auth.uid() then raise exception 'You can''t change your own admin rights.'; end if;
+  if make then insert into app_admins (user_id) values (uid) on conflict do nothing;
+  else delete from app_admins where user_id = uid; end if;
+end $$;
+grant execute on function public.admin_set_admin(uuid, boolean) to authenticated;
+
+-- Block someone from signing in (nothing is deleted), or let them back in.
+create or replace function public.admin_set_blocked(uid uuid, block boolean) returns void
+language plpgsql security definer set search_path = public, auth as $$
+begin
+  perform require_admin();
+  if uid = auth.uid() then raise exception 'You can''t block yourself.'; end if;
+  if block and exists (select 1 from app_admins where user_id = uid) then
+    raise exception 'Remove their admin rights first.';
+  end if;
+  update auth.users set banned_until = case when block then timestamptz '2999-01-01' else null end where id = uid;
+  -- Signed out everywhere, so a block takes effect within the hour.
+  if block then delete from auth.sessions where user_id = uid; end if;
+end $$;
+grant execute on function public.admin_set_blocked(uuid, boolean) to authenticated;
+
+-- Every shared journal and who it is shared with.
+create or replace function public.admin_shares()
+returns table (journal_id text, journal_name text, journal_color text, owner_id uuid, email text, role text)
+language sql stable security definer set search_path = public as $$
+  select j.id, j.data ->> 'name', j.data ->> 'color', j.owner_id, m.email, m.role
+  from journal_members m join journals j on j.id = m.journal_id
+  where is_admin() and not j.deleted
+  order by lower(j.data ->> 'name'), m.added_at
+$$;
+grant execute on function public.admin_shares() to authenticated;
+
+-- Admins can take someone off any shared journal.
+create or replace function public.admin_remove_member(j text, e text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  perform require_admin();
+  delete from journal_members where journal_id = j and lower(email) = lower(e);
+end $$;
+grant execute on function public.admin_remove_member(text, text) to authenticated;
+
+-- How much each journal holds: counts, storage and when it last changed.
+create or replace function public.admin_usage()
+returns table (journal_id text, journal_name text, journal_color text, owner_id uuid,
+               entries bigint, photos bigint, videos bigint, voice bigint, bytes bigint, last_updated timestamptz)
+language sql stable security definer set search_path = public, storage as $$
+  select j.id, j.data ->> 'name', j.data ->> 'color', j.owner_id,
+         (select count(*) from entries e where e.journal_id = j.id and not e.deleted),
+         coalesce(m.photos, 0), coalesce(m.videos, 0), coalesce(m.voice, 0), coalesce(m.bytes, 0),
+         greatest(j.synced_at, (select max(e.synced_at) from entries e where e.journal_id = j.id))
+  from journals j
+  left join lateral (
+    select count(*) filter (where x.data ->> 'kind' = 'photo') photos,
+           count(*) filter (where x.data ->> 'kind' = 'video') videos,
+           count(*) filter (where x.data ->> 'kind' = 'audio') voice,
+           sum(coalesce((o.metadata ->> 'size')::bigint, 0)) bytes
+    from entries e join media x on x.entry_id = e.id and not x.deleted
+    left join storage.objects o on o.bucket_id = 'media' and o.name = x.path
+    where e.journal_id = j.id and not e.deleted
+  ) m on true
+  where is_admin() and not j.deleted
+  order by 10 desc nulls last
+$$;
+grant execute on function public.admin_usage() to authenticated;
+
+-- Totals for the whole app, and space used against the free plan.
+create or replace function public.admin_totals()
+returns table (people bigint, journals bigint, entries bigint, entries_this_week bigint, file_bytes bigint, db_bytes bigint)
+language sql stable security definer set search_path = public, auth, storage as $$
+  select (select count(*) from auth.users),
+         (select count(*) from journals where not deleted),
+         (select count(*) from entries where not deleted),
+         (select count(*) from entries where not deleted and synced_at > now() - interval '7 days'
+            and (data ->> 'createdAt') ~ '^[0-9]+$' and (data ->> 'createdAt')::bigint > (extract(epoch from now() - interval '7 days') * 1000)::bigint),
+         (select coalesce(sum((metadata ->> 'size')::bigint), 0) from storage.objects where bucket_id = 'media'),
+         pg_database_size(current_database())
+  where is_admin()
+$$;
+grant execute on function public.admin_totals() to authenticated;

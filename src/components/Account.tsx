@@ -119,6 +119,8 @@ function useGoogleEnabled() {
  * The sign-in form. Paul Remembers is invite-only, so "Create an account" only
  * opens from the link in an invite email (#/join/<email>), with the email filled in.
  */
+const REQUEST_INVITE = <>To request an invite, email <a href="mailto:PoquitoWare@gmail.com">PoquitoWare@gmail.com</a>.</>;
+
 export function SignIn({ join }: { join?: string }) {
   const [mode, setMode] = useState<'in' | 'up' | 'forgot'>(join ? 'up' : 'in');
   const [keep, setKeep] = useState(keepSignedIn);
@@ -168,7 +170,7 @@ export function SignIn({ join }: { join?: string }) {
       <img src="./icon.svg" alt="" width={56} />
       <h2>{mode === 'in' ? 'Sign in' : mode === 'up' ? 'Create an account' : 'Reset your password'}</h2>
       {cloud.error && !msg && <div className="notice error">{cloud.error}</div>}
-      {mode === 'up' && <p className="muted small">Paul Remembers is invite-only. Use the email address your invite was sent to.</p>}
+      {mode === 'up' && <p className="muted small">Paul Remembers is invite-only. Use the email address your invite was sent to. {REQUEST_INVITE}</p>}
       {mode !== 'forgot' && googleOn && (
         <>
           <button type="button" className="btn google" onClick={google}>
@@ -199,7 +201,7 @@ export function SignIn({ join }: { join?: string }) {
           <button type="button" className="link" onClick={() => setMode('in')}>{mode === 'up' ? 'Already have an account? Sign in' : 'Back to sign in'}</button>
         )}
       </div>
-      {mode === 'in' && <p className="muted small">Paul Remembers is invite-only. New here? Use the link in your invite email to create an account.</p>}
+      {mode === 'in' && <p className="muted small">Paul Remembers is invite-only. New here? Use the link in your invite email to create an account. {REQUEST_INVITE}</p>}
     </form>
   );
 }
@@ -230,6 +232,7 @@ function friendly(err: unknown) {
   if (/invalid login credentials/i.test(m)) return 'That email and password do not match. Check them, or use "Forgot password?".';
   if (/email not confirmed/i.test(m)) return 'Please confirm your email first: click the link in the email we sent you.';
   if (/database error saving new user|invite-only/i.test(m)) return NOT_INVITED_SIGNUP;
+  if (/banned/i.test(m)) return 'This account has been paused. To ask about it, email PoquitoWare@gmail.com.';
   if (/already registered/i.test(m)) return 'There is already an account with that email. Sign in instead.';
   if (/provider is not enabled/i.test(m)) return 'Google sign-in is not switched on yet. Use email and password for now.';
   if (/failed to fetch|network/i.test(m)) return 'Could not reach the server. Check your internet connection.';
