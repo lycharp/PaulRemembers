@@ -13,7 +13,8 @@ const LINK_VERSION = 2;
 export interface CloudState {
   configured: boolean;
   ready: boolean;
-  user: { id: string; email?: string } | null;
+  /** `name` is the name on their Google account, if they signed in with Google. */
+  user: { id: string; email?: string; name?: string } | null;
   syncing: boolean;
   pending: number;
   lastSync?: number;
@@ -22,6 +23,8 @@ export interface CloudState {
   recovering: boolean;
   /** Another account's journal is on this device; ask before replacing it. */
   otherAccount: boolean;
+  /** While syncing: what is being copied, and how far it has got. */
+  progress?: { what: 'download' | 'upload'; done: number; total: number };
 }
 
 let state: CloudState = { configured: cloudConfigured, ready: !cloudConfigured, user: null, syncing: false, pending: 0, recovering: false, otherAccount: false };
@@ -60,6 +63,8 @@ export function syncSoon(delay = 3000) {
   timer = setTimeout(() => void syncNow(), delay);
 }
 
+const onFiles = (done: number, total: number) => set({ progress: done < total ? { what: 'download', done, total } : undefined });
+
 export async function syncNow(): Promise<void> {
   const user = state.user;
   if (!user || state.otherAccount || !navigator.onLine) return;
@@ -75,12 +80,14 @@ export async function syncNow(): Promise<void> {
       // changes were dropped; linking again re-queues everything not yet online.
       if ((await getState<string>('userId')) !== user.id || (await getState<number>('linkVersion')) !== LINK_VERSION) {
         await resetSync();
-        await linkDevice(sb, user);
+        await linkDevice(sb, user, onFiles);
         await setState('linkVersion', LINK_VERSION);
       }
       set({ pending: await pendingCount() });
-      const { refused, unreadable, tooBig } = await push(sb, user.id, (left) => set({ pending: left }));
-      await pull(sb, user);
+      const { refused, unreadable, tooBig } = await push(sb, user.id, (left, total) =>
+        set({ pending: left, progress: total > 1 && left > 0 ? { what: 'upload', done: total - left, total } : undefined }));
+      set({ progress: undefined });
+      await pull(sb, user, onFiles);
       // Names and icons of the people you share journals with (never stops a sync).
       await refreshPeople(sb).catch((e) => console.warn('Could not load people', e));
       set({ lastSync: Date.now(), pending: await pendingCount() });
@@ -100,7 +107,7 @@ export async function syncNow(): Promise<void> {
       set({ error, pending: await pendingCount() });
     } finally {
       running = null;
-      set({ syncing: false });
+      set({ syncing: false, progress: undefined });
       if (again) {
         again = false;
         syncSoon(500);
@@ -111,7 +118,9 @@ export async function syncNow(): Promise<void> {
 }
 
 async function onSession(session: Session | null) {
-  const user = session?.user ? { id: session.user.id, email: session.user.email } : null;
+  const meta = session?.user.user_metadata;
+  const metaName = typeof meta?.full_name === 'string' ? meta.full_name : typeof meta?.name === 'string' ? meta.name : undefined;
+  const user = session?.user ? { id: session.user.id, email: session.user.email, name: metaName?.trim() || undefined } : null;
   if (user?.id === state.user?.id) return;
   let otherAccount = false;
   if (user) {

@@ -184,6 +184,9 @@ input, textarea { font: inherit; color: inherit; }
 .icon-choice { background: none; border: 2px solid transparent; border-radius: 50%; padding: 2px; cursor: pointer; }
 .icon-choice.on { border-color: var(--accent); }
 .profile-preview { display: flex; align-items: center; gap: 12px; margin: 8px 0 12px; }
+.person-icon.big.no-icon { border: 2px dashed var(--muted); color: var(--muted); font-size: 20px; }
+.profile-required { max-width: 560px; width: 100%; margin: 0 auto 16px; }
+.profile-required h2 { margin-top: 0; }
 .member-person { display: inline-flex; align-items: center; gap: 6px; }
 .entry-title { font-size: 1.9rem; margin: 18px 0 10px; }
 .entry-body p { margin: 0 0 1em; white-space: pre-wrap; font-size: 1.08rem; line-height: 1.7; }
@@ -619,3 +622,9 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .entry-view .entry-actions .btn.icon-tile { min-width: 44px; width: 44px; padding: 0; }
 .entry-view .entry-actions .btn.icon-tile .icon { width: 22px; height: 22px; }
 .sidebar nav a, .account-link { align-items: center; }
+
+/* Sync progress: a bar with a count */
+.sync-progress { width: 100%; max-width: 420px; margin: 12px auto 4px; text-align: center; }
+.sync-progress-bar { height: 8px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; margin-bottom: 6px; }
+.sync-progress-bar > div { height: 100%; background: var(--accent); border-radius: inherit; transition: width 0.3s ease; }
+.card .sync-progress { margin: 0 0 12px; max-width: none; text-align: left; }
