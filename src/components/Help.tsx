@@ -30,7 +30,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'Why do I have to sign in?',
-    a: <>Signed in, your journal is saved online. It shows up on your other computers and your phone, and you can share entries or whole journals. Paul Remembers is invite-only: you need to be signed in to use it, and you can create an account only with an email address Paul has invited, using the link in your invite email.</>,
+    a: <>Signed in, your journal is saved online. It shows up on your other computers and your phone, and you can share entries or whole journals. Paul Remembers is invite-only: you need to be signed in to use it, and you can create an account only with an email address Paul has invited, using the link in your invite email. To request an invite, email PoquitoWare@gmail.com.</>,
   },
   {
     q: 'What does "Keep me signed in" do?',
@@ -38,7 +38,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'How do I share?',
-    a: <>To share one entry, open it and click the <strong>Share</strong> button (the box with an arrow) to get a private link. To share a whole journal, go to <strong>Settings → Share a journal</strong> and type the other person's email. The app doesn't email them, so click <strong>Send invite</strong> next to their name and pick Gmail, Outlook.com, Yahoo Mail, your email app, or Copy invite. A new email opens with their address and subject filled in, and the invite (with the logo and a button) is copied, so just paste it into the message. They sign in with that same email address and the journal shows up. You need to be signed in for both.</>,
+    a: <>To share one entry, open it and click the <strong>Share</strong> button (the box with an arrow) to get a private link. To share a whole journal, go to <strong>Settings → Share a journal</strong> and type the other person's email. The app doesn't email them, so click <strong>Send invite</strong> next to their name and pick Gmail, Outlook.com, Yahoo Mail, your email app, or Copy invite. A new email opens with their address and subject filled in, and the invite (with the logo and a button) is copied, so just paste it into the message. They sign in with that same email address and the journal shows up. You can share only with people who already use Paul Remembers. For someone new, press <strong>Ask Paul to invite them</strong>: their name shows <strong>Waiting for Paul</strong>, and once he approves, the journal is shared with them (or it shows <strong>Declined</strong>). You need to be signed in for both.</>,
   },
   {
     q: 'What are the little icons on entries?',
