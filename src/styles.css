@@ -85,7 +85,7 @@ h1 { font-size: 1.7rem; }
 @media (max-width: 760px) {
   /* Nothing may be wider than the phone: on iPhone a too-wide page lets it zoom
      out, which makes the bottom bar drift up the screen while scrolling. */
-  html, body { overflow-x: hidden; }
+  html, body { overflow-x: hidden; overflow-x: clip; } /* clip: still lets the Journal header stick */
   .app { flex-direction: column; overflow-x: clip; }
   .sidebar {
     position: fixed; bottom: 0; top: auto; left: 0; right: 0; width: auto; height: auto; z-index: 10;
@@ -664,4 +664,35 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
   .sidebar nav a.nav-admin { display: none; }
   .admin .stats { grid-template-columns: 1fr 1fr; }
   .admin-list li.row > .grow, .admin .request > .grow, .journal-members li.row > .grow { flex-basis: 100%; }
+}
+
+/* Shared journals: grouped, with a "shared" sign; phone journal list and sticky header */
+.shared-sign { display: inline-flex; color: var(--muted); vertical-align: middle; }
+.shared-sign .icon { width: 1.05em; height: 1.05em; }
+.journal-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.journal-name > span:nth-child(2) { overflow-wrap: anywhere; }
+.journal-list button .grow { flex: 1; min-width: 0; }
+.journal-list-head.sub { font-size: 0.68rem; padding-top: 8px; }
+.journal-btn { white-space: nowrap; font-weight: 600; }
+.sheet-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(20, 12, 40, 0.35); display: flex; align-items: flex-end; justify-content: center; }
+.sheet {
+  width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; background: var(--surface); border-radius: 18px 18px 0 0;
+  padding: 8px 12px calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 2px; box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15);
+}
+.sheet-grip { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 4px auto 10px; }
+.sheet > button:not(.sheet-close) { display: flex; align-items: center; text-align: left; font: inherit; color: var(--text); background: none; border: 0; border-radius: 12px; padding: 12px 12px; min-height: 48px; cursor: pointer; }
+.sheet > button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.sheet .journal-list-head { padding: 12px 12px 4px; }
+.sheet-close { margin-top: 10px; justify-content: center; }
+.page-head .grow { flex: 1; min-width: 0; }
+@media (max-width: 760px) {
+  .page-head { flex-wrap: nowrap; }
+  .journal-btn.mobile-only { display: inline-flex; }
+  .journal-btn.page-select { justify-content: space-between; }
+  .page-head h1 .journal-name { font-size: 1.3rem; }
+  .sticky-head {
+    position: sticky; top: 0; z-index: 5; margin: 0 -14px 8px; padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  }
+  .timeline { margin-top: calc(-14px - env(safe-area-inset-top)); }
 }

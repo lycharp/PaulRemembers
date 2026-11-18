@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createJournal, getSetting } from './db';
-import { JournalMark, useCurrentJournal, useJournalLabel, useJournals } from './journals';
+import { JournalMark, SharedSign, splitJournals, useCurrentJournal, useJournalLabel, useJournals } from './journals';
 import { Account, SignIn, SyncStatus } from './components/Account';
 import { APP_NAME, PoquitoBadge } from './components/About';
 import { Help } from './components/Help';
@@ -174,6 +174,12 @@ function JournalList() {
     pick((await createJournal(name)).id);
   };
   if (!journals) return null;
+  const { mine, shared } = splitJournals(journals);
+  const row = (j: (typeof journals)[number]) => (
+    <button key={j.id} className={current === j.id || (journals.length === 1 && current === 'all') ? 'on' : ''} onClick={() => pick(j.id)}>
+      <JournalMark journal={j} /> <span className="grow">{label(j)}</span> <SharedSign journal={j} />
+    </button>
+  );
   return (
     <div className="journal-list" data-tour="journals">
       <div className="journal-list-head">Journals</div>
@@ -182,11 +188,10 @@ function JournalList() {
           <span className="journal-dot all" aria-hidden /> All journals
         </button>
       )}
-      {journals.map((j) => (
-        <button key={j.id} className={current === j.id || (journals.length === 1 && current === 'all') ? 'on' : ''} onClick={() => pick(j.id)}>
-          <JournalMark journal={j} /> {label(j)}
-        </button>
-      ))}
+      {shared.length > 0 && <div className="journal-list-head sub">My journals</div>}
+      {mine.map(row)}
+      {shared.length > 0 && <div className="journal-list-head sub">Shared with me</div>}
+      {shared.map(row)}
       <button className="journal-add" onClick={add}><Icon name="plus" className="inline-icon" /> New journal</button>
     </div>
   );

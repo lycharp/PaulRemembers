@@ -1,4 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Icon } from './components/Icon';
 import { rememberJournalOnline } from './cloud/cloud';
 import { db, getSetting, isOwnJournal, isWritableJournal, listJournals, setSetting, type Entry, type Journal } from './db';
 import { nameOf, usePeople, type Person } from './cloud/people';
@@ -86,16 +89,80 @@ export function JournalMark({ journal }: { journal?: Journal }) {
   return owner ? <PersonIcon id={owner.id} person={owner} /> : <JournalDot color={journal?.color} />;
 }
 
-/** Compact dropdown used at the top of pages on small screens. */
+/** Your own journals first, then the ones shared with you. */
+export function splitJournals<J extends Journal>(journals: J[]): { mine: J[]; shared: J[] } {
+  return { mine: journals.filter(isOwnJournal), shared: journals.filter((j) => !isOwnJournal(j)) };
+}
+
+/** The little "shared" sign after a shared journal's name. */
+export function SharedSign({ journal }: { journal?: Journal }) {
+  if (!journal || isOwnJournal(journal)) return null;
+  return <span className="shared-sign" title="Shared with you"><Icon name="shared" /></span>;
+}
+
+/** Mark, full name and shared sign together: "🐻 Sam · My Journal 👥". */
+export function JournalName({ journal }: { journal?: Journal }) {
+  const label = useJournalLabel();
+  if (!journal) return null;
+  return <span className="journal-name"><JournalMark journal={journal} /> <span>{label(journal)}</span> <SharedSign journal={journal} /></span>;
+}
+
+/** "Shared by Sam · you can read", for the top of a shared journal's page. */
+export function useSharedLine(): (j?: Journal) => string {
+  const { byId } = usePeople();
+  return (j) => {
+    const owner = ownerOf(j, byId);
+    if (!j || !owner) return '';
+    return `Shared by ${nameOf(owner)} · you can ${j.role === 'editor' ? 'edit' : 'read'}`;
+  };
+}
+
+/**
+ * The "Journals" button at the top of pages on small screens. It opens a list
+ * from the bottom of the screen: All journals, then yours, then shared ones,
+ * each with its full name and icons (the phone's own menu can't show those).
+ */
 export function JournalSelect({ className = '' }: { className?: string }) {
   const journals = useJournals();
   const [current, setCurrent] = useCurrentJournal();
-  const label = useJournalLabel();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [open]);
   if (!journals || journals.length < 2) return null;
+  const { mine, shared } = splitJournals(journals);
+  const pick = (c: string) => {
+    setCurrent(c);
+    setOpen(false);
+  };
+  const row = (j: Journal) => (
+    <button key={j.id} className={current === j.id ? 'on' : ''} onClick={() => pick(j.id)}><JournalName journal={j} /></button>
+  );
   return (
-    <select className={`journal-select ${className}`} value={current} onChange={(e) => setCurrent(e.target.value)} aria-label="Journal">
-      <option value="all">All journals</option>
-      {journals.map((j) => <option key={j.id} value={j.id}>{label(j)}</option>)}
-    </select>
+    <>
+      <button className={`btn journal-btn ${className}`} onClick={() => setOpen(true)} aria-haspopup="dialog">
+        {/* Pages without a journal title (Calendar, Insights) show which journal is chosen. */}
+        {className.includes('page-select')
+          ? (current === 'all' ? <span className="journal-name"><span className="journal-dot all" aria-hidden /> All journals</span> : <JournalName journal={journals.find((j) => j.id === current)} />)
+          : 'Journals'} <span aria-hidden>▾</span>
+      </button>
+      {open && createPortal(
+        <div className="sheet-backdrop" onClick={() => setOpen(false)}>
+          <div className="sheet" role="dialog" aria-label="Journals" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-grip" aria-hidden />
+            <button className={current === 'all' ? 'on' : ''} onClick={() => pick('all')}><span className="journal-name"><span className="journal-dot all" aria-hidden /> All journals</span></button>
+            {mine.length > 0 && <div className="journal-list-head">My journals</div>}
+            {mine.map(row)}
+            {shared.length > 0 && <div className="journal-list-head">Shared with me</div>}
+            {shared.map(row)}
+            <button className="btn sheet-close" onClick={() => setOpen(false)}>Close</button>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }

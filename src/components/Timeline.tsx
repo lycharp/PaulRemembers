@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Entry } from '../db';
-import { JournalMark, JournalSelect, useJournalLabel, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
+import { JournalMark, JournalName, JournalSelect, SharedSign, useJournalLabel, useSharedLine, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
 import { Gallery, MediaTile, VoiceNote } from './Media';
 import { PoquitoBadge } from './About';
@@ -59,7 +59,7 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
           <span>{fmtShort(e.date)}</span>
           {e.place && <span>· <Icon name="pin" className="inline-icon" /> {e.place.name}</span>}
           {mood && <span title={mood.label}>· {mood.emoji}</span>}
-          {journal && <span className="card-journal"><JournalMark journal={journal} /> {label(journal)}</span>}
+          {journal && <span className="card-journal"><JournalMark journal={journal} /> {label(journal)} <SharedSign journal={journal} /></span>}
           {bookmarked && <span className="bookmark-on" title="Bookmarked"><Icon name="bookmarked" className="inline-icon" /></span>}
           <Contributors entry={e} journal={entryJournal} />
         </div>
@@ -77,6 +77,8 @@ export function Timeline() {
   const listRef = useRef<HTMLDivElement>(null);
   const cloud = useCloud();
   const isBookmarked = useIsBookmarked();
+  const sharedLine = useSharedLine();
+  const currentJournal = current === 'all' ? (journals?.length === 1 ? journals[0] : undefined) : journals?.find((j) => j.id === current);
   const title = current === 'all' ? (journals && journals.length > 1 ? 'All journals' : journals?.[0]?.name) : journals?.find((j) => j.id === current)?.name;
 
   const shown = useMemo(() => {
@@ -169,8 +171,11 @@ export function Timeline() {
 
   return (
     <div className="timeline" ref={listRef}>
-      <div className="page-head">
-        <h1>{title}</h1>
+      <div className="page-head sticky-head">
+        <div className="grow">
+          <h1>{currentJournal ? <JournalName journal={currentJournal} /> : title}</h1>
+          {sharedLine(currentJournal) && <div className="muted small">{sharedLine(currentJournal)}</div>}
+        </div>
         <JournalSelect className="mobile-only" />
       </div>
       <div className="toolbar">
