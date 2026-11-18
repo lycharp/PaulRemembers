@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, setLeaveGuard, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
 import { AudioTranscript, EditTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
-import { JournalMark, toggleSharedBookmark, useJournalLabel, useCurrentJournal, useIsBookmarked, useJournals, useWritableJournals } from '../journals';
+import { JournalMark, SharedSign, splitJournals, toggleSharedBookmark, useJournalLabel, useCurrentJournal, useIsBookmarked, useJournals, useWritableJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { PlaceInput } from './PlaceInput';
 import { EditBar } from './EditBar';
@@ -123,7 +123,7 @@ export function EntryPage({ id }: { id?: string }) {
           </span>
         )}
         {mood && <span>{mood.emoji} {mood.label}</span>}
-        {journal && journals && journals.length > 1 && <span className="member-person"><JournalMark journal={journal} /> {label(journal)}</span>}
+        {journal && journals && journals.length > 1 && <span className="member-person"><JournalMark journal={journal} /> {label(journal)} <SharedSign journal={journal} /></span>}
         <span>{wordCount(e.body)} words</span>
         {e.sourceKey && <span>Imported from Apple Journal</span>}
       </div>
@@ -459,7 +459,11 @@ function JournalPicker({ value, onChange }: { value: string; onChange: (id: stri
     <label className="journal-picker">
       <JournalMark journal={j} />
       <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Journal">
-        {journals.map((x) => <option key={x.id} value={x.id}>{label(x)}</option>)}
+        {(() => {
+          const { mine, shared } = splitJournals(journals);
+          const opts = (list: typeof journals) => list.map((x) => <option key={x.id} value={x.id}>{label(x)}</option>);
+          return shared.length ? <><optgroup label="My journals">{opts(mine)}</optgroup><optgroup label="Shared with me">{opts(shared)}</optgroup></> : opts(mine);
+        })()}
       </select>
     </label>
   );
