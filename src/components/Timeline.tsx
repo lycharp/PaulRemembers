@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Entry } from '../db';
-import { JournalMark, JournalName, JournalSelect, SharedSign, useJournalLabel, useSharedLine, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
+import { JournalMark, JournalName, JournalSelect, useCanWriteHere, SharedSign, useJournalLabel, useSharedLine, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
 import { Gallery, MediaTile, VoiceNote } from './Media';
 import { PoquitoBadge } from './About';
@@ -69,6 +69,7 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
 }
 
 export function Timeline() {
+  const canWrite = useCanWriteHere();
   const [q, setQ] = useState(returnTo.q);
   const [filter, setFilter] = useState<Filter>(returnTo.filter);
   const entries = useEntries();
@@ -159,11 +160,13 @@ export function Timeline() {
         <JournalSelect />
         <div className="empty-icon"><Icon name="journal" /></div>
         <h2>{current === 'all' ? 'Your journal is empty' : `${title ?? 'This journal'} is empty`}</h2>
+        {canWrite ? <>
         <p>Write your first entry, or bring in the entries you exported from Apple Journal.</p>
         <div className="row center">
           <button className="btn primary" onClick={() => go('/new')}>New entry</button>
           <button className="btn" onClick={() => go('/import')}>Import from Apple Journal</button>
         </div>
+        </> : <p>Nothing has been written here yet. You can read this journal but not add to it.</p>}
         <PoquitoBadge className="home-badge" />
       </div>
     );

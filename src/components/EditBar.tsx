@@ -1,10 +1,10 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 
 /**
- * Cancel and Done that stay on screen while writing on a phone: just above the
- * keyboard when it's up, otherwise just above the bottom bar. (The ones at the
- * top of the entry scroll away, and the end of a long entry sits behind the
- * keyboard.) Phones only: hidden on wider screens by CSS.
+ * Cancel and Save that stay on screen while writing. On a phone: just above the
+ * keyboard when it's up, otherwise just above the bottom bar (the end of a long
+ * entry sits behind the keyboard). On a computer, CSS sticks it to the bottom
+ * of the window.
  *
  * iPhone puts the keyboard over the page rather than shrinking it, so the bar
  * follows window.visualViewport, the part of the page you can actually see.
@@ -17,6 +17,11 @@ export function EditBar({ children }: { children: ReactNode }) {
     const place = () => {
       const el = ref.current;
       if (!el) return;
+      // Computer: CSS keeps it at the bottom of the window.
+      if (!matchMedia('(max-width: 760px)').matches) {
+        el.style.bottom = '';
+        return;
+      }
       // How much of the bottom of the page is covered (by the keyboard).
       const covered = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
       if (covered > 80) {

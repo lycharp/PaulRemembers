@@ -77,6 +77,13 @@ export async function addMember(journalId: string, email: string, role: Member['
 /** Supabase refuses to share with someone who has no account and no invite (only the admin can invite). */
 export const NOT_INVITED = "This person doesn't have an account yet, and Paul Remembers is invite-only. Ask Paul to invite them first, then share again.";
 
+/** Switch someone between "Can read" and "Can edit". Their app picks it up the next time it syncs. */
+export async function changeMemberRole(journalId: string, email: string, role: Member['role']) {
+  const { data, error } = await supabase().from('journal_members').update({ role }).eq('journal_id', journalId).eq('email', email).select('email');
+  if (error) throw error;
+  if (!data?.length) throw new Error('Could not change this. Check your internet connection and try again.');
+}
+
 export async function removeMember(journalId: string, email: string) {
   const { error } = await supabase().from('journal_members').delete().eq('journal_id', journalId).eq('email', email);
   if (error) throw error;
