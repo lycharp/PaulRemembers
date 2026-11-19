@@ -567,7 +567,7 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
   .entry-edit > .edit-actions .edit-label { margin: 0 auto; }
   .entry-edit > .edit-actions .btn { min-width: 76px; justify-content: center; min-height: 40px; font-size: 1rem; }
   .entry-edit > .edit-actions .btn.primary { font-weight: 700; }
-  .end-delete { margin: 6px 0 4px; }
+  .end-delete { margin: 6px 0 4px; padding: 6px 14px; font-size: 0.9rem; min-height: 0; }
   .entry-edit > .edit-actions { margin: 0 -12px 10px; padding: 6px 8px 6px 12px; }
   .edit-actions { min-height: 36px; }
   .edit-actions .btn { min-height: 36px; padding: 6px 14px; border-radius: 10px; }

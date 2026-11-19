@@ -436,7 +436,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       </div>
       {busy && <p className="muted">{busy}</p>}
       <p className="muted small">{fmtDay(draft.date)} at {fmtTime(draft.date)} · {wordCount(draft.body)} words</p>
-      {!isNew && <button className="btn delete-btn phone-only end-delete" onClick={remove}>Delete this entry</button>}
+      {!isNew && <button className="btn delete-btn phone-only end-delete" onClick={remove}>Delete</button>}
       {/* Computer: Cancel and Save stick to the bottom of the window. */}
       <div className="edit-bar">
         <button className="btn" onClick={cancel}>Cancel</button>
