@@ -36,6 +36,8 @@ export function Settings({ onLock }: { onLock: () => void }) {
       <Journals />
       <JournalSharingCard />
 
+      <AppearanceCard />
+
       <BackupCard />
 
       <section className="card pad">
@@ -128,5 +130,43 @@ function AdminLinkCard() {
       </span>
       <span aria-hidden>›</span>
     </a>
+  );
+}
+
+type Theme = 'auto' | 'light' | 'dark';
+
+/** Light, Dark or Automatic (follows the phone or computer). Saved on this device only. */
+function AppearanceCard() {
+  const read = (): Theme => {
+    try {
+      const t = localStorage.getItem('pr.theme');
+      return t === 'light' || t === 'dark' ? t : 'auto';
+    } catch {
+      return 'auto';
+    }
+  };
+  const [theme, setTheme] = useState<Theme>(read);
+  const pick = (t: Theme) => {
+    setTheme(t);
+    try {
+      if (t === 'auto') localStorage.removeItem('pr.theme');
+      else localStorage.setItem('pr.theme', t);
+    } catch {
+      /* storage blocked: still changes it until the app closes */
+    }
+    if (t === 'auto') delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = t;
+  };
+  const options: [Theme, string][] = [['auto', 'Automatic'], ['light', 'Light'], ['dark', 'Dark']];
+  return (
+    <section className="card pad">
+      <h3>Appearance</h3>
+      <p className="muted">Automatic matches your phone or computer. This is saved on this device only.</p>
+      <div className="chips" role="radiogroup" aria-label="Appearance">
+        {options.map(([t, name]) => (
+          <button key={t} role="radio" aria-checked={theme === t} className={`chip ${theme === t ? 'on' : ''}`} onClick={() => pick(t)}>{name}</button>
+        ))}
+      </div>
+    </section>
   );
 }

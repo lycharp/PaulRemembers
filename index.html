@@ -2,6 +2,14 @@
 <html lang="en">
   <head>
     <script>
+      // Settings → Appearance: Light or Dark (saved on this device). Automatic
+      // (nothing saved) follows the phone or computer.
+      try {
+        var t = localStorage.getItem('pr.theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <script>
       // Runs before anything else loads. Signed out, the plain address shows the
       // public welcome page. Skipped for the welcome page's "Sign in" button
       // (?signin), the installed app (?app), any link with a #/... route
@@ -32,10 +40,11 @@
     <style>
       /* Splash: shows the moment the page opens, until the app is ready. */
       .splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-        background: #f6f4fa; color: #6d4bd8; font: 600 1.05rem system-ui, -apple-system, "Segoe UI", sans-serif; }
+        background: #ebe4fb; color: #6d4bd8; font: 600 1.05rem system-ui, -apple-system, "Segoe UI", sans-serif; }
       .splash img { width: 88px; height: 88px; border-radius: 20px; animation: splash-pulse 1.6s ease-in-out infinite; }
       @keyframes splash-pulse { 50% { transform: scale(0.94); opacity: 0.8; } }
-      @media (prefers-color-scheme: dark) { .splash { background: #141218; color: #9b80f5; } }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .splash { background: #1b1628; color: #9b80f5; } }
+      :root[data-theme='dark'] .splash { background: #1b1628; color: #9b80f5; }
     </style>
     <title>Paul Remembers</title>
   </head>
