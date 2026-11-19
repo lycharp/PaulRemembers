@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { JOURNAL_COLORS, type Entry, type Journal } from '../db';
 import { signOut, useCloud } from '../cloud/cloud';
 import { go } from '../util';
@@ -16,6 +16,55 @@ export function PersonIcon({ person, id, size = 'small' }: { person?: Person; id
     );
   }
   return <span className={`person-icon emoji ${size}`} title={name} aria-label={name} role="img">{icon}</span>;
+}
+
+/**
+ * One line that never wraps: `lead` (words or a journal's name), then people.
+ * Shows each person's icon and name if everything fits; if not, just their
+ * icons; if those don't all fit either, as many as fit and then "…". Only
+ * when no icons are left does the journal's name itself get cut short.
+ */
+export function FitLine({ lead, people, className = '' }: { lead?: ReactNode; people: Person[]; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const all = people.length;
+  const [fit, setFit] = useState({ names: true, n: all });
+  const [width, setWidth] = useState(0);
+  // Start again with everything showing when the people or the room change.
+  const key = `${people.map((p) => `${p.id}:${p.name ?? ''}:${p.icon ?? ''}`).join('|')}@${width}`;
+  const [seen, setSeen] = useState(key);
+  if (seen !== key) {
+    setSeen(key);
+    setFit({ names: true, n: all });
+  }
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || el.scrollWidth <= el.clientWidth + 1) return;
+    if (fit.names && all > 0) setFit({ names: false, n: all });
+    else if (fit.n > 0) setFit({ names: false, n: fit.n - 1 });
+  });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => setWidth(Math.round(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className={`fit-line ${fit.n === 0 ? 'squeeze' : ''} ${className}`}>
+      {lead}
+      {all > 0 && (
+        <span className="fit-people">
+          {people.slice(0, fit.n).map((p, i) => (
+            <span key={p.id} className="fit-person">
+              <PersonIcon id={p.id} person={p} />
+              {fit.names && <span>{nameOf(p)}{i < all - 1 ? ' ·' : ''}</span>}
+            </span>
+          ))}
+          {fit.n < all && <span className="fit-more" title={people.map((p) => nameOf(p)).join(', ')}>…</span>}
+        </span>
+      )}
+    </div>
+  );
 }
 
 /**

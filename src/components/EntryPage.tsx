@@ -3,10 +3,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, setLeaveGuard, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
 import { AudioTranscript, EditTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
-import { JournalMark, SharedSign, splitJournals, toggleSharedBookmark, useJournalLabel, useCurrentJournal, useIsBookmarked, useJournals, useWritableJournals } from '../journals';
+import { JournalLine, JournalMark, splitJournals, toggleSharedBookmark, useJournalLabel, useCurrentJournal, useIsBookmarked, useJournals, useWritableJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { PlaceInput } from './PlaceInput';
-import { EditBar } from './EditBar';
 import { Icon } from './Icon';
 import { Linkified } from './Linkified';
 import { makePoster } from '../poster';
@@ -64,7 +63,6 @@ export function EntryPage({ id }: { id?: string }) {
 
   const [current, , currentLoaded] = useCurrentJournal();
   const journals = useJournals();
-  const label = useJournalLabel();
   const isBookmarked = useIsBookmarked();
   useEffect(() => {
     if (id || !currentLoaded) return;
@@ -89,6 +87,8 @@ export function EntryPage({ id }: { id?: string }) {
     <div className="entry-view">
       <div className="entry-actions">
         <button className="btn ghost icon-tile" onClick={() => go('/')} title="Back to journal" aria-label="Back to journal"><Icon name="back" /></button>
+        {/* Which journal, and who it's shared with: in the bar on a computer, on its own line under the buttons on a phone. */}
+        <JournalLine journal={journal} />
         <div className="row nowrap">
           {readOnly !== undefined && <button className={`btn ghost icon-tile ${bookmarked ? 'on' : ''}`} title={bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'} aria-pressed={bookmarked}
             onClick={() => (readOnly ? toggleSharedBookmark(e.id) : db.entries.update(e.id, { bookmarked: !e.bookmarked, updatedAt: Date.now() }))}>
@@ -123,7 +123,6 @@ export function EntryPage({ id }: { id?: string }) {
           </span>
         )}
         {mood && <span>{mood.emoji} {mood.label}</span>}
-        {journal && journals && journals.length > 1 && <span className="member-person"><JournalMark journal={journal} /> {label(journal)} <SharedSign journal={journal} /></span>}
         <span>{wordCount(e.body)} words</span>
         {e.sourceKey && <span>Imported from Apple Journal</span>}
       </div>
@@ -287,7 +286,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
 
   const save = async (to?: string) => {
     if (isNew && empty) return leave(to ?? '/');
-    if (!hasTitle) return; // Save needs a title.
+    if (!hasTitle) return setNeedTitle(true); // Save needs a title: say so.
     // Your icon joins the entry's row right away; the online database confirms it on the next sync.
     const me = cloudUser()?.id;
     const contributors = me && !(draft.contributors ?? []).includes(me) ? [...(draft.contributors ?? []), me] : draft.contributors;
@@ -307,7 +306,18 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
     leave(to ?? (isNew ? `/entry/${entry.id}` : undefined));
   };
 
-  const cancel = () => leave(isNew ? '/' : undefined);
+  // Ask first if there's something to lose; otherwise just close.
+  const cancel = () => (dirty ? setConfirmCancel(true) : leave(isNew ? '/' : undefined));
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [needTitle, setNeedTitle] = useState(false);
+  // The Title box stays outlined from "needs a title" until there is one.
+  const [showTitleBox, setShowTitleBox] = useState(false);
+  const goToTitle = () => {
+    setNeedTitle(false);
+    setShowTitleBox(true);
+    titleRef.current?.focus();
+    titleRef.current?.scrollIntoView({ block: 'center' });
+  };
 
   // Photos and videos at the top; voice recordings further down (see below).
   const storedKinds = useLiveQuery(
@@ -344,10 +354,13 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
     <div className="entry-edit">
       <div className="entry-actions edit-actions">
         {/* Plain words, not a button: tells you you're writing (the area is tinted too, see .entry-edit). */}
+        {/* On a phone, Cancel and Save live up here and stay put (a bar floating over the keyboard jumped around on iPhone). */}
+        <button className="btn phone-only" onClick={cancel}>Cancel</button>
         <span className="edit-label">{isNew ? 'New entry' : 'Editing'}</span>
         <div className="row nowrap">
-          {/* Cancel and Save are in the bar that stays at the bottom. */}
-          {!isNew && <button className="btn delete-btn" onClick={remove}>Delete</button>}
+          {/* On a computer, Cancel and Save are in the bar at the bottom of the window; on a phone Delete is at the end of the entry. */}
+          {!isNew && <button className="btn delete-btn computer-only" onClick={remove}>Delete</button>}
+          <button className="btn primary phone-only" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Save</button>
         </div>
       </div>
 
@@ -375,7 +388,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         </Gallery>
       )}
 
-      <textarea ref={titleRef} className="title-input" placeholder="Title" rows={1} value={draft.title}
+      <textarea ref={titleRef} className={`title-input ${showTitleBox && !hasTitle ? 'needs-title' : ''}`} placeholder="Title" rows={1} value={draft.title}
         autoFocus={isNew}
         onChange={(e) => set({ title: e.target.value.replace(/\s*\n\s*/g, ' ') })}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); bodyRef.current?.focus(); } }} />
@@ -423,12 +436,27 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       </div>
       {busy && <p className="muted">{busy}</p>}
       <p className="muted small">{fmtDay(draft.date)} at {fmtTime(draft.date)} · {wordCount(draft.body)} words</p>
-      {/* Always on screen: above the keyboard on a phone, at the bottom of the window on a computer. */}
-      <EditBar>
-        {!hasTitle && <span className="muted small save-hint">Add a title to save</span>}
+      {!isNew && <button className="btn delete-btn phone-only end-delete" onClick={remove}>Delete</button>}
+      {/* Computer: Cancel and Save stick to the bottom of the window. */}
+      <div className="edit-bar">
         <button className="btn" onClick={cancel}>Cancel</button>
-        {hasTitle && <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Save</button>}
-      </EditBar>
+        <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Save</button>
+      </div>
+      {needTitle && (
+        <Dialog title="This entry needs a title" onClose={goToTitle}>
+          <p className="muted">This entry needs a title before it can be saved. Type one in the Title box, then select Save.</p>
+          <div className="row"><button className="btn primary" onClick={goToTitle}>OK</button></div>
+        </Dialog>
+      )}
+      {confirmCancel && (
+        <Dialog title="Throw away your changes?" onClose={() => setConfirmCancel(false)}>
+          <p className="muted">{isNew ? "This new entry hasn't been saved. If you cancel, it will be lost." : "Your changes to this entry haven't been saved. If you cancel, they will be lost."}</p>
+          <div className="row">
+            <button className="btn danger" onClick={() => leave(isNew ? '/' : undefined)}>Throw away</button>
+            <button className="btn ghost" onClick={() => setConfirmCancel(false)}>Keep editing</button>
+          </div>
+        </Dialog>
+      )}
       {pasteBox && (
         <Dialog title="Paste a photo" onClose={() => setPasteBox(false)}>
           <p className="muted">First copy a photo. In the Photos app, open it, tap <strong>Share</strong>, then <strong>Copy Photo</strong>. Then come back here.</p>

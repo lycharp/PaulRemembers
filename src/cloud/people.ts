@@ -20,6 +20,8 @@ interface PeopleCache {
   people: Person[];
   /** Your journals that you share with someone. */
   shared: string[];
+  /** Who each of those journals is shared with (emails, in the order they were added). */
+  members?: Record<string, string[]>;
 }
 
 const KEY = 'people';
@@ -28,7 +30,7 @@ const KEY = 'people';
 export async function refreshPeople(sb: SupabaseClient = supabase()) {
   const [{ data, error }, members] = await Promise.all([
     sb.rpc('list_people'),
-    sb.from('journal_members').select('journal_id'),
+    sb.from('journal_members').select('journal_id, email').order('added_at'),
   ]);
   if (error) return;
   const people: Person[] = ((data ?? []) as { user_id: string; email: string | null; name: string | null; icon: string | null }[]).map((r) => ({
@@ -37,8 +39,10 @@ export async function refreshPeople(sb: SupabaseClient = supabase()) {
     name: r.name?.trim() || undefined,
     icon: r.icon || undefined,
   }));
-  const shared = [...new Set(((members.data ?? []) as { journal_id: string }[]).map((m) => m.journal_id))];
-  await setSetting(KEY, { people, shared } satisfies PeopleCache);
+  const rows = (members.data ?? []) as { journal_id: string; email: string }[];
+  const byJournal: Record<string, string[]> = {};
+  for (const r of rows) (byJournal[r.journal_id] ??= []).push(r.email.toLowerCase());
+  await setSetting(KEY, { people, shared: Object.keys(byJournal), members: byJournal } satisfies PeopleCache);
 }
 
 export async function saveProfile(name: string, icon: string) {
@@ -57,16 +61,24 @@ export interface People {
   byEmail: Map<string, Person>;
   /** Shared with more than one person, so who wrote what is shown. */
   isShared: (j?: Journal) => boolean;
+  /** One of your own journals that you have shared with someone. */
+  sharedByMe: (j?: Journal) => boolean;
+  /** Who you have shared one of your journals with (people without an account yet show by email). */
+  sharedWith: (j?: Journal) => Person[];
 }
 
 export function usePeople(): People {
   const cache = useLiveQuery(() => getSetting<PeopleCache>(KEY), []);
   const people = cache?.people ?? [];
   const shared = new Set(cache?.shared ?? []);
+  const byEmail = new Map(people.filter((p) => p.email).map((p) => [p.email!.toLowerCase(), p]));
+  const mine = (j?: Journal): j is Journal => !!j && (!j.role || j.role === 'owner');
   return {
     byId: new Map(people.map((p) => [p.id, p])),
-    byEmail: new Map(people.filter((p) => p.email).map((p) => [p.email!.toLowerCase(), p])),
+    byEmail,
     isShared: (j) => !!j && (j.role === 'editor' || j.role === 'viewer' || shared.has(j.id)),
+    sharedByMe: (j) => mine(j) && shared.has(j.id),
+    sharedWith: (j) => (mine(j) ? cache?.members?.[j.id] ?? [] : []).map((email) => byEmail.get(email) ?? { id: email, email }),
   };
 }
 
