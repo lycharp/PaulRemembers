@@ -5,7 +5,7 @@ import { Icon } from './components/Icon';
 import { rememberJournalOnline } from './cloud/cloud';
 import { db, getSetting, isOwnJournal, isWritableJournal, listJournals, setSetting, type Entry, type Journal } from './db';
 import { nameOf, usePeople, type Person } from './cloud/people';
-import { PersonIcon } from './components/People';
+import { FitLine, PersonIcon } from './components/People';
 
 /** 'all' shows every journal; otherwise a journal id. Remembered on this device. */
 export type JournalChoice = 'all' | string;
@@ -110,10 +110,36 @@ export function splitJournals<J extends Journal>(journals: J[]): { mine: J[]; sh
   return { mine: journals.filter(isOwnJournal), shared: journals.filter((j) => !isOwnJournal(j)) };
 }
 
-/** The little "shared" sign after a shared journal's name. */
+/** The little "shared" sign after a journal's name: shared with you, or one of yours you've shared. */
 export function SharedSign({ journal }: { journal?: Journal }) {
-  if (!journal || isOwnJournal(journal)) return null;
-  return <span className="shared-sign" title="Shared with you"><Icon name="shared" /></span>;
+  const { sharedByMe } = usePeople();
+  if (!journal) return null;
+  const mine = isOwnJournal(journal);
+  if (mine && !sharedByMe(journal)) return null;
+  const title = mine ? "You've shared this" : 'Shared with you';
+  return <span className="shared-sign" title={title} aria-label={title} role="img"><Icon name="shared" /></span>;
+}
+
+/**
+ * One line under an entry's buttons: which journal it's in, and if it's one
+ * of yours that you've shared, who with (see FitLine for how it fits).
+ */
+export function JournalLine({ journal }: { journal?: Journal }) {
+  const label = useJournalLabel();
+  const { sharedWith } = usePeople();
+  if (!journal) return null;
+  return (
+    <FitLine className="journal-line" people={sharedWith(journal)}
+      lead={<><JournalMark journal={journal} /><span className="fit-shrink">{label(journal)}</span><SharedSign journal={journal} /></>} />
+  );
+}
+
+/** "Shared with 🦄 Laup · 🐻 Robert", under the name of a journal of yours that you've shared. */
+export function SharedWithLine({ journal }: { journal?: Journal }) {
+  const { sharedWith } = usePeople();
+  const people = sharedWith(journal);
+  if (!people.length) return null;
+  return <FitLine className="muted small shared-with" people={people} lead={<span>Shared with</span>} />;
 }
 
 /** Mark, full name and shared sign together: "🐻 Sam · My Journal 👥". */

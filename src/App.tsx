@@ -143,6 +143,7 @@ export function App() {
         </nav>
         <JournalList />
         <PoquitoBadge className="sidebar-badge" />
+        <SidebarResize />
         {cloud.configured && (
           <a className={`account-link ${route === '/account' ? 'on' : ''}`} href="#/account" data-tour="account">
             <span className={`nav-icon ${cloud.error ? 'has-problem' : ''}`} title={cloud.error ? 'Sync problem' : undefined}>
@@ -220,5 +221,53 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
       {wrong && <p className="error-text">That passcode is not right.</p>}
       <button className="btn primary">Unlock</button>
     </form>
+  );
+}
+
+const SIDEBAR_KEY = 'pr.sidebarWidth';
+const SIDEBAR_MIN = 230;
+const SIDEBAR_MAX = 460;
+const setSidebarWidth = (w?: number) => {
+  if (w) document.documentElement.style.setProperty('--sidebar-w', `${w}px`);
+  else document.documentElement.style.removeProperty('--sidebar-w');
+};
+// The width chosen on this computer, put back before the first paint.
+try {
+  const w = Number(localStorage.getItem(SIDEBAR_KEY));
+  if (w >= SIDEBAR_MIN && w <= SIDEBAR_MAX) setSidebarWidth(w);
+} catch { /* storage blocked: normal width */ }
+
+/** The left side's right edge on a computer: drag to make it wider, double-click for the normal width. */
+function SidebarResize() {
+  const [dragging, setDragging] = useState(false);
+  const start = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    const left = (el.parentElement as HTMLElement).getBoundingClientRect().left;
+    let w = 0;
+    const move = (ev: PointerEvent) => {
+      w = Math.round(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, ev.clientX - left)));
+      setSidebarWidth(w);
+    };
+    const end = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', end);
+      el.removeEventListener('pointercancel', end);
+      setDragging(false);
+      try { if (w) localStorage.setItem(SIDEBAR_KEY, String(w)); } catch { /* not remembered */ }
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    setDragging(true);
+  };
+  const reset = () => {
+    setSidebarWidth();
+    try { localStorage.removeItem(SIDEBAR_KEY); } catch { /* fine */ }
+  };
+  return (
+    <div className={`sidebar-resize ${dragging ? 'dragging' : ''}`} onPointerDown={start} onDoubleClick={reset}
+      role="separator" aria-orientation="vertical" title="Drag to make wider or narrower. Double-click for the normal width." />
   );
 }

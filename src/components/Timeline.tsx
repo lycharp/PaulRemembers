@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Entry } from '../db';
-import { JournalMark, JournalName, JournalSelect, useCanWriteHere, SharedSign, useJournalLabel, useSharedLine, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
+import { JournalMark, JournalName, JournalSelect, useCanWriteHere, SharedSign, useJournalLabel, useSharedLine, SharedWithLine, useCurrentJournal, useEntries, useIsBookmarked, useJournals } from '../journals';
 import { fmtMonth, fmtShort, go, monthKey, moodFor } from '../util';
 import { Gallery, MediaTile, VoiceNote } from './Media';
 import { PoquitoBadge } from './About';
@@ -178,6 +178,7 @@ export function Timeline() {
         <div className="grow">
           <h1>{currentJournal ? <JournalName journal={currentJournal} /> : title}</h1>
           {sharedLine(currentJournal) && <div className="muted small">{sharedLine(currentJournal)}</div>}
+          <SharedWithLine journal={currentJournal} />
         </div>
         <JournalSelect className="mobile-only" />
       </div>
