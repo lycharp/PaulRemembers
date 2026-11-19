@@ -138,7 +138,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
   const [removed, setRemoved] = useState<string[]>([]);
   const [busy, setBusy] = useState('');
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
-  // Transcripts changed in this edit (saved with the entry on Done), and how many are being made now.
+  // Transcripts changed in this edit (saved with the entry on Save), and how many are being made now.
   const [transcripts, setTranscripts] = useState<Record<string, string>>({});
   const [transcribing, setTranscribing] = useState(0);
   const [promptIdx, setPromptIdx] = useState(() => Math.floor(Math.random() * PROMPTS.length));
@@ -264,6 +264,8 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
   // Ask before leaving with unsaved writing (a new entry with something in it, or edits).
   const initial = useRef(JSON.stringify(draft));
   const empty = !draft.title.trim() && !draft.body.trim() && draft.mediaIds.length === 0;
+  // Save only shows once the entry has a title.
+  const hasTitle = !!draft.title.trim();
   const dirty = isNew ? !empty : JSON.stringify(draft) !== initial.current || removed.length > 0 || Object.keys(transcripts).length > 0;
   const [leavingTo, setLeavingTo] = useState<string | null>(null);
   useEffect(() => {
@@ -285,6 +287,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
 
   const save = async (to?: string) => {
     if (isNew && empty) return leave(to ?? '/');
+    if (!hasTitle) return; // Save needs a title.
     // Your icon joins the entry's row right away; the online database confirms it on the next sync.
     const me = cloudUser()?.id;
     const contributors = me && !(draft.contributors ?? []).includes(me) ? [...(draft.contributors ?? []), me] : draft.contributors;
@@ -343,10 +346,8 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         {/* Plain words, not a button: tells you you're writing (the area is tinted too, see .entry-edit). */}
         <span className="edit-label">{isNew ? 'New entry' : 'Editing'}</span>
         <div className="row nowrap">
-          {/* On a phone, Cancel and Done are in the bar at the bottom instead. */}
-          <button className="btn edit-top-only" onClick={cancel}>Cancel</button>
+          {/* Cancel and Save are in the bar that stays at the bottom. */}
           {!isNew && <button className="btn delete-btn" onClick={remove}>Delete</button>}
-          <button className="btn primary edit-top-only" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Done</button>
         </div>
       </div>
 
@@ -422,10 +423,11 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       </div>
       {busy && <p className="muted">{busy}</p>}
       <p className="muted small">{fmtDay(draft.date)} at {fmtTime(draft.date)} · {wordCount(draft.body)} words</p>
-      {/* On a phone the Done at the top scrolls away, so it also floats above the keyboard. */}
+      {/* Always on screen: above the keyboard on a phone, at the bottom of the window on a computer. */}
       <EditBar>
+        {!hasTitle && <span className="muted small save-hint">Add a title to save</span>}
         <button className="btn" onClick={cancel}>Cancel</button>
-        <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Done</button>
+        {hasTitle && <button className="btn primary" onClick={() => save()} disabled={!!busy || !!recorder || transcribing > 0}>Save</button>}
       </EditBar>
       {pasteBox && (
         <Dialog title="Paste a photo" onClose={() => setPasteBox(false)}>
@@ -438,9 +440,10 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
       )}
       {leavingTo != null && (
         <Dialog title={isNew ? 'Save this entry?' : 'Save your changes?'} onClose={() => setLeavingTo(null)}>
-          <p className="muted">{isNew ? 'You have not saved this new entry yet.' : 'You have changes to this entry that are not saved yet.'}</p>
+          <p className="muted">{isNew ? 'You have not saved this new entry yet.' : 'You have changes to this entry that are not saved yet.'}
+            {!hasTitle && ' To save it, give it a title first.'}</p>
           <div className="row">
-            <button className="btn primary" onClick={() => save(leavingTo)} disabled={!!busy || !!recorder || transcribing > 0}>Save</button>
+            {hasTitle && <button className="btn primary" onClick={() => save(leavingTo)} disabled={!!busy || !!recorder || transcribing > 0}>Save</button>}
             <button className="btn danger" onClick={() => leave(leavingTo)}>Discard</button>
             <button className="btn ghost" onClick={() => setLeavingTo(null)}>Keep writing</button>
           </div>

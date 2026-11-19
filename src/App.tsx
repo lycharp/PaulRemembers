@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createJournal, getSetting } from './db';
-import { JournalMark, SharedSign, splitJournals, useCurrentJournal, useJournalLabel, useJournals } from './journals';
+import { JournalMark, SharedSign, splitJournals, useCanWriteHere, useCurrentJournal, useJournalLabel, useJournals } from './journals';
 import { Account, SignIn, SyncStatus } from './components/Account';
 import { APP_NAME, PoquitoBadge } from './components/About';
 import { Help } from './components/Help';
@@ -53,6 +53,8 @@ export function App() {
   const cloud = useCloud();
   const needsProfile = useNeedsProfile();
   const { admin, waiting } = useAdmin();
+  // No + or New entry while looking at a journal you can only read.
+  const canWrite = useCanWriteHere();
 
   // Only coming straight back from an entry returns the list to that entry.
   useEffect(() => {
@@ -65,14 +67,14 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n' && !locked) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n' && !locked && canWrite) {
         e.preventDefault();
         go('/new');
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [locked]);
+  }, [locked, canWrite]);
 
   // A shared link is for someone else to read: no lock screen, no app chrome.
   const shareToken = /^\/s\/([\w-]+)$/.exec(route)?.[1];
@@ -126,9 +128,11 @@ export function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand"><img src="./icon.svg" alt="" /> {APP_NAME}</div>
-        <button className="btn primary new-btn" data-tour="new" onClick={() => go('/new')} title="New entry (Ctrl+N)">
-          <Icon name="plus" className="inline-icon" /> New entry
-        </button>
+        {canWrite && (
+          <button className="btn primary new-btn" data-tour="new" onClick={() => go('/new')} title="New entry (Ctrl+N)">
+            <Icon name="plus" className="inline-icon" /> New entry
+          </button>
+        )}
         <nav>
           {NAV.filter((n) => n.path !== '/admin' || admin).map((n) => (
             <a key={n.path} href={`#${n.path}`} data-tour={`nav-${n.path}`} className={`${active === n.path ? 'on' : ''} ${n.path === '/admin' ? 'nav-admin' : ''}`}
@@ -153,7 +157,7 @@ export function App() {
         )}
       </aside>
       <main className="main">{page}</main>
-      <button className="fab" data-tour="new" onClick={() => go('/new')} aria-label="New entry" title="New entry (Ctrl+N)"><Icon name="plus" /></button>
+      {canWrite && <button className="fab" data-tour="new" onClick={() => go('/new')} aria-label="New entry" title="New entry (Ctrl+N)"><Icon name="plus" /></button>}
       {/* Wait for "Getting your journal…" to finish so the tour points at the real screen. */}
       <Tour autoStart={route === '/' && !(cloud.user && !cloud.lastSync && !cloud.error)} />
     </div>

@@ -266,7 +266,7 @@ function CopyButton({ text }: { text: string }) {
 /**
  * While editing an entry: transcribe a recording, redo or delete the transcript,
  * copy it, or add it to the entry's text. Changes are kept only when the entry is
- * saved (Done), like any other edit. `value` is the edited transcript, if changed.
+ * saved (Save), like any other edit. `value` is the edited transcript, if changed.
  */
 export function EditTranscript({ id, pending, value, onChange, onBusy, onAddToEntry }: {
   id: string;

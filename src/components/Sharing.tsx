@@ -6,7 +6,7 @@ import { copyInvite, journalInvite, type InviteEmail } from '../inviteEmail';
 import { cloudConfigured } from '../cloud/config';
 import { nameOf, refreshPeople, usePeople, type Person } from '../cloud/people';
 import { PersonIcon } from './People';
-import { addMember, createEntryShare, getEntryShare, listMembers, loadSharedEntry, NOT_INVITED, removeMember, shareUrl, stopEntryShare, type Member, type SharedMedia } from '../cloud/sharing';
+import { addMember, changeMemberRole, createEntryShare, getEntryShare, listMembers, loadSharedEntry, NOT_INVITED, removeMember, shareUrl, stopEntryShare, type Member, type SharedMedia } from '../cloud/sharing';
 import { myRequests, removeRequest, requestInvite, useAdmin, type InviteRequest } from '../cloud/admin';
 import type { LocalJournal } from '../cloud/sync';
 import { db, type Entry } from '../db';
@@ -129,7 +129,7 @@ export function JournalSharingCard() {
     <section className="card pad">
       <h3>Share a journal</h3>
       <p className="muted">You can share with people who already use Paul Remembers. To add someone new, ask Paul to invite them. Viewers can read a journal; editors can also add and change entries.</p>
-      <p className="muted small">The app doesn't send anyone an email by itself, so press <strong>Send invite</strong> next to a name to send them a note from Gmail, Outlook, Yahoo or your email app, or copy it to paste anywhere. They sign in with that same email address, and the journal shows up for them.</p>
+      <p className="muted small">After you press <strong>Share</strong>, the app helps you send them a note from Gmail, Outlook, Yahoo or your email app (it doesn't send emails by itself). They sign in with that same email address, and the journal shows up for them. To change what someone can do, use the choice next to their name.</p>
       {mine.map((j) => <JournalMembers key={j.id} journal={j} />)}
       {shared.length > 0 && (
         <>
@@ -173,10 +173,28 @@ export function useMyName() {
 
 const isTouch = () => matchMedia('(pointer: coarse)').matches;
 
-export function SendInvite({ to, mail }: { to: string; mail: () => InviteEmail }) {
+/**
+ * The Send invite button and its box. Pick Gmail (or another) and the steps are
+ * shown first, then the email opens and the box closes: nothing is left on screen
+ * telling you to do what you've just done. `autoOpen` opens the box right after Share.
+ */
+export function SendInvite({ to, mail, autoOpen, onOpened, onSent }: {
+  to: string;
+  mail: () => InviteEmail;
+  autoOpen?: boolean;
+  onOpened?: () => void;
+  onSent?: (where: string) => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [done, setDone] = useState<Sender>();
-  const [link, setLink] = useState('');
+  const [copied, setCopied] = useState(false);
+  // Opened straight after Share (says so at the top).
+  const [fresh, setFresh] = useState(false);
+  useEffect(() => {
+    if (!autoOpen) return;
+    setOpen(true);
+    setFresh(true);
+    onOpened?.();
+  }, [autoOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   let last: string | null = null;
   try { last = localStorage.getItem(LAST_SENDER); } catch { /* private window */ }
   const ordered = [...SENDERS].sort((x, y) => (y.id === last ? 1 : 0) - (x.id === last ? 1 : 0));
@@ -186,43 +204,38 @@ export function SendInvite({ to, mail }: { to: string; mail: () => InviteEmail }
     try { localStorage.setItem(LAST_SENDER, id); } catch { /* ignore */ }
     const m = mail();
     if (id === 'copy') {
-      if (await copyInvite(m, true)) setDone('copy');
-      else { window.prompt('Copy this invite:', m.text); setOpen(false); }
+      if (await copyInvite(m, true)) { setCopied(true); onSent?.('Copied'); }
+      else { window.prompt('Copy this invite:', m.text); close(); }
       return;
     }
     // Compose links only take plain text, so the formatted invite (logo, button) goes on
     // the clipboard to paste. If the clipboard is refused, the plain text fills the email instead.
     // Copy first: browsers refuse the clipboard once the new tab has taken focus.
-    const copied = await copyInvite(m, false);
-    const link = senderLink(id, to, m.subject, copied ? '' : m.text)!;
-    setLink(link);
+    const ok = await copyInvite(m, false);
+    const link = senderLink(id, to, m.subject, ok ? '' : m.text)!;
     if (id === 'app') location.href = link;
     else window.open(link, '_blank', 'noopener');
-    if (copied) setDone(id);
-    else setOpen(false);
+    onSent?.(`Invite opened in ${SENDERS.find((o) => o.id === id)!.label}`);
+    close();
   };
 
-  const close = () => { setOpen(false); setDone(undefined); };
+  const close = () => { setOpen(false); setCopied(false); setFresh(false); };
   return (
     <>
       <button className="btn small ghost" onClick={() => setOpen(true)}>Send invite</button>
       {open && (
-        <Dialog title={`Send an invite to ${to}`} onClose={close}>
-          {done ? (
+        <Dialog title={fresh ? `Shared with ${to} ✓` : `Send an invite to ${to}`} onClose={close}>
+          {copied ? (
             <>
-              {done === 'copy'
-                ? <p><strong>Copied ✓</strong> Now paste it into an email or text message.</p>
-                : <>
-                  <p><strong>One more step:</strong> the invite is copied, so in the new email, {paste}. The logo, the button and the link come with it.</p>
-                  <p className="muted small">No new email? <a href={link} target={done === 'app' ? undefined : '_blank'} rel="noopener">Open it here</a>.</p>
-                </>}
+              <p><strong>Copied ✓</strong> Now paste it into an email or text message.</p>
               <div className="row" style={{ justifyContent: 'flex-end' }}>
                 <button className="btn primary" onClick={close}>Done</button>
               </div>
             </>
           ) : (
             <>
-              <p className="muted small">Pick where to send it from. A new email opens with their address and the subject filled in, and the invite is copied for you to paste in.</p>
+              {fresh && <p>The app doesn't send emails by itself, so now send them an invite.</p>}
+              <p className="muted small">Pick where to send it from. A new email opens with their address and the subject filled in. The invite is copied for you, so in the new email, {paste}, then send it. The logo, the button and the link come with it.</p>
               <div className="invite-senders">
                 {ordered.map((o) => (
                   <button key={o.id} className={o.id === last ? 'btn' : 'btn ghost'} onClick={() => pick(o.id)}>{o.label}</button>
@@ -250,6 +263,10 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
   const [busy, setBusy] = useState(false);
   const [requests, setRequests] = useState<InviteRequest[]>([]);
   const [outsider, setOutsider] = useState<{ email: string; role: Member['role'] }>();
+  // The person just shared with: their Send invite box opens by itself.
+  const [justAdded, setJustAdded] = useState<string>();
+  // "Invite opened in Gmail" next to each person you've sent one to (this visit).
+  const [sent, setSent] = useState<Record<string, string>>({});
   const { byEmail } = usePeople();
   const { admin } = useAdmin();
   const myName = useMyName();
@@ -271,10 +288,11 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
     setMsg('');
     setOutsider(undefined);
     try {
-      await addMember(journal.id, email, role);
-      setMsg(`Shared with ${email}. The app doesn't send an email by itself, so click "Send invite" next to their name and pick Gmail, Outlook, Yahoo, your email app, or Copy.`);
+      const who = email.trim().toLowerCase();
+      await addMember(journal.id, who, role);
       setEmail('');
       await reload();
+      setJustAdded(who);
     } catch (err) {
       // Not in the app yet: offer to ask Paul (admins never get here, sharing invites them).
       if (!admin && errText(err) === NOT_INVITED) setOutsider({ email: email.trim().toLowerCase(), role });
@@ -307,6 +325,16 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
       setMsg(errText(err));
     }
   };
+  const switchRole = async (m: Member, to: Member['role']) => {
+    setMsg('');
+    setMembers((all) => all?.map((x) => (x.email === m.email ? { ...x, role: to } : x)));
+    try {
+      await changeMemberRole(journal.id, m.email, to);
+    } catch (err) {
+      setMsg(`Couldn't change ${m.email}: ${errText(err)}`);
+    }
+    await reload();
+  };
   const asked = requests.filter((r) => !members?.some((m) => m.email === r.email));
 
   return (
@@ -318,8 +346,17 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
             <li key={m.email} className="row">
               <span className="grow">
                 <MemberPerson person={byEmail.get(m.email.toLowerCase())} />
-                {m.email} <span className="muted small">· {m.role === 'editor' ? 'can edit' : 'can read'}</span></span>
-              <SendInvite to={m.email} mail={() => journalInvite(`${myName || ownerName} · ${journal.name}`, m.email, m.role, myName, byEmail.has(m.email.toLowerCase()))} />
+                {m.email}
+                {sent[m.email] && <span className="muted small"> · {sent[m.email]} ✓</span>}
+              </span>
+              <select className="text-input small-select" value={m.role} aria-label={`What ${m.email} can do`}
+                onChange={(e) => switchRole(m, e.target.value as Member['role'])}>
+                <option value="viewer">Can read</option>
+                <option value="editor">Can edit</option>
+              </select>
+              <SendInvite to={m.email} autoOpen={justAdded === m.email} onOpened={() => setJustAdded(undefined)}
+                onSent={(where) => setSent((all) => ({ ...all, [m.email]: where }))}
+                mail={() => journalInvite(`${myName || ownerName} · ${journal.name}`, m.email, m.role, myName, byEmail.has(m.email.toLowerCase()))} />
               <button className="btn small ghost danger" onClick={() => removeMember(journal.id, m.email).then(reload)}>Remove</button>
             </li>
           ))}

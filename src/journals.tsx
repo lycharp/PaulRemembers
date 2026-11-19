@@ -15,6 +15,22 @@ export const useJournals = (): Journal[] | undefined => useLiveQuery(listJournal
 export const useWritableJournals = (): Journal[] | undefined =>
   useLiveQuery(async () => (await listJournals()).filter(isWritableJournal), []);
 
+/**
+ * Can you add an entry where you are looking? Not in a journal shared with you
+ * read-only. With "All" showing, yes if any journal is yours to write in (or you
+ * have none yet: one is made for you). Hides the + / New entry while read-only.
+ */
+export function useCanWriteHere(): boolean {
+  const [current] = useCurrentJournal();
+  const journals = useJournals();
+  if (!journals) return false;
+  if (current !== 'all') {
+    const j = journals.find((x) => x.id === current);
+    return !j || isWritableJournal(j);
+  }
+  return journals.length === 0 || journals.some(isWritableJournal);
+}
+
 /** The chosen journal; `loaded` is false until it has been read from storage. */
 export function useCurrentJournal(): [JournalChoice, (c: JournalChoice) => void, boolean] {
   const stored = useLiveQuery(async () => {

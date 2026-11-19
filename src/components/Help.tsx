@@ -6,11 +6,11 @@ import { goAndStartTour } from './Tour';
 const TOPICS: { q: string; a: React.ReactNode }[] = [
   {
     q: 'How do I write a new entry?',
-    a: <>Click <strong>＋ New entry</strong> (or press Ctrl+N). Give it a title if you like, write, and click <strong>Done</strong>. You can add photos and videos (or paste a photo you copied: press Ctrl+V, or use the paste button), record your voice, set a place (the arrow button fills in where you are) and pick a mood. Hold the pointer over a button to see what it does. If you leave without saving, the app asks first.</>,
+    a: <>Click <strong>＋ New entry</strong> (or press Ctrl+N). Give it a title, write, and click <strong>Save</strong> (it stays at the bottom of the screen, and shows once there's a title). You can add photos and videos (or paste a photo you copied: press Ctrl+V, or use the paste button), record your voice, set a place (the arrow button fills in where you are) and pick a mood. Hold the pointer over a button to see what it does. If you leave without saving, the app asks first.</>,
   },
   {
     q: 'How do I change or delete an entry?',
-    a: <>Click the entry to open it, then click <strong>Edit</strong>. <strong>Delete</strong> is at the top, next to Done.</>,
+    a: <>Click the entry to open it, then click <strong>Edit</strong>. <strong>Delete</strong> is at the top; Cancel and Save are at the bottom.</>,
   },
   {
     q: 'How do journals work?',
@@ -38,7 +38,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'How do I share?',
-    a: <>To share one entry, open it and click the <strong>Share</strong> button (the box with an arrow) to get a private link. To share a whole journal, go to <strong>Settings → Share a journal</strong> and type the other person's email. The app doesn't email them, so click <strong>Send invite</strong> next to their name and pick Gmail, Outlook.com, Yahoo Mail, your email app, or Copy invite. A new email opens with their address and subject filled in, and the invite (with the logo and a button) is copied, so just paste it into the message. They sign in with that same email address and the journal shows up. You can share only with people who already use Paul Remembers. For someone new, press <strong>Ask Paul to invite them</strong>: their name shows <strong>Waiting for Paul</strong>, and once he approves, the journal is shared with them (or it shows <strong>Declined</strong>). You need to be signed in for both.</>,
+    a: <>To share one entry, open it and click the <strong>Share</strong> button (the box with an arrow) to get a private link. To share a whole journal, go to <strong>Settings → Share a journal</strong> and type the other person's email, choose <strong>Can read</strong> or <strong>Can edit</strong>, and click <strong>Share</strong>. The app doesn't email them by itself, so a box opens straight away: pick Gmail, Outlook.com, Yahoo Mail, your email app, or Copy invite. A new email opens with their address and subject filled in, and the invite (with the logo and a button) is copied, so just paste it into the message and send it. To send it again later, click <strong>Send invite</strong> next to their name. To change what someone can do, change <strong>Can read / Can edit</strong> next to their name; there's no need to remove them first. They sign in with that same email address and the journal shows up. You can share only with people who already use Paul Remembers. For someone new, press <strong>Ask Paul to invite them</strong>: their name shows <strong>Waiting for Paul</strong>, and once he approves, the journal is shared with them (or it shows <strong>Declined</strong>). You need to be signed in for both.</>,
   },
   {
     q: 'What are the little icons on entries?',

@@ -193,8 +193,15 @@ input, textarea { font: inherit; color: inherit; }
 
 /* Entry */
 .entry-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 8px; }
-/* Cancel and Done floating above the keyboard while writing (phones only, see EditBar). */
-.edit-bar { display: none; }
+/* Cancel and Save, always on screen while writing (see EditBar). On a computer the bar
+   sticks to the bottom of the window until you reach the end of the entry. */
+.edit-bar {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  position: sticky; bottom: 0; z-index: 5; margin: 16px -20px 0; padding: 10px 20px;
+  background: var(--accent-soft); border-top: 1px solid var(--line);
+}
+.edit-bar .btn { min-width: 96px; justify-content: center; }
+.edit-bar .save-hint { margin-right: auto; }
 .entry-date { color: var(--muted); font-weight: 600; margin-bottom: 12px; }
 .entry-date-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
@@ -270,7 +277,8 @@ input, textarea { font: inherit; color: inherit; }
 .entry-edit {
   background: var(--surface);
   border: 2.5px solid var(--accent);
-  border-radius: 16px; padding: 0 20px 20px; overflow: hidden;
+  /* clip, not hidden, so the Cancel / Save bar can stick to the bottom of the window. */
+  border-radius: 16px; padding: 0 20px 0; overflow: hidden; overflow: clip;
   box-shadow: 0 6px 24px rgba(90, 60, 200, 0.22);
 }
 .entry-edit > .edit-actions {
@@ -441,6 +449,8 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .plain { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 6px; }
 .journal-members { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
 .journal-members h4 { margin: 0 0 6px; }
+.journal-members .small-select { padding: 4px 8px; font-size: 0.85rem; width: auto; }
+@media (max-width: 760px) { .journal-members .small-select { font-size: 16px; } }
 .dialog-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: grid; place-items: center; z-index: 50; padding: 16px; }
 .dialog { width: min(480px, 100%); display: flex; flex-direction: column; gap: 12px; margin: 0; }
 .dialog h3 { margin: 0; }
@@ -549,16 +559,15 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
   .entry-view .entry-actions .btn { padding: 0 10px; }
   .entry-view .entry-actions .row .btn.ghost { font-size: 1.15rem; min-width: 44px; }
   .edit-bar {
-    display: flex; gap: 10px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    display: flex; gap: 10px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; margin: 0;
     padding: 8px 14px; background: var(--accent-soft); border-top: 1px solid var(--line);
     box-shadow: 0 -4px 14px rgba(0, 0, 0, .08); transform: translateZ(0);
   }
   .edit-bar .btn { flex: 1; justify-content: center; min-height: 44px; font-size: 1.05rem; }
   /* Room at the end of the entry so the bar doesn't cover the last lines. */
   .entry-edit { padding: 0 12px 16px; margin-bottom: 70px; }
+  .edit-bar .save-hint { flex: 1; text-align: center; margin: 0; }
   .entry-edit > .edit-actions { margin: 0 -12px 10px; padding: 6px 8px 6px 12px; }
-  /* Cancel and Done live in the bar at the bottom on a phone. */
-  .edit-actions .edit-top-only { display: none; }
   .edit-actions { min-height: 36px; }
   .edit-actions .btn { min-height: 36px; padding: 6px 14px; border-radius: 10px; }
   /* Start small and grow with the writing, so the buttons below stay above the keyboard. */
