@@ -1,9 +1,11 @@
 /**
- * The invite emails people send from their own email (the app sends none itself).
- * Each has a plain-text version, for compose links, which only take plain text,
- * and a formatted version with the PoquitoWare logo and a button, for pasting.
+ * The invite emails. The app sends them itself (sendInviteEmail, through the
+ * send-invite function in Supabase). Each has a formatted version with the
+ * PoquitoWare logo and a button, and a plain-text version for email apps that
+ * show only text, and for the compose links used if sending ever fails.
  */
-import { appUrl } from './cloud/cloud';
+import { FunctionsHttpError } from '@supabase/supabase-js';
+import { appUrl, supabase } from './cloud/cloud';
 
 export interface InviteEmail {
   subject: string;
@@ -165,4 +167,23 @@ export async function copyInvite(mail: InviteEmail, withSubject: boolean): Promi
   } catch {
     return false;
   }
+}
+
+/**
+ * Send the invite from invites@poquitoware.com. `journalId` is the journal being
+ * shared (null for an invite to the app). The sender gets a copy, and replies go
+ * to them. Throws a plain-language message if it can't be sent.
+ */
+export async function sendInviteEmail(to: string, mail: InviteEmail, journalId: string | null): Promise<void> {
+  const { error } = await supabase().functions.invoke('send-invite', {
+    body: { to, journalId, subject: mail.subject, html: mail.html, text: mail.text },
+  });
+  if (!error) return;
+  if (error instanceof FunctionsHttpError) {
+    const res = error.context as Response;
+    const msg = await res.json().then((b: { error?: string; message?: string }) => b.error ?? b.message, () => undefined);
+    if (res.status === 404) throw new Error('Sending invites isn’t set up yet.');
+    throw new Error(msg || 'The invite could not be sent.');
+  }
+  throw new Error(navigator.onLine ? 'Sending invites isn’t set up yet, or the service could not be reached.' : 'You’re offline. Try again when you’re connected.');
 }

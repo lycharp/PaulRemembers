@@ -519,3 +519,45 @@ language sql stable security definer set search_path = public, auth, storage as 
   where is_admin()
 $$;
 grant execute on function public.admin_totals() to authenticated;
+
+-- ─── Invite emails sent by the app (Version 4) ──────────────────────────────
+-- The send-invite function (supabase/functions/send-invite) asks here before
+-- every email: is the signed-in person allowed to invite this address, and
+-- have they sent fewer than 20 today? Each send is written down.
+create table if not exists public.invite_sends (
+  id         bigint generated always as identity primary key,
+  sender     uuid not null references auth.users on delete cascade,
+  email      text not null,
+  journal_id text,
+  sent_at    timestamptz not null default now()
+);
+create index if not exists invite_sends_sender on public.invite_sends (sender, sent_at);
+alter table public.invite_sends enable row level security;
+revoke all on public.invite_sends from anon, authenticated;
+
+-- j = the journal being shared (its owner may invite its members), or null for
+-- an invite to the app itself (admins only, to someone on the invite list).
+-- Returns the sender's own email, for the copy and for replies.
+create or replace function public.claim_invite_send(e text, j text) returns text
+language plpgsql security definer set search_path = public, auth as $$
+declare
+  me text;
+begin
+  select email into me from auth.users where id = auth.uid();
+  if me is null then raise exception 'Please sign in again, then send the invite.'; end if;
+  if j is not null then
+    if coalesce(journal_role(j), '') <> 'owner'
+       or not exists (select 1 from journal_members where journal_id = j and lower(email) = lower(e)) then
+      raise exception 'You can only send invites for your own journals, to people you shared them with.';
+    end if;
+  elsif not is_admin() or not exists (select 1 from invites where email = lower(e)) then
+    raise exception 'Only an admin can invite someone to the app.';
+  end if;
+  if (select count(*) from invite_sends where sender = auth.uid() and sent_at > now() - interval '1 day') >= 20 then
+    raise exception 'You can send up to 20 invites a day. Please try again tomorrow.';
+  end if;
+  insert into invite_sends (sender, email, journal_id) values (auth.uid(), lower(e), j);
+  return me;
+end $$;
+revoke execute on function public.claim_invite_send(text, text) from public, anon;
+grant execute on function public.claim_invite_send(text, text) to authenticated;

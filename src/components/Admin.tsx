@@ -128,7 +128,7 @@ function Requests({ requests, byId, act }: { requests?: AdminRequest[]; byId: Ma
           <button className="btn small danger" onClick={() => act(() => declineRequest(r.journal_id, r.email))}>Decline</button>
         </div>
       ))}
-      {waiting.length > 0 && <p className="muted small">Approve invites them and shares the journal in one step. Then press <strong>Send invite</strong> next to their name under People to email them.</p>}
+      {waiting.length > 0 && <p className="muted small">Approve invites them and shares the journal in one step. The person who asked can then press <strong>Send invite</strong> next to their name to email them, or you can send an invite to the app from People.</p>}
     </section>
   );
 }
@@ -137,6 +137,9 @@ function People({ people, me, act }: { people?: AdminPerson[]; me: string; act: 
   const myName = useMyName();
   const [email, setEmail] = useState('');
   const [msg, setMsg] = useState('');
+  // Just invited: their invite email is sent by itself once they show in the list.
+  const [justInvited, setJustInvited] = useState<string>();
+  const [sent, setSent] = useState<Record<string, string>>({});
   const sorted = [...(people ?? [])].sort((a, b) =>
     (a.user_id === me ? -1 : b.user_id === me ? 1 : 0) || (+!a.user_id - +!b.user_id) || nameFor(a).localeCompare(nameFor(b)));
 
@@ -145,7 +148,8 @@ function People({ people, me, act }: { people?: AdminPerson[]; me: string; act: 
     const who = email.trim().toLowerCase();
     await act(() => addInvite(who));
     setEmail('');
-    setMsg(`${who} can now create an account. The app doesn't send an email by itself, so press "Send invite" next to their name.`);
+    setJustInvited(who);
+    setMsg(`${who} can now create an account. An invite email is on its way (you get a copy). To send it again, press "Send invite" next to their name.`);
   };
 
   return (
@@ -164,10 +168,12 @@ function People({ people, me, act }: { people?: AdminPerson[]; me: string; act: 
                 <span className="muted small block-line">
                   {p.user_id
                     ? `${p.email} · joined ${when(p.joined_at)} · ${p.blocked ? "can't sign in" : p.last_active ? `last active ${when(p.last_active)}` : 'not active yet'}`
-                    : `invited ${when(p.invited_at)} · hasn't joined yet`}
+                    : `invited ${when(p.invited_at)} · hasn't joined yet${sent[p.email] ? ` · ${sent[p.email]}${/…$|not sent/.test(sent[p.email]) ? '' : ' ✓'}` : ''}`}
                 </span>
               </span>
-              {!p.user_id && <SendInvite to={p.email} mail={() => appInvite(p.email, myName)} />}
+              {!p.user_id && <SendInvite to={p.email} journalId={null} mail={() => appInvite(p.email, myName)}
+                autoSend={justInvited === p.email} onAutoSent={() => setJustInvited(undefined)}
+                onSent={(what) => setSent((all) => ({ ...all, [p.email]: what }))} />}
               {!p.user_id && <button className="btn small ghost danger" onClick={() => act(() => removeInvite(p.email))}>Cancel invite</button>}
               {p.user_id && p.user_id !== me && !p.blocked && (
                 p.admin
