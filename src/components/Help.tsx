@@ -58,7 +58,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'Can I lock the journal?',
-    a: <>Yes. In <strong>Settings → Lock</strong>, set a passcode. The journal asks for it each time it opens.</>,
+    a: <>Yes. In <strong>Settings → Lock</strong>, set a passcode. Paul Remembers then asks for it each time it opens on that device. It covers all your journals, and it’s set separately on each device. People you share a journal with never need it.</>,
   },
   {
     q: 'How do I install it like a normal app (Windows, Mac, iPhone or Android)?',

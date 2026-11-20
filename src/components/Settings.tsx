@@ -23,7 +23,7 @@ export function Settings({ onLock }: { onLock: () => void }) {
     if (a.length < 4) return alert('Passcode must be at least 4 characters.');
     if (prompt('Enter it again') !== a) return alert('Passcodes did not match.');
     await setSetting('passcode', await sha256(a));
-    setMsg('Passcode set. The journal will ask for it each time it opens.');
+    setMsg('Passcode set. Paul Remembers will ask for it each time it opens on this device.');
   };
 
   return (
@@ -42,7 +42,7 @@ export function Settings({ onLock }: { onLock: () => void }) {
 
       <section className="card pad">
         <h3>Lock</h3>
-        <p className="muted">Ask for a passcode when the journal opens. This keeps casual eyes out; it does not encrypt the data.</p>
+        <p className="muted">Ask for a passcode when Paul Remembers opens on this device. It covers all your journals. This keeps casual eyes out; it does not encrypt the data.</p>
         <div className="row">
           <button className="btn" onClick={setPasscode}>{hasPass ? 'Change passcode' : 'Set passcode'}</button>
           {hasPass && (
