@@ -461,7 +461,8 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .shared-brand img { width: 30px; height: 30px; }
 .shared-by { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; line-height: 1.3; }
 .shared-by > div { min-width: 0; overflow-wrap: anywhere; }
-.shared-about { margin-top: 18px; }
+.shared-join { margin-top: 18px; }
+.shared-about { margin-top: 6px; }
 .link-btn { font: inherit; color: var(--accent); background: none; border: 0; padding: 4px; cursor: pointer; text-decoration: underline; }
 
 /* Place field with saved places */
