@@ -79,6 +79,10 @@ function SharedFrame({ children }: { children: React.ReactNode }) {
     <div className="shared-page">
       <a className="shared-brand" href="./"><img src="./icon.svg" alt="" /> {APP_NAME}</a>
       {children}
+      <p className="center small shared-join">
+        Do you want to join {APP_NAME}? Send your request to{' '}
+        <a href="mailto:poquitoware@gmail.com?subject=Join%20Paul%20Remembers">poquitoware@gmail.com</a>. Include your name and location.
+      </p>
       <p className="center small shared-about">
         <button className="link-btn" onClick={() => setAbout(true)}>About {APP_NAME}</button>
       </p>
