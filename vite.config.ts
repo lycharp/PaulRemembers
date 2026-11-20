@@ -12,6 +12,12 @@ const BUILD_ID = new Date().toISOString();
 function appVersion(): string {
   const git = (args: string) => execSync(`git log ${args}`, { encoding: 'utf8' }).trim();
   try {
+    // Version 4.0 is the merge that brought in invite emails sent by the app (supabase/functions/send-invite).
+    const v4 = git('--merges --first-parent --grep="^Merge pull request #" --format=%H -- supabase/functions/send-invite').split('\n').filter(Boolean).pop();
+    if (v4) {
+      const after = git(`--merges --first-parent --grep="^Merge pull request #" --format=%h ${v4}..HEAD`);
+      return `4.${after ? after.split('\n').length : 0}`;
+    }
     // Version 3.0 is the merge that brought in "who wrote what" (the first one with src/cloud/people.ts).
     const v3 = git('--merges --first-parent --grep="^Merge pull request #" --format=%H -- src/cloud/people.ts').split('\n').filter(Boolean).pop();
     if (v3) {

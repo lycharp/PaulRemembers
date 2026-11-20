@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useCloud } from '../cloud/cloud';
-import { copyInvite, journalInvite, type InviteEmail } from '../inviteEmail';
+import { copyInvite, journalInvite, sendInviteEmail, type InviteEmail } from '../inviteEmail';
 import { cloudConfigured } from '../cloud/config';
 import { nameOf, refreshPeople, usePeople, type Person } from '../cloud/people';
 import { PersonIcon } from './People';
@@ -160,7 +160,7 @@ export function JournalSharingCard() {
     <section className="card pad">
       <h3>Share a journal</h3>
       <p className="muted">You can share with people who already use Paul Remembers. To add someone new, ask Paul to invite them. Viewers can read a journal; editors can also add and change entries.</p>
-      <p className="muted small">After you press <strong>Share</strong>, the app helps you send them a note from Gmail, Outlook, Yahoo or your email app (it doesn't send emails by itself). They sign in with that same email address, and the journal shows up for them. To change what someone can do, use the choice next to their name.</p>
+      <p className="muted small">When you press <strong>Share</strong>, the app emails them an invite straight away. You get a copy, and if they reply, it comes to you. To send it again, press <strong>Send invite</strong> next to their name. They sign in with that same email address, and the journal shows up for them. To change what someone can do, use the choice next to their name.</p>
       {mine.map((j) => <JournalMembers key={j.id} journal={j} />)}
       {shared.length > 0 && (
         <>
@@ -205,27 +205,43 @@ export function useMyName() {
 const isTouch = () => matchMedia('(pointer: coarse)').matches;
 
 /**
- * The Send invite button and its box. Pick Gmail (or another) and the steps are
- * shown first, then the email opens and the box closes: nothing is left on screen
- * telling you to do what you've just done. `autoOpen` opens the box right after Share.
+ * The Send invite button. The app emails the invite straight away (you get a
+ * copy, and replies come to you). `autoSend` sends it right after Share or Invite.
+ * If it can't be sent, a box explains why and offers the old ways: open it in
+ * Gmail (or another) to paste and send yourself, or copy it.
  */
-export function SendInvite({ to, mail, autoOpen, onOpened, onSent }: {
+export function SendInvite({ to, mail, journalId, autoSend, onAutoSent, onSent }: {
   to: string;
   mail: () => InviteEmail;
-  autoOpen?: boolean;
-  onOpened?: () => void;
-  onSent?: (where: string) => void;
+  /** The journal being shared, or null for an invite to the app. */
+  journalId: string | null;
+  autoSend?: boolean;
+  onAutoSent?: () => void;
+  onSent?: (what: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [failed, setFailed] = useState<string>();
   const [copied, setCopied] = useState(false);
-  // Opened straight after Share (says so at the top).
-  const [fresh, setFresh] = useState(false);
+
+  const send = async () => {
+    setSending(true);
+    onSent?.('Sending invite…');
+    try {
+      await sendInviteEmail(to, mail(), journalId);
+      onSent?.('Invite sent');
+    } catch (e) {
+      onSent?.('Invite not sent');
+      setFailed(errText(e));
+    } finally {
+      setSending(false);
+    }
+  };
   useEffect(() => {
-    if (!autoOpen) return;
-    setOpen(true);
-    setFresh(true);
-    onOpened?.();
-  }, [autoOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!autoSend) return;
+    onAutoSent?.();
+    void send();
+  }, [autoSend]); // eslint-disable-line react-hooks/exhaustive-deps
+
   let last: string | null = null;
   try { last = localStorage.getItem(LAST_SENDER); } catch { /* private window */ }
   const ordered = [...SENDERS].sort((x, y) => (y.id === last ? 1 : 0) - (x.id === last ? 1 : 0));
@@ -250,12 +266,12 @@ export function SendInvite({ to, mail, autoOpen, onOpened, onSent }: {
     close();
   };
 
-  const close = () => { setOpen(false); setCopied(false); setFresh(false); };
+  const close = () => { setFailed(undefined); setCopied(false); };
   return (
     <>
-      <button className="btn small ghost" onClick={() => setOpen(true)}>Send invite</button>
-      {open && (
-        <Dialog title={fresh ? `Shared with ${to} ✓` : `Send an invite to ${to}`} onClose={close}>
+      <button className="btn small ghost" disabled={sending} onClick={send}>{sending ? 'Sending…' : 'Send invite'}</button>
+      {failed !== undefined && (
+        <Dialog title={`Couldn't send the invite to ${to}`} onClose={close}>
           {copied ? (
             <>
               <p><strong>Copied ✓</strong> Now paste it into an email or text message.</p>
@@ -265,8 +281,8 @@ export function SendInvite({ to, mail, autoOpen, onOpened, onSent }: {
             </>
           ) : (
             <>
-              {fresh && <p>The app doesn't send emails by itself, so now send them an invite.</p>}
-              <p className="muted small">Pick where to send it from. A new email opens with their address and the subject filled in. The invite is copied for you, so in the new email, {paste}, then send it. The logo, the button and the link come with it.</p>
+              <p>{failed}</p>
+              <p className="muted small">You can send it yourself instead. Select where to send it from. A new email opens with their address and the subject filled in. The invite is copied for you, so in the new email, {paste}, then send it.</p>
               <div className="invite-senders">
                 {ordered.map((o) => (
                   <button key={o.id} className={o.id === last ? 'btn' : 'btn ghost'} onClick={() => pick(o.id)}>{o.label}</button>
@@ -294,9 +310,9 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
   const [busy, setBusy] = useState(false);
   const [requests, setRequests] = useState<InviteRequest[]>([]);
   const [outsider, setOutsider] = useState<{ email: string; role: Member['role'] }>();
-  // The person just shared with: their Send invite box opens by itself.
+  // The person just shared with: their invite is sent by itself.
   const [justAdded, setJustAdded] = useState<string>();
-  // "Invite opened in Gmail" next to each person you've sent one to (this visit).
+  // "Invite sent" next to each person you've sent one to (this visit).
   const [sent, setSent] = useState<Record<string, string>>({});
   const { byEmail } = usePeople();
   const { admin } = useAdmin();
@@ -378,14 +394,14 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
               <span className="grow">
                 <MemberPerson person={byEmail.get(m.email.toLowerCase())} />
                 {m.email}
-                {sent[m.email] && <span className="muted small"> · {sent[m.email]} ✓</span>}
+                {sent[m.email] && <span className="muted small"> · {sent[m.email]}{/…$|not sent/.test(sent[m.email]) ? '' : ' ✓'}</span>}
               </span>
               <select className="text-input small-select" value={m.role} aria-label={`What ${m.email} can do`}
                 onChange={(e) => switchRole(m, e.target.value as Member['role'])}>
                 <option value="viewer">Can read</option>
                 <option value="editor">Can edit</option>
               </select>
-              <SendInvite to={m.email} autoOpen={justAdded === m.email} onOpened={() => setJustAdded(undefined)}
+              <SendInvite to={m.email} journalId={journal.id} autoSend={justAdded === m.email} onAutoSent={() => setJustAdded(undefined)}
                 onSent={(where) => setSent((all) => ({ ...all, [m.email]: where }))}
                 mail={() => journalInvite(`${myName || ownerName} · ${journal.name}`, m.email, m.role, myName, byEmail.has(m.email.toLowerCase()))} />
               <button className="btn small ghost danger" onClick={() => removeMember(journal.id, m.email).then(reload)}>Remove</button>
