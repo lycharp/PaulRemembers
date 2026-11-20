@@ -163,19 +163,6 @@ drop policy if exists "owner manages" on public.entry_shares;
 create policy "owner manages" on public.entry_shares for all to authenticated
   using (entry_role(entry_id) = 'owner') with check (entry_role(entry_id) = 'owner' and created_by = auth.uid());
 
--- Read one shared entry by its link token, without signing in.
-create or replace function public.get_shared_entry(t text) returns json
-language sql stable security definer set search_path = public as $$
-  select json_build_object(
-    'id', e.id,
-    'entry', e.data,
-    'media', coalesce((select json_agg(json_build_object('id', m.id, 'data', m.data, 'path', m.path))
-                       from media m where m.entry_id = e.id and not m.deleted), '[]'::json))
-  from entry_shares s join entries e on e.id = s.entry_id
-  where s.token = t and not e.deleted
-$$;
-grant execute on function public.get_shared_entry(text) to anon, authenticated;
-
 -- ─── Photo and video storage ───────────────────────────────────────────────
 -- Files live at media/<entry id>/<media id>.
 
@@ -306,6 +293,23 @@ drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles for all to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 grant select, insert, update on public.profiles to authenticated;
+
+-- Read one shared entry by its link token, without signing in. 'by' is the
+-- person who made the link (email, name and icon), shown as "Shared by".
+-- It reads profiles, so it comes after that table.
+create or replace function public.get_shared_entry(t text) returns json
+language sql stable security definer set search_path = public, auth as $$
+  select json_build_object(
+    'id', e.id,
+    'entry', e.data,
+    'media', coalesce((select json_agg(json_build_object('id', m.id, 'data', m.data, 'path', m.path))
+                       from media m where m.entry_id = e.id and not m.deleted), '[]'::json),
+    'by', (select json_build_object('id', u.id, 'email', u.email, 'name', p.name, 'icon', p.icon)
+           from auth.users u left join profiles p on p.user_id = u.id where u.id = s.created_by))
+  from entry_shares s join entries e on e.id = s.entry_id
+  where s.token = t and not e.deleted
+$$;
+grant execute on function public.get_shared_entry(text) to anon, authenticated;
 
 -- The people the signed-in person shares journals with (and themselves):
 -- journal owners, the people a journal is shared with, and anyone who wrote

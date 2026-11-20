@@ -184,7 +184,7 @@ function People({ people, me, act }: { people?: AdminPerson[]; me: string; act: 
         </ul>
       )}
       <form className="row" onSubmit={invite}>
-        <input className="text-input grow" type="email" required placeholder="Their email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input className="text-input grow" type="email" required placeholder="New email invite" value={email} onChange={(e) => setEmail(e.target.value)} />
         <button className="btn">Invite</button>
       </form>
       {msg && <p className="small">{msg}</p>}

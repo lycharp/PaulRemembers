@@ -78,7 +78,7 @@ export function BackupCard() {
         </label>
       </div>
       {canSaveAs() && <p className="muted small">Download backup asks where to save the file. It starts in the folder you used last time.</p>}
-      {isIPhoneOrIPad() && <p className="muted small">Looking for a backup in the Files app? Tap <strong>⋯</strong> at the top right and select <strong>List</strong> to see the whole file names and dates.</p>}
+      {isIPhoneOrIPad() && <p className="muted small">Your backups are in Apple’s <strong>Files</strong> app, not in Paul Remembers. Open Files, go to the folder you saved to (such as iCloud Drive), tap <strong>⋯</strong> at the top right of the Files app and select <strong>List</strong> to see the whole file names and dates.</p>}
       <IosSaveTip after={backedUp} />
       {msg && <div className="notice ok small">{msg}</div>}
       <p className="muted small">

@@ -12,6 +12,7 @@ import type { LocalJournal } from '../cloud/sync';
 import { db, type Entry } from '../db';
 import { fmtDay, moodFor } from '../util';
 import { Icon } from './Icon';
+import { AboutBox, APP_NAME } from './About';
 import { Linkified } from './Linkified';
 
 export const errText = (e: unknown) => (e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e));
@@ -19,20 +20,31 @@ export const errText = (e: unknown) => (e instanceof Error ? e.message : (e as {
 // ─── #/s/<token>: someone opened a shared link ─────────────────────────────
 
 export function SharedEntryPage({ token }: { token: string }) {
-  const [data, setData] = useState<{ entry: Entry; media: SharedMedia[] } | null | undefined>();
+  const [data, setData] = useState<{ entry: Entry; media: SharedMedia[]; by?: Person } | null | undefined>();
   const [error, setError] = useState('');
   useEffect(() => {
     if (!cloudConfigured) return setData(null);
     loadSharedEntry(token).then(setData, (e) => setError(errText(e)));
   }, [token]);
 
-  if (error) return <div className="shared-page"><p className="muted center">Could not open this entry: {error}</p></div>;
-  if (data === undefined) return <div className="shared-page"><p className="muted center">Opening…</p></div>;
-  if (data === null) return <div className="shared-page"><p className="muted center">This link no longer works. The person who shared it may have stopped sharing.</p></div>;
+  if (error) return <SharedFrame><p className="muted center">Could not open this entry: {error}</p></SharedFrame>;
+  if (data === undefined) return <SharedFrame><p className="muted center">Opening…</p></SharedFrame>;
+  if (data === null) return <SharedFrame><p className="muted center">This link no longer works. The person who shared it may have stopped sharing.</p></SharedFrame>;
   const e = data.entry;
   const mood = moodFor(e.mood);
+  const by = data.by;
   return (
-    <div className="shared-page">
+    <SharedFrame>
+      {by && (
+        <div className="shared-by">
+          <PersonIcon person={by} id={by.id} size="big" />
+          <div>
+            <div className="muted small">Shared by</div>
+            <strong>{nameOf(by)}</strong>
+            {by.email && <div className="muted small">{by.email}</div>}
+          </div>
+        </div>
+      )}
       <div className="entry-view">
         <div className="entry-date">{fmtDay(e.date)}</div>
         {e.prompt && <div className="prompt-card">{e.prompt}</div>}
@@ -56,6 +68,21 @@ export function SharedEntryPage({ token }: { token: string }) {
         </div>
       </div>
       <p className="muted small center">Shared from a private journal. Only people with this link can see it.</p>
+    </SharedFrame>
+  );
+}
+
+/** The shared link page: the app's name and logo on top, an About link at the bottom. */
+function SharedFrame({ children }: { children: React.ReactNode }) {
+  const [about, setAbout] = useState(false);
+  return (
+    <div className="shared-page">
+      <a className="shared-brand" href="./"><img src="./icon.svg" alt="" /> {APP_NAME}</a>
+      {children}
+      <p className="center small shared-about">
+        <button className="link-btn" onClick={() => setAbout(true)}>About {APP_NAME}</button>
+      </p>
+      {about && <AboutBox onClose={() => setAbout(false)} />}
     </div>
   );
 }
@@ -378,7 +405,7 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
         </ul>
       )}
       <form className="row" onSubmit={add}>
-        <input className="text-input grow" type="email" required placeholder="Their email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input className="text-input grow" type="email" required placeholder="New email invite" value={email} onChange={(e) => setEmail(e.target.value)} />
         <select className="text-input" value={role} onChange={(e) => setRole(e.target.value as Member['role'])}>
           <option value="viewer">Can read</option>
           <option value="editor">Can edit</option>
