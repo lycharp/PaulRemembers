@@ -780,3 +780,10 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .sidebar-resize:hover, .sidebar-resize.dragging { background: linear-gradient(to right, transparent 3px, var(--accent) 3px, var(--accent) 5px, transparent 5px); }
 @media (max-width: 760px) { .sidebar-resize { display: none; } }
 .cal-journal { margin-bottom: 14px; }
+/* "Opening Paul Remembers…" while this device's copy is read (never a blank page). */
+.loading-screen { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 80px 20px; text-align: center;
+  color: var(--accent); font-weight: 600; font-size: 1.05rem; }
+.loading-screen img { width: 72px; height: 72px; border-radius: 18px; animation: splash-pulse 1.6s ease-in-out infinite; }
+@keyframes splash-pulse { 50% { transform: scale(0.94); opacity: 0.8; } }
+.loading-note { color: var(--muted); font-weight: 400; font-size: 0.95rem; max-width: 340px; margin: 0; }
+.splash .loading-note { color: inherit; opacity: 0.8; padding: 0 24px; text-align: center; }

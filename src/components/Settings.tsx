@@ -107,7 +107,7 @@ function Journals() {
           <li key={j.id}>
             <button className="color-btn" title="Change colour" onClick={() => recolor(j.id, j.color)}><JournalDot color={j.color} /></button>
             <span className="jm-name">{j.name}</span>
-            <span className="muted small">{counts?.get(j.id) ?? 0} entries</span>
+            <span className="muted small">{counts ? `${counts.get(j.id) ?? 0} entries` : '…'}</span>
             <button className="btn small ghost" onClick={() => rename(j.id, j.name)}>Rename</button>
             {journals.length > 1 && <button className="btn small ghost danger" onClick={() => remove(j.id, j.name)}>Delete</button>}
           </li>
