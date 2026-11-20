@@ -16,6 +16,11 @@
       // (invites, shared entries, password reset) and sign-in replies (?code=).
       (function () {
         try {
+          // Just selected Refresh on "A new version is ready": back to that page.
+          var back = JSON.parse(localStorage.getItem('pr.returnTo') || 'null');
+          localStorage.removeItem('pr.returnTo');
+          if (back && Date.now() - back.at < 60000 && back.hash && (!location.hash || location.hash === '#' || location.hash === '#/'))
+            history.replaceState(null, '', location.pathname + location.search + back.hash);
           var q = location.search, h = location.hash;
           if (q === '?signin' || q === '?app') history.replaceState(null, '', location.pathname + h);
           if (q || (h && h !== '#' && h !== '#/')) return;

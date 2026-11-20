@@ -12,6 +12,7 @@ import { makePoster } from '../poster';
 import { needsShrink, shrinkVideo } from '../shrink';
 import { Dialog, ShareEntryButton } from './Sharing';
 import { Contributors } from './People';
+import { Loading } from './Loading';
 import { cloudUser } from '../cloud/cloud';
 
 async function fileToMedia(file: File, entryId: string, onShrink?: (fraction: number) => void): Promise<Media> {
@@ -77,7 +78,7 @@ export function EntryPage({ id }: { id?: string }) {
 
   if (id && stored === null) return <p className="muted center">Entry not found.</p>;
   if (draft) return <Editor draft={draft} setDraft={setDraft} isNew={isNew} />;
-  if (!stored) return null;
+  if (!stored) return <Loading />;
 
   const e = stored;
   const bookmarked = isBookmarked(e);

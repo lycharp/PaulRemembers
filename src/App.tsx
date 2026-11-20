@@ -17,6 +17,7 @@ import { AdminPage } from './components/Admin';
 import { useAdmin } from './cloud/admin';
 import { ProfileCard, useNeedsProfile } from './components/People';
 import { forgetListPosition, Timeline } from './components/Timeline';
+import { Loading } from './components/Loading';
 import { go, sha256, useRoute } from './util';
 
 const NAV = [
@@ -36,16 +37,6 @@ const safeDecode = (s: string) => {
     return s;
   }
 };
-
-/** Same look as the splash built into index.html, so the hand-over is seamless. */
-function Splash() {
-  return (
-    <div className="splash" role="status">
-      <img src="./icon.svg" alt="" />
-      <span>Opening {APP_NAME}…</span>
-    </div>
-  );
-}
 
 export function App() {
   const route = useRoute();
@@ -80,14 +71,14 @@ export function App() {
   const shareToken = /^\/s\/([\w-]+)$/.exec(route)?.[1];
   if (shareToken) return <SharedEntryPage token={shareToken} />;
 
-  if (locked === null) return <Splash />;
+  if (locked === null) return <Loading full />;
   if (locked) return <LockScreen onUnlock={() => setLocked(false)} />;
 
   // Invite-only: signed out, the app shows nothing but the sign-in screen. The
   // invite email's link (#/join/<email>) opens "Create an account" instead.
   const joinEmail = /^\/join\/(.+)$/.exec(route)?.[1];
   if (cloud.configured && !cloud.user && !(hasSavedSignIn() && !cloud.ready)) {
-    if (!cloud.ready) return <Splash />;
+    if (!cloud.ready) return <Loading full />;
     return (
       <div className="welcome">
         <SignIn key={joinEmail ?? ''} join={joinEmail ? safeDecode(joinEmail) : undefined} />

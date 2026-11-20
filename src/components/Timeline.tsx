@@ -10,6 +10,7 @@ import { Linkified } from './Linkified';
 import { Contributors } from './People';
 import { useCloud } from '../cloud/cloud';
 import { SyncProgress } from './Account';
+import { Loading } from './Loading';
 
 type Filter = 'all' | 'bookmarked' | 'media' | 'places';
 
@@ -138,7 +139,8 @@ export function Timeline() {
     returnTo = { entryId, journal: current, q, filter };
   };
 
-  if (!entries) return null;
+  // Still reading this device's copy: say so, never a blank screen.
+  if (!entries) return <Loading />;
 
   // Just signed in on a device with nothing on it yet (for example after erasing
   // it): the first sync is bringing the journal down, so say that instead of "empty".

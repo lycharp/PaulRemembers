@@ -36,6 +36,13 @@ export function UpdateBar() {
 
   if (!ready) return null;
   const refresh = async () => {
+    // Come back to the same page after the refresh (the iPhone Home Screen app
+    // can reopen at its start page instead). index.html puts it back.
+    try {
+      localStorage.setItem('pr.returnTo', JSON.stringify({ hash: location.hash, at: Date.now() }));
+    } catch {
+      // Storage blocked: the refresh still works, just from the start page.
+    }
     try {
       const reg = await navigator.serviceWorker?.getRegistration();
       await reg?.update();
