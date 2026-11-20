@@ -1,4 +1,5 @@
 import type { Entry, MediaKind } from '../db';
+import type { Person } from './people';
 import { appUrl, supabase, syncNow } from './cloud';
 import { sdb, type Role } from './sync';
 
@@ -35,12 +36,18 @@ export interface SharedMedia {
 }
 
 /** For the public link page: works without signing in. */
-export async function loadSharedEntry(token: string): Promise<{ entry: Entry; media: SharedMedia[] } | null> {
+export async function loadSharedEntry(token: string): Promise<{ entry: Entry; media: SharedMedia[]; by?: Person } | null> {
   const sb = supabase();
   const { data, error } = await sb.rpc('get_shared_entry', { t: token });
   if (error) throw error;
   if (!data) return null;
-  const d = data as { id: string; entry: Entry; media: { id: string; data: { kind: MediaKind; caption?: string }; path: string }[] };
+  const d = data as {
+    id: string;
+    entry: Entry;
+    media: { id: string; data: { kind: MediaKind; caption?: string }; path: string }[];
+    /** Who made the link. Missing until the online database has the latest setup.sql. */
+    by?: { id: string; email: string | null; name: string | null; icon: string | null } | null;
+  };
   const order = d.entry.mediaIds ?? [];
   const rows = [...d.media].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   const media: SharedMedia[] = [];
@@ -48,7 +55,8 @@ export async function loadSharedEntry(token: string): Promise<{ entry: Entry; me
     const { data: signed } = await sb.storage.from('media').createSignedUrl(m.path, 60 * 60);
     if (signed?.signedUrl) media.push({ id: m.id, kind: m.data.kind, caption: m.data.caption, url: signed.signedUrl });
   }
-  return { entry: d.entry, media };
+  const by = d.by ? { id: d.by.id, email: d.by.email ?? undefined, name: d.by.name?.trim() || undefined, icon: d.by.icon || undefined } : undefined;
+  return { entry: d.entry, media, by };
 }
 
 // ─── Sharing a journal with people ─────────────────────────────────────────

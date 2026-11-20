@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react';
 import { type Entry } from '../db';
-import { JournalSelect, useEntries } from '../journals';
+import { JournalName, JournalSelect, SharedWithLine, useCurrentJournal, useEntries, useJournals, useSharedLine } from '../journals';
 import { dayKey, fmtDay } from '../util';
 import { Thumb } from './Media';
 import { EntryCard } from './Timeline';
 
 export function CalendarView() {
   const entries = useEntries();
+  const journals = useJournals();
+  const [current] = useCurrentJournal();
+  const sharedLine = useSharedLine();
+  const currentJournal = current === 'all' ? (journals?.length === 1 ? journals[0] : undefined) : journals?.find((j) => j.id === current);
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -38,7 +42,15 @@ export function CalendarView() {
 
   return (
     <div className="calendar-page">
-      <JournalSelect className="mobile-only page-select" />
+      {/* Which journal the calendar shows, and a button to switch, on every screen size. */}
+      <div className="page-head cal-journal">
+        <div className="grow">
+          <h1>{currentJournal ? <JournalName journal={currentJournal} /> : 'All journals'}</h1>
+          {sharedLine(currentJournal) && <div className="muted small">{sharedLine(currentJournal)}</div>}
+          <SharedWithLine journal={currentJournal} />
+        </div>
+        <JournalSelect />
+      </div>
       <div className="cal-head">
         <button className="btn ghost cal-arrow" onClick={() => shift(-1)} aria-label="Previous month">‹</button>
         <div>

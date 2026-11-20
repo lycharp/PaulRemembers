@@ -54,7 +54,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'I can’t find my backup file on my iPhone.',
-    a: <>Backup file names are long, so in the Files app they get cut short in the icon view. Open the folder you saved to (such as iCloud Drive), tap <strong>⋯</strong> at the top right, and select <strong>List</strong>. Now you can see each file’s whole name and the date it was saved, with the newest easy to spot. To restore one, go to <strong>Settings → Backup</strong>, tap <strong>Restore from backup</strong>, and pick it the same way.</>,
+    a: <>Your backups are in Apple’s <strong>Files</strong> app, not in Paul Remembers. Backup file names are long, so Files cuts them short in the icon view. Open the Files app, go to the folder you saved to (such as iCloud Drive), tap <strong>⋯</strong> at the top right of the Files app, and select <strong>List</strong>. Now you can see each file’s whole name and the date it was saved, with the newest easy to spot. To restore one, go to <strong>Settings → Backup</strong>, tap <strong>Restore from backup</strong>, and pick it the same way.</>,
   },
   {
     q: 'Can I lock the journal?',
