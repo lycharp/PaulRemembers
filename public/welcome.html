@@ -16,6 +16,8 @@
   .hero img { width:72px; height:72px; border-radius:16px; }
   .hero h1 { margin:0; }
   .open { display:inline-block; margin:24px 0 8px; padding:12px 24px; border-radius:10px; background:var(--accent); color:#fff; text-decoration:none; font-weight:600; }
+  .promo { display:block; width:100%; margin:24px auto 8px; border-radius:14px; background:#000; }
+  .promo.tall { width:auto; max-width:100%; max-height:70vh; }
   footer { margin-top:48px; border-top:1px solid color-mix(in srgb, var(--fg) 15%, transparent); padding-top:16px; }
 </style>
 </head>
@@ -28,6 +30,19 @@
     <p class="muted" style="margin:0">A private journal app by PoquitoWare</p>
   </div>
 </div>
+
+<!-- A short video about the app. Phones held upright get the tall (iPhone) version. -->
+<video id="promo" class="promo" controls playsinline preload="metadata" aria-label="Paul Remembers video"></video>
+<script>
+  (function () {
+    var v = document.getElementById('promo');
+    var tall = window.matchMedia('(max-width: 600px) and (orientation: portrait)').matches;
+    var name = tall ? 'iphone' : 'wide';
+    if (tall) v.classList.add('tall');
+    v.poster = 'video/poster-' + name + '.jpg';
+    v.src = 'video/paul-remembers-' + name + '.mp4';
+  })();
+</script>
 
 <p>Paul Remembers is a personal journal you can use on Windows, Mac, iPhone, iPad and Android, right in your web browser. Write about your day, add photos, videos, voice recordings and places, and look back on your memories later.</p>
 
