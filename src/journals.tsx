@@ -174,6 +174,24 @@ export function JournalSelect({ className = '' }: { className?: string }) {
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [open]);
+  // While the list is open, freeze the page behind it. Otherwise iPhone Safari
+  // sends a swipe on the list through to the journal page underneath.
+  useEffect(() => {
+    if (!open) return;
+    const html = document.documentElement.style;
+    const prev = html.overflow;
+    html.overflow = 'hidden';
+    const stop = (e: TouchEvent) => {
+      // Let the list scroll itself when it is taller than the screen; block every other swipe.
+      const sheet = (e.target as Element | null)?.closest?.('.sheet');
+      if (!sheet || sheet.scrollHeight <= sheet.clientHeight) e.preventDefault();
+    };
+    document.addEventListener('touchmove', stop, { passive: false });
+    return () => {
+      html.overflow = prev;
+      document.removeEventListener('touchmove', stop);
+    };
+  }, [open]);
   if (!journals || journals.length < 2) return null;
   const { mine, shared } = splitJournals(journals);
   const pick = (c: string) => {

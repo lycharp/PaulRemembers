@@ -722,9 +722,9 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .journal-list button .grow { flex: 1; min-width: 0; }
 .journal-list-head.sub { font-size: 0.68rem; padding-top: 8px; }
 .journal-btn { white-space: nowrap; font-weight: 600; }
-.sheet-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(20, 12, 40, 0.35); display: flex; align-items: flex-end; justify-content: center; }
+.sheet-backdrop { position: fixed; inset: 0; z-index: 50; overscroll-behavior: contain; touch-action: none; background: rgba(20, 12, 40, 0.35); display: flex; align-items: flex-end; justify-content: center; }
 .sheet {
-  width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; background: var(--surface); border-radius: 18px 18px 0 0;
+  width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: var(--surface); border-radius: 18px 18px 0 0;
   padding: 8px 12px calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 2px; box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15);
 }
 .sheet-grip { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 4px auto 10px; }
