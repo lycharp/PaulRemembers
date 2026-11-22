@@ -7,6 +7,8 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
+  // Videos stream in pieces (range requests); let the browser fetch them directly.
+  if (e.request.headers.has('range') || e.request.url.endsWith('.mp4')) return;
   // Pages (index.html) always ask GitHub whether there is a newer copy, so a
   // refresh shows a new version right away instead of a stale cached one.
   const req = e.request.mode === 'navigate' ? new Request(e.request.url, { cache: 'no-cache' }) : e.request;
