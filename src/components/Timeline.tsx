@@ -11,6 +11,7 @@ import { Contributors } from './People';
 import { useCloud } from '../cloud/cloud';
 import { SyncProgress } from './Account';
 import { Loading } from './Loading';
+import { CardReactions } from './Reactions';
 
 type Filter = 'all' | 'bookmarked' | 'media' | 'places';
 
@@ -60,6 +61,7 @@ export function EntryCard({ e, onOpen }: { e: Entry; onOpen?: () => void }) {
           <span>{fmtShort(e.date)}</span>
           {e.place && <span>· <Icon name="pin" className="inline-icon" /> {e.place.name}</span>}
           {mood && <span title={mood.label}>· {mood.emoji}</span>}
+          <CardReactions entry={e} journal={entryJournal} />
           {journal && <span className="card-journal"><JournalMark journal={journal} /> {label(journal)} <SharedSign journal={journal} /></span>}
           {bookmarked && <span className="bookmark-on" title="Bookmarked"><Icon name="bookmarked" className="inline-icon" /></span>}
           <Contributors entry={e} journal={entryJournal} />
