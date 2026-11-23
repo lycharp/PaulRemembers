@@ -787,3 +787,11 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 @keyframes splash-pulse { 50% { transform: scale(0.94); opacity: 0.8; } }
 .loading-note { color: var(--muted); font-weight: 400; font-size: 0.95rem; max-width: 340px; margin: 0; }
 .splash .loading-note { color: inherit; opacity: 0.8; padding: 0 24px; text-align: center; }
+
+/* "Are you sure?" pop-ups (Confirm.tsx, DeleteJournal.tsx) */
+.sure-text p { margin: 0 0 10px; }
+.sure-text p:last-child { margin-bottom: 0; }
+.delete-choices { display: flex; flex-direction: column; gap: 12px; }
+.delete-choices label { align-items: flex-start; cursor: pointer; }
+.delete-choices input[type="radio"] { width: 20px; height: 20px; margin: 2px 0 0; flex: none; }
+.delete-choices select { margin-top: -6px; min-width: 0; }

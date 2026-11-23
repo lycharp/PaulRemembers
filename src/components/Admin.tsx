@@ -10,6 +10,7 @@ import type { Person } from '../cloud/people';
 import { appInvite } from '../inviteEmail';
 import { JournalDot } from '../journals';
 import { PersonIcon } from './People';
+import { askSure } from './Confirm';
 import { errText, SendInvite, useMyName } from './Sharing';
 
 // Free Supabase plan limits, for the Usage bars.
@@ -125,7 +126,7 @@ function Requests({ requests, byId, act }: { requests?: AdminRequest[]; byId: Ma
             <span className="muted small block-line">Asked {when(r.created_at)}, {new Date(r.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
           </span>
           <button className="btn primary small" onClick={() => act(() => approveRequest(r.journal_id, r.email))}>Approve</button>
-          <button className="btn small danger" onClick={() => act(() => declineRequest(r.journal_id, r.email))}>Decline</button>
+          <button className="btn small danger" onClick={async () => (await askSure({ message: <>Decline the request to share “{r.journal_name ?? 'a journal'}” with <strong>{r.email}</strong>?</>, yes: 'Yes, decline', note: 'They would have to ask again.' })) && act(() => declineRequest(r.journal_id, r.email))}>Decline</button>
         </div>
       ))}
       {waiting.length > 0 && <p className="muted small">Approve invites them and shares the journal in one step. The person who asked can then press <strong>Send invite</strong> next to their name to email them, or you can send an invite to the app from People.</p>}
@@ -174,16 +175,16 @@ function People({ people, me, act }: { people?: AdminPerson[]; me: string; act: 
               {!p.user_id && <SendInvite to={p.email} journalId={null} mail={() => appInvite(p.email, myName)}
                 autoSend={justInvited === p.email} onAutoSent={() => setJustInvited(undefined)}
                 onSent={(what) => setSent((all) => ({ ...all, [p.email]: what }))} />}
-              {!p.user_id && <button className="btn small ghost danger" onClick={() => act(() => removeInvite(p.email))}>Cancel invite</button>}
+              {!p.user_id && <button className="btn small ghost danger" onClick={async () => (await askSure({ message: <>Cancel the invite for <strong>{p.email}</strong>? They won't be able to create an account.</>, yes: 'Yes, cancel invite', note: 'To let them in later, invite them again.' })) && act(() => removeInvite(p.email))}>Cancel invite</button>}
               {p.user_id && p.user_id !== me && !p.blocked && (
                 p.admin
-                  ? <button className="btn small ghost" onClick={() => confirm(`Stop ${nameFor(p)} being an admin?`) && act(() => setAdmin(p.user_id!, false))}>Remove admin</button>
+                  ? <button className="btn small ghost" onClick={async () => (await askSure({ message: `Stop ${nameFor(p)} being an admin? They won't see this page or be able to invite people.`, yes: 'Yes, remove admin', final: false, note: 'You can make them an admin again later.' })) && act(() => setAdmin(p.user_id!, false))}>Remove admin</button>
                   : <button className="btn small ghost" onClick={() => confirm(`Make ${nameFor(p)} an admin? They'll see this page and can invite people.`) && act(() => setAdmin(p.user_id!, true))}>Make admin</button>
               )}
               {p.user_id && p.user_id !== me && !p.admin && (
                 p.blocked
                   ? <button className="btn small ghost" onClick={() => act(() => setBlocked(p.user_id!, false))}>Unblock</button>
-                  : <button className="btn small ghost danger" onClick={() => confirm(`Block ${nameFor(p)}? They are signed out and can't sign in until you unblock them. Nothing is deleted.`) && act(() => setBlocked(p.user_id!, true))}>Block</button>
+                  : <button className="btn small ghost danger" onClick={async () => (await askSure({ message: `Block ${nameFor(p)}? They are signed out and can't sign in until you unblock them. Nothing is deleted.`, yes: 'Yes, block', final: false, note: 'You can unblock them later.' })) && act(() => setBlocked(p.user_id!, true))}>Block</button>
               )}
             </li>
           ))}
@@ -215,7 +216,7 @@ function Sharing({ shares, byId, byEmail, act }: { shares?: AdminShare[]; byId: 
                 {list.map((m) => (
                   <div key={m.email} className="row small share-member">
                     <span className="grow"><Who p={byEmail.get(m.email.toLowerCase())} email={m.email} /> · {m.role === 'editor' ? 'can edit' : 'can read'}</span>
-                    <button className="btn small ghost danger" onClick={() => confirm(`Take ${m.email} off ${j.journal_name ?? 'this journal'}?`) && act(() => adminRemoveMember(m.journal_id, m.email))}>Remove</button>
+                    <button className="btn small ghost danger" onClick={async () => (await askSure({ message: <>Stop sharing “{j.journal_name ?? 'this journal'}” with <strong>{m.email}</strong>? They will no longer see it or anything in it.</>, yes: 'Yes, remove', note: 'To let them back in, the owner would share it with them again.' })) && act(() => adminRemoveMember(m.journal_id, m.email))}>Remove</button>
                   </div>
                 ))}
               </li>

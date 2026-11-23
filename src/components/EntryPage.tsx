@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { db, defaultJournalId, deleteEntry, emptyEntry, newId, type Entry, type Media, type MediaKind } from '../db';
 import { fmtDay, fmtTime, go, MOODS, setLeaveGuard, moodFor, PROMPTS, toLocalInput, wordCount } from '../util';
-import { AudioTranscript, EditTranscript, Gallery, Lightbox, MediaTile, PendingTile } from './Media';
+import { AudioTranscript, EditTranscript, Gallery, KeptTranscript, Lightbox, MediaTile, PendingTile } from './Media';
 import { JournalLine, JournalMark, splitJournals, toggleSharedBookmark, useJournalLabel, useCurrentJournal, useIsBookmarked, useJournals, useWritableJournals } from '../journals';
 import { heicToJpeg, isHeic } from '../importer/appleJournal';
 import { PlaceInput } from './PlaceInput';
@@ -13,6 +13,7 @@ import { needsShrink, shrinkVideo } from '../shrink';
 import { Dialog, ShareEntryButton } from './Sharing';
 import { Contributors } from './People';
 import { Loading } from './Loading';
+import { askSure } from './Confirm';
 import { cloudUser } from '../cloud/cloud';
 
 async function fileToMedia(file: File, entryId: string, onShrink?: (fraction: number) => void): Promise<Media> {
@@ -110,6 +111,7 @@ export function EntryPage({ id }: { id?: string }) {
         </Gallery>
       )}
       {e.mediaIds.map((m) => <AudioTranscript key={m} id={m} />)}
+      {e.transcripts?.map((t, i) => <KeptTranscript key={i} text={t} />)}
       {e.title && <h1 className="entry-title"><Linkified text={e.title} /></h1>}
       <div className="entry-body">
         {e.body.split(/\n{2,}/).map((p, i) => <p key={i}><Linkified text={p} /></p>)}
@@ -331,8 +333,19 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
   const pictureIds = known.filter((m) => !isAudio(m));
   const mediaTile = (m: string, tile: { style: CSSProperties; onRatio: (r: number) => void }) => {
     const pending = pendingMedia.find((p) => p.id === m);
-    const onRemove = () => {
-      set({ mediaIds: draftRef.current.mediaIds.filter((x) => x !== m) });
+    const onRemove = async () => {
+      const stored = pending ? undefined : await db.media.get(m);
+      const kind = (pending ?? stored)?.kind;
+      // The words outlive the recording: a transcript stays with the entry when its recording is deleted.
+      const said = (transcripts[m] ?? (pending ?? stored)?.transcript ?? '').trim();
+      const keep = kind === 'audio' && said && said !== '(No speech found in this recording.)' ? said : '';
+      const what = !kind ? 'this item' : kind === 'audio' ? 'this voice recording' : kind === 'video' ? 'this video' : 'this photo';
+      if (!(await askSure({
+        message: `Delete ${what} from the entry?${keep ? ' Its transcript stays in the entry.' : ''}`,
+        yes: `Yes, delete ${kind === 'audio' ? 'recording' : kind ?? 'item'}`,
+      }))) return;
+      const cur = draftRef.current;
+      setDraft({ ...cur, mediaIds: cur.mediaIds.filter((x) => x !== m), ...(keep ? { transcripts: [...(cur.transcripts ?? []), keep] } : {}) });
       if (!pending) setRemoved((r) => [...r, m]);
     };
     return pending ? <PendingTile key={m} media={pending} onRemove={onRemove} {...tile} /> : <MediaTile key={m} id={m} onRemove={onRemove} {...tile} />;
@@ -346,7 +359,7 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
   }, [audioIds.length]);
 
   const remove = async () => {
-    if (!confirm('Delete this entry? This cannot be undone.')) return;
+    if (!(await askSure({ message: 'Delete this entry, with its photos, videos and recordings?', yes: 'Yes, delete entry' }))) return;
     await deleteEntry(draft.id);
     leave('/');
   };
@@ -397,8 +410,13 @@ function Editor({ draft, setDraft, isNew }: { draft: Entry; setDraft: (e: Entry 
         onChange={(e) => set({ body: e.target.value })} />
 
       {/* Voice recordings sit under the writing, next to the Record button, so a new one shows where you tapped. */}
-      {audioIds.length > 0 && (
+      {(audioIds.length > 0 || !!draft.transcripts?.length) && (
         <div className="edit-audio" ref={audioRef}>
+          {draft.transcripts?.map((t, i) => (
+            <KeptTranscript key={i} text={t}
+              onDelete={() => { const cur = draftRef.current; setDraft({ ...cur, transcripts: cur.transcripts?.filter((_x, k) => k !== i) }); }}
+              onAddToEntry={(text) => { const body = draftRef.current.body.trimEnd(); setDraft({ ...draftRef.current, body: body ? `${body}\n\n${text}` : text }); }} />
+          ))}
           {audioIds.map((m) => (
             <div key={m}>
               <Gallery ids={[m]} className="media-gallery">{(id, _i, tile) => mediaTile(id, tile)}</Gallery>
@@ -492,9 +510,13 @@ function JournalPicker({ value, onChange }: { value: string; onChange: (id: stri
       <JournalMark journal={j} />
       <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Journal">
         {(() => {
-          const { mine, shared } = splitJournals(journals);
+          const { mine, shared, system } = splitJournals(journals);
           const opts = (list: typeof journals) => list.map((x) => <option key={x.id} value={x.id}>{label(x)}</option>);
-          return shared.length ? <><optgroup label="My journals">{opts(mine)}</optgroup><optgroup label="Shared with me">{opts(shared)}</optgroup></> : opts(mine);
+          return shared.length || system.length
+            ? <><optgroup label="My journals">{opts(mine)}</optgroup>
+              {shared.length > 0 && <optgroup label="Shared with me">{opts(shared)}</optgroup>}
+              {system.length > 0 && <optgroup label="System journals">{opts(system)}</optgroup>}</>
+            : opts(mine);
         })()}
       </select>
     </label>

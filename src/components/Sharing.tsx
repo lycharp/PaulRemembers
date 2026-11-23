@@ -14,6 +14,7 @@ import { fmtDay, moodFor } from '../util';
 import { Icon } from './Icon';
 import { AboutBox, APP_NAME } from './About';
 import { Linkified } from './Linkified';
+import { askSure } from './Confirm';
 
 export const errText = (e: unknown) => (e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e));
 
@@ -135,7 +136,14 @@ function ShareEntryDialog({ entryId, onClose }: { entryId: string; onClose: () =
             <button className="btn primary" onClick={() => navigator.clipboard.writeText(url).then(() => setMsg('Link copied.'))}>Copy link</button>
           </div>
           {'share' in navigator && <button className="btn" onClick={() => navigator.share({ url }).catch(() => {})}>Share…</button>}
-          <button className="btn ghost danger" disabled={busy} onClick={() => run(async () => { await stopEntryShare(entryId); setToken(null); setMsg('The link no longer works.'); })}>Stop sharing</button>
+          <button className="btn ghost danger" disabled={busy} onClick={async () => {
+            if (!(await askSure({
+              message: 'Turn off the link to this entry? Anyone who has it will no longer be able to read it.',
+              yes: 'Yes, stop sharing',
+              note: 'If you share this entry again, it gets a new link.',
+            }))) return;
+            await run(async () => { await stopEntryShare(entryId); setToken(null); setMsg('The link no longer works.'); });
+          }}>Stop sharing</button>
         </>
       ) : (
         <>
@@ -365,6 +373,11 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
     }
   };
   const clear = async (r: InviteRequest) => {
+    if (r.status === 'waiting' && !(await askSure({
+      message: <>Cancel your request to share “{journal.name}” with <strong>{r.email}</strong>?</>,
+      yes: 'Yes, cancel request',
+      note: 'To ask again, share it with them again.',
+    }))) return;
     try {
       await removeRequest(journal.id, r.email);
       await reload();
@@ -404,7 +417,15 @@ function JournalMembers({ journal }: { journal: LocalJournal }) {
               <SendInvite to={m.email} journalId={journal.id} autoSend={justAdded === m.email} onAutoSent={() => setJustAdded(undefined)}
                 onSent={(where) => setSent((all) => ({ ...all, [m.email]: where }))}
                 mail={() => journalInvite(`${myName || ownerName} · ${journal.name}`, m.email, m.role, myName, byEmail.has(m.email.toLowerCase()))} />
-              <button className="btn small ghost danger" onClick={() => removeMember(journal.id, m.email).then(reload)}>Remove</button>
+              <button className="btn small ghost danger" onClick={async () => {
+                if (!(await askSure({
+                  message: <>Stop sharing “{journal.name}” with <strong>{m.email}</strong>? They will no longer see it or anything in it.</>,
+                  yes: 'Yes, remove',
+                  note: 'To let them back in, you would share it with them again.',
+                }))) return;
+                await removeMember(journal.id, m.email).catch((err) => setMsg(errText(err)));
+                await reload();
+              }}>Remove</button>
             </li>
           ))}
         </ul>

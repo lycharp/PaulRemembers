@@ -170,7 +170,7 @@ function JournalList() {
     pick((await createJournal(name)).id);
   };
   if (!journals) return null;
-  const { mine, shared } = splitJournals(journals);
+  const { mine, shared, system } = splitJournals(journals);
   const row = (j: (typeof journals)[number]) => (
     <button key={j.id} className={current === j.id || (journals.length === 1 && current === 'all') ? 'on' : ''} onClick={() => pick(j.id)}>
       <JournalMark journal={j} /> <span className="grow">{label(j)}</span> <SharedSign journal={j} />
@@ -184,10 +184,12 @@ function JournalList() {
           <span className="journal-dot all" aria-hidden /> All journals
         </button>
       )}
-      {shared.length > 0 && <div className="journal-list-head sub">My journals</div>}
+      {(shared.length > 0 || system.length > 0) && <div className="journal-list-head sub">My journals</div>}
       {mine.map(row)}
       {shared.length > 0 && <div className="journal-list-head sub">Shared with me</div>}
       {shared.map(row)}
+      {system.length > 0 && <div className="journal-list-head sub">System journals</div>}
+      {system.map(row)}
       <button className="journal-add" onClick={add}><Icon name="plus" className="inline-icon" /> New journal</button>
     </div>
   );

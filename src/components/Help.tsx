@@ -14,7 +14,7 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'How do journals work?',
-    a: <>You can keep several journals, like Travel or Family. Click <strong>＋ New journal</strong> in the left bar to add one, and click a journal to open it. The app remembers the last journal you were in and opens it the next time you start. Rename, recolor or delete journals in <strong>Settings</strong>.</>,
+    a: <>You can keep several journals, like Travel or Family. Click <strong>＋ New journal</strong> in the left bar to add one, and click a journal to open it. The app remembers the last journal you were in and opens it the next time you start. Rename, recolor or delete journals in <strong>Settings</strong>. When you delete a journal, you choose what happens to its entries: move them to another journal, move them to <strong>Orphaned Entries</strong>, or delete them completely. Orphaned Entries appears at the bottom of the journal list, under System journals, only once something has been moved there.</>,
   },
   {
     q: 'How do I find an old entry?',

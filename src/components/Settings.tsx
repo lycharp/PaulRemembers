@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
-import { createJournal, db, deleteJournal, getSetting, isOwnJournal, JOURNAL_COLORS, setSetting, updateJournal } from '../db';
+import { createJournal, db, getSetting, isOwnJournal, JOURNAL_COLORS, setSetting, updateJournal, type Journal } from '../db';
+import { DeleteJournalDialog } from './DeleteJournal';
 import { JournalDot, useJournals } from '../journals';
 import { sha256 } from '../util';
 import { AccountCard } from './Account';
@@ -12,6 +13,7 @@ import { InstallCard } from './Install';
 import { Icon } from './Icon';
 import { BackupCard } from './BackupCard';
 import { ProfileCard } from './People';
+import { askSure } from './Confirm';
 
 export function Settings({ onLock }: { onLock: () => void }) {
   const [msg, setMsg] = useState('');
@@ -48,7 +50,11 @@ export function Settings({ onLock }: { onLock: () => void }) {
           {hasPass && (
             <>
               <button className="btn" onClick={onLock}>Lock now</button>
-              <button className="btn ghost danger" onClick={async () => { await db.settings.delete('passcode'); setMsg('Passcode removed.'); }}>Remove passcode</button>
+              <button className="btn ghost danger" onClick={async () => {
+                if (!(await askSure({ message: 'Remove the passcode? Paul Remembers will open on this device without asking for it.', yes: 'Yes, remove passcode', note: 'To lock it again, set a new passcode.' }))) return;
+                await db.settings.delete('passcode');
+                setMsg('Passcode removed.');
+              }}>Remove passcode</button>
             </>
           )}
         </div>
@@ -71,6 +77,7 @@ export function Settings({ onLock }: { onLock: () => void }) {
 function Journals() {
   // Journals shared with you are listed under "Share a journal"; only the owner can rename or delete one.
   const journals = useJournals()?.filter(isOwnJournal);
+  const [deleting, setDeleting] = useState<Journal>();
   const counts = useLiveQuery(async () => {
     const m = new Map<string, number>();
     await db.entries.each((e) => m.set(e.journalId, (m.get(e.journalId) ?? 0) + 1));
@@ -85,13 +92,6 @@ function Journals() {
   const recolor = async (id: string, color?: string) => {
     const i = JOURNAL_COLORS.indexOf(color ?? '');
     await updateJournal(id, { color: JOURNAL_COLORS[(i + 1) % JOURNAL_COLORS.length] });
-  };
-  const remove = async (id: string, name: string) => {
-    const others = journals.filter((j) => j.id !== id);
-    const n = counts?.get(id) ?? 0;
-    const to = others[0];
-    if (!confirm(n ? `Delete the journal "${name}"? Its ${n} ${n === 1 ? 'entry' : 'entries'} will move to "${to.name}", so nothing is lost.` : `Delete the empty journal "${name}"?`)) return;
-    await deleteJournal(id, to.id);
   };
   const add = async () => {
     const name = prompt('Name for the new journal (for example Travel or Family)');
@@ -109,11 +109,14 @@ function Journals() {
             <span className="jm-name">{j.name}</span>
             <span className="muted small">{counts ? `${counts.get(j.id) ?? 0} entries` : '…'}</span>
             <button className="btn small ghost" onClick={() => rename(j.id, j.name)}>Rename</button>
-            {journals.length > 1 && <button className="btn small ghost danger" onClick={() => remove(j.id, j.name)}>Delete</button>}
+            {journals.length > 1 && <button className="btn small ghost danger" onClick={() => setDeleting(j)}>Delete</button>}
           </li>
         ))}
       </ul>
       <button className="btn" onClick={add}><Icon name="plus" className="inline-icon" /> New journal</button>
+      {deleting && counts && (
+        <DeleteJournalDialog journal={deleting} journals={journals} entries={counts.get(deleting.id) ?? 0} onClose={() => setDeleting(undefined)} />
+      )}
     </section>
   );
 }
