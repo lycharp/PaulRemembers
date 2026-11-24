@@ -105,7 +105,7 @@ h1 { font-size: 1.7rem; }
 /* Not while writing an entry. */
 .app:has(.entry-edit) .fab { display: none; }
 /* Out of the way while writing a comment (it would cover Post on a phone). */
-.app:has(.comments textarea:focus) .fab { display: none; }
+.app:has(.comments :focus) .fab { display: none; }
 
 @media (max-width: 760px) {
   /* Nothing may be wider than the phone: on iPhone a too-wide page lets it zoom
@@ -171,6 +171,8 @@ input, textarea { font: inherit; color: inherit; }
 .entry-card { overflow: hidden; cursor: pointer; transition: transform 0.12s; }
 .entry-card:hover { transform: translateY(-1px); }
 .entry-card:focus-visible { outline: 2px solid var(--accent); }
+/* Reached with Tab: a thick ring with a small gap, so it's clear what Enter or Space will press. Only for the keyboard, not mouse clicks. */
+button:focus-visible, a:focus-visible, select:focus-visible, summary:focus-visible, [role="button"]:focus-visible, input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .card-media { position: relative; background: var(--surface-2); }
 .card-media.n2 { grid-template-columns: 1fr 1fr; }
 .card-media.n3 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
@@ -835,8 +837,7 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .comment.mine { margin-left: auto; justify-content: flex-end; }
 .comment .person-icon, .comment-write .person-icon { width: 32px; height: 32px; margin-bottom: 2px; }
 .comment > .person-icon { margin-top: 22px; }
-.comments { padding-bottom: 8px; }
-@media (max-width: 760px) { .comments { padding-bottom: 72px; } }
+.comments { padding-bottom: 72px; }
 .comment-main { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
 .comment.mine .comment-main { align-items: flex-end; }
 .comment-who { font-size: 0.75rem; color: var(--muted); margin: 0 6px 3px; }
