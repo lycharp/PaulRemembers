@@ -27,6 +27,7 @@ Newest first.
 
 | Date | Decision | PR |
 |---|---|---|
+| 2026-11-24 | Comments on entries in shared journals, as chat bubbles (layout C): yours in purple on the right, others on the left with name and icon. Always on, for anyone who can read or edit. You can edit (shows "edited") or delete your own; the journal owner can delete anyone's. 💬 count on journal cards. Comments are deleted if the journal stops being shared with everyone. Needs the latest supabase/setup.sql run once. | [#74](https://github.com/lycharp/PaulRemembers/pull/74) |
 | 2026-11-24 | Every delete or remove asks "Are you sure? This cannot be undone." in the app's own pop-up. Remove admin and Block skip the "cannot be undone" line, because they can be undone. | [#72](https://github.com/lycharp/PaulRemembers/pull/72) |
 | 2026-11-24 | Deleting a journal: first choose to move its entries to another journal, move them to "Orphaned Entries", or delete them completely. "Orphaned Entries" is made only when needed and is listed last under "System journals". | [#72](https://github.com/lycharp/PaulRemembers/pull/72) |
 | 2026-11-24 | The × on a photo, video or recording while editing also asks first. Deleting a recording keeps its transcript. | [#72](https://github.com/lycharp/PaulRemembers/pull/72) |
@@ -96,4 +97,4 @@ Newest first.
 
 | Date | Question |
 |---|---|
-| 2026-11-24 | Comments on entries in shared journals: which layout, and OK to build. |
+| | Nothing right now. |
