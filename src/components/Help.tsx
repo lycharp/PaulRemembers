@@ -45,6 +45,10 @@ const TOPICS: { q: string; a: React.ReactNode }[] = [
     a: <>In a shared journal, open an entry and select <strong>☺ +</strong> under the writing, then select ❤️ 😂 😮 😢 👍 or 👎. Everyone in the journal can react, whether they can read or edit. Select your emoji again to take it off; the ones you chose are outlined in purple. To see who chose an emoji, rest the mouse on it on a computer, or press and hold it on a phone. The counts also show on the journal cards. Reactions only show in shared journals, and they need you to be online.</>,
   },
   {
+    q: 'How do I comment on an entry?',
+    a: <>In a shared journal, open an entry and type in the <strong>Write a comment…</strong> box at the bottom, then select <strong>Post</strong> (or press Ctrl+Enter on a computer). Everyone in the journal can comment, whether they can read or edit. Your comments show in purple on the right; everyone else's show on the left with their name and icon. To change one of yours, select <strong>Edit</strong> under it; it then shows <strong>edited</strong>. To remove one of yours, select <strong>Delete</strong>. The journal's owner can delete anyone's comment. The number of comments shows on the journal cards as 💬. Comments only show in shared journals, and they need you to be online. If a journal stops being shared with everyone, its comments are deleted.</>,
+  },
+  {
     q: 'What are the little icons on entries?',
     a: <>In a shared journal, each entry shows the icon of everyone who wrote or changed it, in the order they joined in: whoever wrote it first, then each new person who edited it. Hover over an icon (or tap it on a phone) to see the name. Pick your own name and icon in <strong>Settings → Your name and icon</strong>. Your private journals don't show icons.</>,
   },

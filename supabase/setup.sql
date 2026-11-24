@@ -596,3 +596,57 @@ end $$;
 drop trigger if exists clear_reactions on public.journal_members;
 create trigger clear_reactions after delete on public.journal_members
   for each row execute function public.clear_reactions();
+
+-- ─── Comments ──────────────────────────────────────────────────────────────
+-- Comments on entries in shared journals. Everyone who can read the journal
+-- (Can read or Can edit) may write comments, and change or delete their own.
+-- The journal's owner may also delete anyone's comment.
+create table if not exists public.comments (
+  id         uuid primary key default gen_random_uuid(),
+  entry_id   text not null,
+  user_id    uuid not null default auth.uid() references auth.users on delete cascade,
+  body       text not null check (length(btrim(body)) between 1 and 2000),
+  created_at timestamptz not null default now(),
+  edited_at  timestamptz
+);
+create index if not exists comments_entry on public.comments (entry_id, created_at);
+alter table public.comments enable row level security;
+drop policy if exists "read" on public.comments;
+drop policy if exists "add own" on public.comments;
+drop policy if exists "change own" on public.comments;
+drop policy if exists "remove own or as owner" on public.comments;
+create policy "read" on public.comments for select to authenticated
+  using (entry_role(entry_id) is not null);
+create policy "add own" on public.comments for insert to authenticated
+  with check (user_id = auth.uid() and entry_role(entry_id) is not null);
+create policy "change own" on public.comments for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid() and entry_role(entry_id) is not null);
+create policy "remove own or as owner" on public.comments for delete to authenticated
+  using (user_id = auth.uid() or entry_role(entry_id) = 'owner');
+-- Only the words can be changed; the database notes when.
+revoke update on public.comments from authenticated;
+grant select, insert, delete on public.comments to authenticated;
+grant update (body) on public.comments to authenticated;
+
+create or replace function public.comment_edited() returns trigger
+language plpgsql as $$
+begin
+  if new.body is distinct from old.body then new.edited_at := now(); end if;
+  return new;
+end $$;
+drop trigger if exists comment_edited on public.comments;
+create trigger comment_edited before update on public.comments
+  for each row execute function public.comment_edited();
+
+-- When a journal is no longer shared with anyone, its comments go too (like reactions).
+create or replace function public.clear_comments() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from journal_members where journal_id = old.journal_id) then
+    delete from comments where entry_id in (select id from entries where journal_id = old.journal_id);
+  end if;
+  return null;
+end $$;
+drop trigger if exists clear_comments on public.journal_members;
+create trigger clear_comments after delete on public.journal_members
+  for each row execute function public.clear_comments();
