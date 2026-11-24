@@ -12,6 +12,7 @@ import { makePoster } from '../poster';
 import { needsShrink, shrinkVideo } from '../shrink';
 import { Dialog, ShareEntryButton } from './Sharing';
 import { Contributors } from './People';
+import { EntryReactions } from './Reactions';
 import { Loading } from './Loading';
 import { askSure } from './Confirm';
 import { cloudUser } from '../cloud/cloud';
@@ -116,6 +117,7 @@ export function EntryPage({ id }: { id?: string }) {
       <div className="entry-body">
         {e.body.split(/\n{2,}/).map((p, i) => <p key={i}><Linkified text={p} /></p>)}
       </div>
+      <EntryReactions entry={e} journal={journal} />
       <div className="entry-footer">
         {e.place && (
           <span>

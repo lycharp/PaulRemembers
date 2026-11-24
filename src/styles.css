@@ -795,3 +795,33 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .delete-choices label { align-items: flex-start; cursor: pointer; }
 .delete-choices input[type="radio"] { width: 20px; height: 20px; margin: 2px 0 0; flex: none; }
 .delete-choices select { margin-top: -6px; min-width: 0; }
+
+/* Emoji reactions */
+.card-reactions { display: inline-flex; gap: 5px; flex-wrap: wrap; }
+.card-reaction { display: inline-flex; align-items: center; gap: 3px; background: var(--surface-2); color: var(--text); border-radius: 999px; padding: 0 8px; font-weight: 600; font-size: 0.8rem; line-height: 1.6; }
+.card-reaction.mine { background: var(--accent-soft); color: var(--accent); }
+.reactions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 20px 0 4px; position: relative; }
+.reaction-wrap { position: relative; display: inline-flex; }
+.reaction, .reaction-add {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 38px; padding: 4px 12px; border-radius: 999px;
+  font: inherit; font-size: 1rem; font-weight: 600; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.reaction { border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+.reaction.mine { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.reaction-count { font-size: 0.9rem; }
+.reaction-add { border: 1px dashed var(--muted); background: transparent; color: var(--muted); font-weight: 500; }
+.reaction-add:hover, .reaction:hover { border-color: var(--accent); }
+.reaction-picker { display: inline-flex; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px 6px; box-shadow: var(--shadow); max-width: 100%; }
+.reaction-picker button { border: 0; background: transparent; font-size: 1.45rem; line-height: 1; padding: 6px 7px; border-radius: 999px; cursor: pointer; min-width: 40px; min-height: 40px; }
+.reaction-picker button:hover { background: var(--surface-2); }
+.reaction-picker button.mine { background: var(--accent-soft); }
+.reaction-who {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 20; min-width: 180px; max-width: min(280px, 80vw);
+  background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px;
+  box-shadow: 0 6px 24px rgba(30, 20, 60, 0.18); font-size: 0.9rem; font-weight: 400;
+}
+.reaction-who.right { left: auto; right: 0; }
+.reaction-who-title { font-weight: 700; margin-bottom: 6px; }
+.reaction-person { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.reaction-person span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reaction-error { flex-basis: 100%; color: var(--danger); font-size: 0.85rem; }

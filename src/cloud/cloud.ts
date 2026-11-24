@@ -6,6 +6,7 @@ import { useSyncExternalStore } from 'react';
 import { db, getSetting, setSetting } from '../db';
 import { cloudConfigured, SUPABASE_KEY, SUPABASE_URL } from './config';
 import { refreshPeople } from './people';
+import { refreshReactions } from './reactions';
 import { getState, linkDevice, pendingCount, pull, push, resetSync, sdb, setOnQueued, setState, trackChanges, withoutSync } from './sync';
 
 const LINK_VERSION = 2;
@@ -90,6 +91,8 @@ export async function syncNow(): Promise<void> {
       await pull(sb, user, onFiles);
       // Names and icons of the people you share journals with (never stops a sync).
       await refreshPeople(sb).catch((e) => console.warn('Could not load people', e));
+      // Everyone's emoji reactions on shared entries (never stops a sync either).
+      await refreshReactions(sb).catch((e) => console.warn('Could not load reactions', e));
       set({ lastSync: Date.now(), pending: await pendingCount() });
       if (refused.length) throw new Error(`the server refused ${refused.length} changes (${refused[0]})`);
       if (tooBig.length)
