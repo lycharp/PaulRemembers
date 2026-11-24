@@ -24,6 +24,9 @@ export function CardComments({ entry, journal }: { entry: Entry; journal?: Journ
   return <span className="card-reaction" aria-label={`${n} comment${n === 1 ? '' : 's'}`}>💬 {n}</span>;
 }
 
+/** A computer with a mouse or trackpad (so most likely a real keyboard), not a touch screen. */
+const hasKeyboard = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
 /** A text box that grows with what's typed. */
 function Box({ value, onChange, onSubmit, placeholder, autoFocus }: { value: string; onChange: (s: string) => void; onSubmit: () => void; placeholder: string; autoFocus?: boolean }) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -36,8 +39,16 @@ function Box({ value, onChange, onSubmit, placeholder, autoFocus }: { value: str
   return (
     <textarea ref={ref} rows={1} value={value} placeholder={placeholder} maxLength={COMMENT_MAX} autoFocus={autoFocus} aria-label={placeholder}
       onChange={(ev) => onChange(ev.target.value)}
-      // Ctrl+Enter (⌘+Enter on a Mac) posts; plain Enter starts a new line.
-      onKeyDown={(ev) => { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); onSubmit(); } }} />
+      onKeyDown={(ev) => {
+        if (ev.key !== 'Enter' || ev.shiftKey || ev.nativeEvent.isComposing) return;
+        // On a computer, Enter posts (Shift+Enter starts a new line). On a phone
+        // or tablet, Return starts a new line and you select Post; Ctrl/⌘+Enter
+        // posts anywhere.
+        if (ev.ctrlKey || ev.metaKey || hasKeyboard()) {
+          ev.preventDefault();
+          onSubmit();
+        }
+      }} />
   );
 }
 
