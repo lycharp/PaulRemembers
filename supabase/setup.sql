@@ -561,3 +561,38 @@ begin
 end $$;
 revoke execute on function public.claim_invite_send(text, text) from public, anon;
 grant execute on function public.claim_invite_send(text, text) to authenticated;
+
+-- ─── Reactions ─────────────────────────────────────────────────────────────
+-- Emoji reactions on entries in shared journals. Everyone who can read the
+-- journal (Can read or Can edit) may add and remove their own reactions.
+create table if not exists public.reactions (
+  entry_id   text not null,
+  user_id    uuid not null default auth.uid() references auth.users on delete cascade,
+  emoji      text not null check (emoji in ('❤️', '😂', '😮', '😢', '👍', '👎')),
+  created_at timestamptz not null default now(),
+  primary key (entry_id, user_id, emoji)
+);
+alter table public.reactions enable row level security;
+drop policy if exists "read" on public.reactions;
+drop policy if exists "add own" on public.reactions;
+drop policy if exists "remove own" on public.reactions;
+create policy "read" on public.reactions for select to authenticated
+  using (entry_role(entry_id) is not null);
+create policy "add own" on public.reactions for insert to authenticated
+  with check (user_id = auth.uid() and entry_role(entry_id) is not null);
+create policy "remove own" on public.reactions for delete to authenticated
+  using (user_id = auth.uid());
+grant select, insert, delete on public.reactions to authenticated;
+
+-- When a journal is no longer shared with anyone, its reactions go too.
+create or replace function public.clear_reactions() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from journal_members where journal_id = old.journal_id) then
+    delete from reactions where entry_id in (select id from entries where journal_id = old.journal_id);
+  end if;
+  return null;
+end $$;
+drop trigger if exists clear_reactions on public.journal_members;
+create trigger clear_reactions after delete on public.journal_members
+  for each row execute function public.clear_reactions();
