@@ -3,6 +3,7 @@ import { JournalSelect, useEntries } from '../journals';
 import { dayKey, wordCount } from '../util';
 import { EntryCard } from './Timeline';
 import { Icon } from './Icon';
+import { askSure } from './Confirm';
 import { removePlace, renamePlace, usePlaces } from '../places';
 
 export function Insights() {
@@ -94,12 +95,15 @@ function PlacesSection() {
     const to = prompt(`Rename "${name}" to:`, name)?.trim();
     if (!to || to === name) return;
     const merging = places.some((p) => p.name.toLowerCase() === to.toLowerCase() && p.name !== name);
-    if (merging && !confirm(`"${to}" is already a place. Merge "${name}" into it?`)) return;
+    if (merging && !(await askSure({ message: `"${to}" is already a place. Merge "${name}" into it? Entries that use "${name}" will use "${to}" instead.`, yes: 'Yes, merge' }))) return;
     const n = await renamePlace(name, to);
     setMsg(`Updated ${n} ${n === 1 ? 'entry' : 'entries'}.`);
   };
   const remove = async (name: string, count: number) => {
-    if (!confirm(`Remove "${name}" from ${count === 1 ? 'the entry that uses it' : `all ${count} entries that use it`}? The entries themselves are kept.`)) return;
+    if (!(await askSure({
+      message: `Remove the place "${name}" from ${count === 1 ? 'the entry that uses it' : `all ${count} entries that use it`}? The entries themselves are kept.`,
+      yes: 'Yes, remove place',
+    }))) return;
     const n = await removePlace(name);
     setMsg(`Removed "${name}" from ${n} ${n === 1 ? 'entry' : 'entries'}.`);
   };

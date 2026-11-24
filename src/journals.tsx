@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './components/Icon';
 import { rememberJournalOnline } from './cloud/cloud';
-import { db, getSetting, isOwnJournal, isWritableJournal, listJournals, setSetting, type Entry, type Journal } from './db';
+import { db, getSetting, isOwnJournal, isSystemJournal, isWritableJournal, listJournals, setSetting, type Entry, type Journal } from './db';
 import { nameOf, usePeople, type Person } from './cloud/people';
 import { FitLine, PersonIcon } from './components/People';
 
@@ -105,9 +105,13 @@ export function JournalMark({ journal }: { journal?: Journal }) {
   return owner ? <PersonIcon id={owner.id} person={owner} /> : <JournalDot color={journal?.color} />;
 }
 
-/** Your own journals first, then the ones shared with you. */
-export function splitJournals<J extends Journal>(journals: J[]): { mine: J[]; shared: J[] } {
-  return { mine: journals.filter(isOwnJournal), shared: journals.filter((j) => !isOwnJournal(j)) };
+/** Your own journals first, then the ones shared with you, then System journals ("Orphaned Entries", only once it exists). */
+export function splitJournals<J extends Journal>(journals: J[]): { mine: J[]; shared: J[]; system: J[] } {
+  return {
+    mine: journals.filter((j) => isOwnJournal(j) && !isSystemJournal(j)),
+    shared: journals.filter((j) => !isOwnJournal(j)),
+    system: journals.filter(isSystemJournal),
+  };
 }
 
 /** The little "shared" sign after a journal's name: shared with you, or one of yours you've shared. */
@@ -193,7 +197,7 @@ export function JournalSelect({ className = '' }: { className?: string }) {
     };
   }, [open]);
   if (!journals || journals.length < 2) return null;
-  const { mine, shared } = splitJournals(journals);
+  const { mine, shared, system } = splitJournals(journals);
   const pick = (c: string) => {
     setCurrent(c);
     setOpen(false);
@@ -218,6 +222,8 @@ export function JournalSelect({ className = '' }: { className?: string }) {
             {mine.map(row)}
             {shared.length > 0 && <div className="journal-list-head">Shared with me</div>}
             {shared.map(row)}
+            {system.length > 0 && <div className="journal-list-head">System journals</div>}
+            {system.map(row)}
             <button className="btn sheet-close" onClick={() => setOpen(false)}>Close</button>
           </div>
         </div>,

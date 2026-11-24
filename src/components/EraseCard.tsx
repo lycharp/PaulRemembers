@@ -148,16 +148,22 @@ function ConfirmDialog({ action, signedIn, all, journals, skipped, entries, onCl
     }
   };
 
-  const title = action === 'delete' ? `Delete ${what} for good?` : `Erase local journal data for ${what}?`;
+  const question = action === 'delete' ? `Delete ${what} for good?` : `Erase local journal data for ${what}?`;
+  // Erasing while signed in can be undone: everything downloads again at the next sign-in.
+  const final = action === 'delete' || !signedIn;
   return (
-    <Dialog title={title} onClose={onClose}>
-      <p>
-        {action === 'delete'
-          ? <>This deletes {n} with their photos and recordings from this computer, from your account online, from your other devices, and for anyone the journal is shared with. It also stops sharing it, so if you restore it later from a backup, you choose who to share it with again. It cannot be undone.</>
-          : signedIn
-            ? <>This removes {n} from this computer and signs you out. Your account keeps everything online, and it all downloads again when you sign in here.</>
-            : <>This removes {n} from this computer. You are not signed in, so this is the only copy: without a backup, they are gone for good.</>}
-      </p>
+    <Dialog title="Are you sure?" onClose={onClose}>
+      <div className="sure-text">
+        <p>
+          <strong>{question}</strong>{' '}
+          {action === 'delete'
+            ? <>This deletes {n} with their photos and recordings from this computer, from your account online, from your other devices, and for anyone the journal is shared with. It also stops sharing it, so if you restore it later from a backup, you choose who to share it with again.</>
+            : signedIn
+              ? <>This removes {n} from this computer and signs you out. Your account keeps everything online, and it all downloads again when you sign in here.</>
+              : <>This removes {n} from this computer. You are not signed in, so this is the only copy: without a backup, they are gone for good.</>}
+        </p>
+        {final && <p><strong>This cannot be undone.</strong></p>}
+      </div>
       {skipped.length > 0 && <p className="muted small">Journals others shared with you ({skipped.map((j) => j.name).join(', ')}) are not deleted. Only their owner can do that.</p>}
       <p className="muted small"><strong>Step 1:</strong> download a backup, so you can bring {all ? 'them' : 'it'} back later with Restore from backup.</p>
       <div className="row">

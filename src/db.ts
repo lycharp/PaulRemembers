@@ -19,6 +19,8 @@ export interface Journal {
   ownerEmail?: string;
   /** Your access: someone else's journal shared with you is 'editor' or 'viewer'. */
   role?: 'owner' | 'editor' | 'viewer';
+  /** A journal the app made for you: 'orphans' is "Orphaned Entries" (see orphansJournal). */
+  system?: 'orphans';
 }
 
 export interface Entry {
@@ -37,6 +39,8 @@ export interface Entry {
   place?: Place;
   /** Ordered ids into the media table. */
   mediaIds: string[];
+  /** Transcripts kept after their voice recording was deleted from the entry. */
+  transcripts?: string[];
   /** Set for imported entries so a re-import does not create duplicates. */
   sourceKey?: string;
   /**
@@ -121,19 +125,32 @@ export async function deleteEntry(id: string) {
   });
 }
 
-/** Every journal, oldest first. There is always at least one. */
+/** Every journal, oldest first, with "Orphaned Entries" last. There is always at least one. */
 export async function listJournals(): Promise<Journal[]> {
-  return (await db.journals.toArray()).sort((a, b) => a.createdAt - b.createdAt);
+  return (await db.journals.toArray()).sort((a, b) => Number(isSystemJournal(a)) - Number(isSystemJournal(b)) || a.createdAt - b.createdAt);
 }
 
 /** Yours, as opposed to one someone else shared with you. */
 export const isOwnJournal = (j: Journal) => !j.role || j.role === 'owner';
+/** Your "Orphaned Entries" journal (listed last, under System journals). */
+export const isSystemJournal = (j: Journal) => !!j.system && isOwnJournal(j);
+export const ORPHANS_NAME = 'Orphaned Entries';
+
+/** Your "Orphaned Entries" journal, made the first time entries are moved there. */
+export async function orphansJournal(): Promise<Journal> {
+  const found = (await listJournals()).find((j) => isSystemJournal(j) && j.system === 'orphans');
+  if (found) return found;
+  const now = Date.now();
+  const journal: Journal = { id: newId(), name: ORPHANS_NAME, color: '#8d8d99', system: 'orphans', createdAt: now, updatedAt: now };
+  await db.journals.add(journal);
+  return journal;
+}
 /** You can add and change entries in it. */
 export const isWritableJournal = (j: Journal) => j.role !== 'viewer';
 
 /** The journal new entries go to when none is chosen: your oldest one. */
 export async function defaultJournalId(): Promise<string> {
-  const all = (await listJournals()).filter(isOwnJournal);
+  const all = (await listJournals()).filter((j) => isOwnJournal(j) && !isSystemJournal(j));
   if (all.length) return all[0].id;
   return (await createJournal(DEFAULT_JOURNAL_NAME)).id;
 }

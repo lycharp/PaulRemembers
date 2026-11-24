@@ -3,8 +3,8 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type C
 import { db, type Media } from '../db';
 import { useMediaUrl } from '../util';
 import { backfillPoster } from '../poster';
-import { Dialog } from './Sharing';
 import { Icon } from './Icon';
+import { askSure } from './Confirm';
 
 /** A video's snapshot: the saved one, or one made now for a video added before snapshots existed. */
 function usePoster(media: Media | undefined) {
@@ -253,6 +253,31 @@ export function AudioTranscript({ id }: { id: string }) {
   );
 }
 
+/**
+ * A transcript whose voice recording was deleted: the words stay with the entry
+ * (Entry.transcripts). While editing, it can be added to the text or deleted.
+ */
+export function KeptTranscript({ text, onDelete, onAddToEntry }: { text: string; onDelete?: () => void; onAddToEntry?: (text: string) => void }) {
+  const [added, setAdded] = useState(false);
+  return (
+    <div className="transcript">
+      <strong className="transcript-head"><Icon name="mic" className="audio-mark" /> Transcript <span className="muted small">· recording deleted</span></strong>
+      <div className="row transcript-tools">
+        <CopyButton text={text} />
+        {onAddToEntry && (
+          <button type="button" className="btn small" disabled={added} onClick={() => { onAddToEntry(text); setAdded(true); }}>{added ? 'Added ✓' : 'Add to entry'}</button>
+        )}
+        {onDelete && (
+          <button type="button" className="btn small danger" onClick={async () => {
+            if (await askSure({ message: 'Delete this transcript? Its voice recording was already deleted, so these words will be gone.', yes: 'Yes, delete transcript' })) onDelete();
+          }}>Delete</button>
+        )}
+      </div>
+      <p>{text}</p>
+    </div>
+  );
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -281,7 +306,6 @@ export function EditTranscript({ id, pending, value, onChange, onBusy, onAddToEn
   const media = pending ?? saved;
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [added, setAdded] = useState(false);
   if (!media || media.kind !== 'audio') return null;
   const text = value ?? media.transcript ?? '';
@@ -314,17 +338,12 @@ export function EditTranscript({ id, pending, value, onChange, onBusy, onAddToEn
                 onClick={() => { onAddToEntry(text); setAdded(true); }}>{added ? 'Added ✓' : 'Add to entry'}</button>
             )}
             <button type="button" className="btn small" onClick={run} disabled={!!busy}>Redo</button>
-            <button type="button" className="btn small danger" onClick={() => setConfirmDelete(true)} disabled={!!busy}>Delete</button>
+            <button type="button" className="btn small danger" disabled={!!busy} onClick={async () => {
+              if (!(await askSure({ message: 'Delete this transcript? Only the written words are removed. The voice recording stays in the entry.', yes: 'Yes, delete transcript' }))) return;
+              setAdded(false);
+              onChange('');
+            }}>Delete</button>
           </div>
-          {confirmDelete && (
-            <Dialog title="Delete this transcript?" onClose={() => setConfirmDelete(false)}>
-              <p className="muted">Only the written words are removed. The voice recording stays in the entry.</p>
-              <div className="row">
-                <button type="button" className="btn delete-btn" onClick={() => { setConfirmDelete(false); setAdded(false); onChange(''); }}>Delete</button>
-                <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>Keep</button>
-              </div>
-            </Dialog>
-          )}
           <p>{text}</p>
         </>
       ) : (
