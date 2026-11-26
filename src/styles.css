@@ -853,3 +853,12 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-
 .comment-write .btn { flex: none; }
 .comment-error { color: var(--danger); font-size: 0.85rem; margin-top: 6px; }
 .comment.mine .entry-link { color: inherit; }
+
+/* Password box with eye button */
+.pw-wrap { position: relative; display: flex; }
+.pw-wrap input { flex: 1; width: 100%; padding-right: 48px !important; }
+.pw-wrap input::-ms-reveal, .pw-wrap input::-ms-clear { display: none; }
+.pw-eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--muted); border-radius: 8px; cursor: pointer; padding: 0; }
+.pw-eye:hover { color: var(--text); }
+.pw-eye .icon { width: 22px; height: 22px; }
+.lock .pw-wrap input { padding-left: 48px !important; }

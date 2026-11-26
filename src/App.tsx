@@ -1,3 +1,4 @@
+import { PasswordInput } from './components/PasswordInput';
 import { useEffect, useState } from 'react';
 import { createJournal, getSetting } from './db';
 import { JournalMark, SharedSign, splitJournals, useCanWriteHere, useCurrentJournal, useJournalLabel, useJournals } from './journals';
@@ -210,7 +211,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     <form className="lock" onSubmit={submit}>
       <img src="./icon.svg" alt="" width={72} />
       <h2>{APP_NAME} is locked</h2>
-      <input type="password" autoFocus placeholder="Passcode" value={code} onChange={(e) => (setCode(e.target.value), setWrong(false))} />
+      <PasswordInput autoFocus placeholder="Passcode" value={code} onChange={(e) => (setCode(e.target.value), setWrong(false))} />
       {wrong && <p className="error-text">That passcode is not right.</p>}
       <button className="btn primary">Unlock</button>
     </form>

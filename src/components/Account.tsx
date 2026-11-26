@@ -1,3 +1,4 @@
+import { PasswordInput } from './PasswordInput';
 import { useEffect, useState } from 'react';
 import { SUPABASE_KEY, SUPABASE_URL } from '../cloud/config';
 import { appUrl, keepSignedIn, NOT_INVITED_SIGNUP, replaceOtherAccount, setKeepSignedIn, setRecovering, signOut, supabase, syncNow, useCloud } from '../cloud/cloud';
@@ -181,7 +182,7 @@ export function SignIn({ join }: { join?: string }) {
       )}
       <input type="email" required autoComplete="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
       {mode !== 'forgot' && (
-        <input type="password" required minLength={6} autoComplete={mode === 'up' ? 'new-password' : 'current-password'}
+        <PasswordInput required minLength={6} autoComplete={mode === 'up' ? 'new-password' : 'current-password'}
           placeholder={mode === 'up' ? 'Choose a password (6+ characters)' : 'Password'} value={password} onChange={(e) => setPassword(e.target.value)} />
       )}
       {mode !== 'forgot' && (
@@ -220,7 +221,7 @@ function NewPassword() {
   return (
     <form className="auth card pad" onSubmit={submit}>
       <h2>Choose a new password</h2>
-      <input type="password" required minLength={6} autoComplete="new-password" placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <PasswordInput required minLength={6} autoComplete="new-password" placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} />
       <button className="btn primary">Save password</button>
       {msg && <div className={`notice ${msg.ok ? 'ok' : 'error'}`}>{msg.text}</div>}
     </form>
